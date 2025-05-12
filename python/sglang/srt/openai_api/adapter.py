@@ -1769,6 +1769,7 @@ async def v1_chat_completions(
                     usage=usage,
                 )
                 yield f"data: {final_usage_chunk.model_dump_json()}\n\n"
+                start_time = time.time()
                 otel_provider.record(
                     "sglang_chat_completion",
                     raw_request.headers,
@@ -1814,7 +1815,7 @@ async def v1_chat_completions(
         tool_call_parser=tokenizer_manager.server_args.tool_call_parser,
         reasoning_parser=tokenizer_manager.server_args.reasoning_parser,
     )
-
+    start_time = time.time()
     otel_provider.record(
         "sglang_chat_completion",
         raw_request.headers,
