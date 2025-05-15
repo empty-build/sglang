@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+import time
 from typing import TYPE_CHECKING, List, Optional
 
 import torch
@@ -137,6 +138,8 @@ class PrefillBootstrapQueue:
         """pop the reqs which has finished bootstrapping"""
         bootstrapped_reqs = []
         indices_to_remove = set()
+
+
 
         if len(self.queue) == 0:
             return []
@@ -298,6 +301,7 @@ class SchedulerDisaggregationPrefillMixin:
         )
 
         # Transfer kv for prefill completed requests and add it into disagg_prefill_infight_queue
+        t = time.perf_counter()
         if self.enable_overlap:
             # wait
             _, next_token_ids = self.tp_worker.resolve_batch_result(bid)
@@ -306,6 +310,9 @@ class SchedulerDisaggregationPrefillMixin:
 
         if self.disagg_launch_done is not None:
             self.disagg_launch_done.clear()
+
+        print(f"sample request: {time.perf_counter() - t:.2f} seconds")
+        t = time.perf_counter()
 
         for req, next_token_id in zip(batch.reqs, next_token_ids, strict=True):
             req: Req
@@ -321,6 +328,7 @@ class SchedulerDisaggregationPrefillMixin:
 
                 if self.enable_overlap:
                     self.send_kv_chunk(req, end_idx=req.tmp_end_idx)
+            print(f"send kv_chunk outter: {time.perf_counter() - t:.2f} seconds")
 
     def process_disagg_prefill_inflight_queue(self: Scheduler) -> None:
         """
