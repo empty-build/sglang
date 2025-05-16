@@ -105,3 +105,9 @@ def kv_to_page_indices(kv_indices: np.ndarray, page_size: int):
 def kv_to_page_num(num_kv_indices: int, page_size: int):
     # ceil(num_kv_indices / page_size)
     return (num_kv_indices + page_size - 1) // page_size
+
+
+def is_mla_backend(target_kv_pool) -> bool:
+    from sglang.srt.mem_cache.memory_pool import MLATokenToKVPool
+
+    return isinstance(target_kv_pool, MLATokenToKVPool)
