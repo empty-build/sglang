@@ -247,6 +247,7 @@ class ForwardBatch:
     tbo_split_seq_index: Optional[int] = None
     can_run_dp_cuda_graph: bool = False
     global_forward_mode: Optional[ForwardMode] = None
+    num_token_non_padded: Optional[torch.Tensor] = None  # scalar tensor
 
     # Speculative decoding
     spec_info: Optional[Union[EagleVerifyInput, EagleDraftInput]] = None
@@ -303,6 +304,9 @@ class ForwardBatch:
             capture_hidden_mode=batch.capture_hidden_mode,
             input_embeds=batch.input_embeds,
             extend_input_logprob_token_ids_gpu=extend_input_logprob_token_ids_gpu,
+            num_token_non_padded=torch.tensor(
+                len(batch.input_ids), dtype=torch.int32
+            ).to(device, non_blocking=True),
         )
 
         # For DP attention
