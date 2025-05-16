@@ -1128,7 +1128,7 @@ class ModelRunner:
         self, forward_batch: ForwardBatch, skip_attn_backend_init: bool
     ) -> LogitsProcessorOutput:
         print(
-            f"hi forward_raw tp_rank={get_tensor_model_parallel_rank()} {forward_batch.forward_mode=} {forward_batch.batch_size=} {forward_batch.tbo_split_seq_index=} {forward_batch.seq_lens_sum=} {self.forward_pass_id=}"
+            f"hi forward_raw tp_rank={get_tensor_model_parallel_rank()} {forward_batch.global_num_tokens_cpu} {forward_batch.forward_mode=} {forward_batch.batch_size=} {forward_batch.tbo_split_seq_index=} {forward_batch.seq_lens_sum=} {self.forward_pass_id=}"
         )
         if (
             forward_batch.forward_mode.is_cuda_graph()
