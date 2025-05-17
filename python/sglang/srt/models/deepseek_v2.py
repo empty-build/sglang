@@ -1493,9 +1493,8 @@ class DeepseekV2ForCausalLM(nn.Module):
             ):
                 self.n_share_experts_fusion = 0
                 global_server_args_dict["n_share_experts_fusion"] = 0
-                log_info_on_rank0(
-                    logger,
-                    "Only Deepseek V3/R1 on NV-platform can use shared experts fusion optimization. Shared experts fusion optimization is disabled.",
+                logger.info(
+                    f"Only Deepseek V3/R1 on NV-platform can use shared experts fusion optimization. Shared experts fusion optimization is disabled."
                 )
             else:
                 assert (
@@ -1511,9 +1510,8 @@ class DeepseekV2ForCausalLM(nn.Module):
             ):
                 self.n_share_experts_fusion = self.tp_size
                 global_server_args_dict["n_share_experts_fusion"] = self.tp_size
-                log_info_on_rank0(
-                    logger,
-                    "Deepseek V3/R1 with fp8 can use shared experts fusion optimization when SM version >=90. Shared experts fusion optimization is enabled.",
+                logger.info(
+                    f"Deepseek V3/R1 with fp8 can use shared experts fusion optimization when SM version >=90. Shared experts fusion optimization is enabled."
                 )
 
     def get_input_embeddings(self) -> nn.Embedding:
@@ -1684,13 +1682,13 @@ class DeepseekV2ForCausalLM(nn.Module):
         if self.n_share_experts_fusion > 0:
             weights_list = list(weights)
             weights_dict = dict(weights_list)
-            log_info_on_rank0(logger, f"n_share_experts_fusion: {self.n_share_experts_fusion}")
-            log_info_on_rank0(logger, f"Model architecture: {self.config.architectures[0]}")
-            log_info_on_rank0(logger, f"Number of routed experts: {self.config.n_routed_experts}")
-            log_info_on_rank0(logger, f"First k dense replace: {self.config.first_k_dense_replace}")
-            log_info_on_rank0(logger, f"MoE layer frequency: {self.config.moe_layer_freq}")
-            log_info_on_rank0(logger, f"Number of hidden layers: {self.config.num_hidden_layers}")
-            log_info_on_rank0(logger, f"Available weight keys: {list(weights_dict.keys())[:10]}...")
+            logger.info(f"n_share_experts_fusion: {self.n_share_experts_fusion}")
+            logger.info(f"Model architecture: {self.config.architectures[0]}")
+            logger.info(f"Number of routed experts: {self.config.n_routed_experts}")
+            logger.info(f"First k dense replace: {self.config.first_k_dense_replace}")
+            logger.info(f"MoE layer frequency: {self.config.moe_layer_freq}")
+            logger.info(f"Number of hidden layers: {self.config.num_hidden_layers}")
+            logger.info(f"Available weight keys: {list(weights_dict.keys())[:10]}...")
             
             if self.quant_config is None or self.quant_config.get_name() == "w8a8_int8":
                 suffix_list = [
@@ -1727,14 +1725,14 @@ class DeepseekV2ForCausalLM(nn.Module):
                 desc=f"Cloning {self.n_share_experts_fusion} "
                 "replicas of the shared expert into MoE",
             ):
-                log_info_on_rank0(logger, f"Processing MoE layer {moe_layer}")
+                logger.info(f"Processing MoE layer {moe_layer}")
                 for suffix in suffix_list:
                     shared_expert_weight_name = (
                         f"model.layers.{moe_layer}.mlp.shared_experts.{suffix}"
                     )
-                    log_info_on_rank0(logger, f"Looking for weight: {shared_expert_weight_name}")
+                    logger.info(f"Looking for weight: {shared_expert_weight_name}")
                     if shared_expert_weight_name not in weights_dict:
-                        log_info_on_rank0(logger, f"Warning: Weight {shared_expert_weight_name} not found in weights_dict")
+                        logger.info(f"Warning: Weight {shared_expert_weight_name} not found in weights_dict")
                         continue
                     for num_repeat in range(self.n_share_experts_fusion):
                         weights_list.append(
