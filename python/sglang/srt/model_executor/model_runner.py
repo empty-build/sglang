@@ -1135,18 +1135,9 @@ class ModelRunner:
             and self.cuda_graph_runner
             and self.cuda_graph_runner.can_run(forward_batch)
         ):
-            print(
-                f"hi forward_raw tp_rank={get_tensor_model_parallel_rank()} {forward_batch.global_num_tokens_cpu} {forward_batch.forward_mode=} {forward_batch.batch_size=} {forward_batch.tbo_split_seq_index=} {forward_batch.seq_lens_sum=} {self.forward_pass_id=}"
-            )
             return self.cuda_graph_runner.replay(
                 forward_batch, skip_attn_backend_init=skip_attn_backend_init
             )
-        print(
-            f"hi forward_raw tp_rank={get_tensor_model_parallel_rank()} {forward_batch.global_num_tokens_cpu} {forward_batch.forward_mode=} {forward_batch.batch_size=} {forward_batch.tbo_split_seq_index=} {forward_batch.seq_lens_sum=} {self.forward_pass_id=}"
-        )
-        print(
-            f"hi [hanhan] graph not run"
-        )
 
         if not forward_batch.forward_mode.is_extend():
             print(

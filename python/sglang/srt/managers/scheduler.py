@@ -204,10 +204,10 @@ class Scheduler(
         self.gpu_id = gpu_id
         self.enable_hierarchical_cache = server_args.enable_hierarchical_cache
         self.page_size = server_args.page_size
-
+        
         #self.waiting_queue: List[Req] = []
         #self.running_batch: ScheduleBatch = ScheduleBatch(reqs=[], batch_is_full=False)
-
+        
         # Distributed rank info
         self.dp_size = server_args.dp_size
         self.attn_tp_rank, self.attn_tp_size, self.attn_dp_rank = (
