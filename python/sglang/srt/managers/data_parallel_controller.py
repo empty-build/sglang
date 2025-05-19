@@ -19,6 +19,7 @@ import signal
 import threading
 from enum import Enum, auto
 from typing import Optional
+
 import heapq
 import psutil
 import setproctitle
@@ -115,6 +116,7 @@ class DataParallelController:
                     dp_port_args[dp_rank].scheduler_input_ipc_name,
                     True,
                 )
+
             if self.load_balance_method == LoadBalanceMethod.SHORTEST_QUEUE:
                 # no need to lock here, because we read & write in the same thread
                 self.dp_workload_status = [WorkerPayloadStatus(0, 0) for _ in range(server_args.dp_size)]
