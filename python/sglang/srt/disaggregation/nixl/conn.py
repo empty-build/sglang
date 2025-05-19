@@ -30,6 +30,8 @@ from sglang.srt.disaggregation.utils import DisaggregationMode
 from sglang.srt.server_args import ServerArgs
 from sglang.srt.utils import get_free_port, get_ip, get_local_ip_by_remote
 
+from .kv_rearrange import rearrange_tensors
+
 logger = logging.getLogger(__name__)
 
 
@@ -357,6 +359,7 @@ class NixlKVSender(BaseKVSender):
         index_slice: slice,
         is_last: bool,
     ):
+        print(f"send kv indices bytes: {kv_indices.tobytes()}")
         new_xfer_handles = self.kv_mgr.add_transfer_request(
             self.bootstrap_room,
             kv_indices,
@@ -453,6 +456,7 @@ class NixlKVReceiver(BaseKVReceiver):
         packed_aux_data_ptrs = b"".join(
             struct.pack("Q", ptr) for ptr in self.kv_mgr.kv_args.aux_data_ptrs
         )
+        print(f"recv kv indices bytes: {kv_indices.tobytes()}")
         self._connect("tcp://" + self.prefill_server_url).send_multipart(
             [
                 str(self.bootstrap_room).encode("ascii"),
@@ -489,7 +493,9 @@ class NixlKVBootstrapServer(BaseKVBootstrapServer):
         self.store = dict()
         self.lock = asyncio.Lock()
         self._setup_routes()
-        self.prefill_port_table: Dict[int, Dict[str, Union[str, int]]] = {}
+        self.dp_size = None
+        self.tp_size_per_dp_rank = None
+        self.prefill_port_table: Dict[int, Dict[int, Dict[str, Union[str, int]]]] = {}
 
         # Start bootstrap server
         self.thread = threading.Thread(target=self._run_server, daemon=True)
@@ -559,14 +565,32 @@ class NixlKVBootstrapServer(BaseKVBootstrapServer):
     async def _handle_route_put(self, request: web.Request):
         data = await request.json()
         role = data["role"]
+        tp_size = data["tp_size"]
+        dp_size = data["dp_size"]
         rank_ip = data["rank_ip"]
         rank_port = int(data["rank_port"])
         engine_rank = int(data["engine_rank"])
         agent_name = data["agent_name"]
 
+        if self.dp_size is None:
+            self.dp_size = dp_size
+        
+        tp_size_per_dp_rank = tp_size // dp_size
+        if self.tp_size_per_dp_rank is None:
+            self.tp_size_per_dp_rank = tp_size_per_dp_rank
+        
+
         # Add lock to make sure thread-safe
         if role == "Prefill":
-            self.prefill_port_table[engine_rank] = {
+            dp_group = engine_rank // tp_size_per_dp_rank
+            tp_rank_in_dp_group = engine_rank % tp_size_per_dp_rank
+
+            async with self.lock:
+                if dp_group not in self.prefill_port_table:
+                    self.prefill_port_table[dp_group] = {}
+
+
+            self.prefill_port_table[dp_group][tp_rank_in_dp_group] = {
                 "rank_ip": rank_ip,
                 "rank_port": rank_port,
                 "agent_name": agent_name,
@@ -579,16 +603,22 @@ class NixlKVBootstrapServer(BaseKVBootstrapServer):
 
     async def _handle_route_get(self, request: web.Request):
         engine_rank = request.query.get("engine_rank")
-        if not engine_rank:
+        target_dp_group = request.query.get("target_dp_group")
+        if not engine_rank or not target_dp_group:
             return web.Response(text="Missing rank", status=400)
 
         # Find corresponding prefill info
+        tp_rank_in_dp_group = int(engine_rank) % self.tp_size_per_dp_rank
+
         async with self.lock:
-            bootstrap_info = self.prefill_port_table.get(int(engine_rank))
+            bootstrap_info = self.prefill_port_table[int(target_dp_group)][
+                tp_rank_in_dp_group
+            ]
+
         if bootstrap_info is not None:
             return web.json_response(bootstrap_info, status=200)
         else:
-            return web.Response(text="Not Found", status=404)
+            return web.Response(text="Bootstrap info not Found", status=404)
 
     def _run_server(self):
         try:
