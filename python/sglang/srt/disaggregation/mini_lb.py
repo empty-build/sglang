@@ -197,7 +197,10 @@ async def get_model_info():
 
 @app.post("/generate")
 async def handle_generate_request(request_data: dict):
+    logger.info(f"Received generate request: {orjson.dumps(request_data, option=orjson.OPT_NON_STR_KEYS).decode()}")
+    
     prefill_server, bootstrap_port, decode_server = load_balancer.select_pair()
+    logger.info(f"Selected servers - Prefill: {prefill_server}, Bootstrap port: {bootstrap_port}, Decode: {decode_server}")
 
     # Parse and transform prefill_server for bootstrap data
     parsed_url = urllib.parse.urlparse(prefill_server)
@@ -205,6 +208,8 @@ async def handle_generate_request(request_data: dict):
     modified_request = request_data.copy()
 
     batch_size = _get_request_batch_size(modified_request)
+    logger.info(f"Request batch size: {batch_size}")
+    
     if batch_size is not None:
         modified_request.update(
             {
@@ -223,12 +228,17 @@ async def handle_generate_request(request_data: dict):
                 "bootstrap_room": _generate_bootstrap_room(),
             }
         )
+    
+    logger.info(f"Modified request with bootstrap info: {orjson.dumps(modified_request, option=orjson.OPT_NON_STR_KEYS).decode()}")
+    logger.info(f"Stream mode: {request_data.get('stream', False)}")
 
     if request_data.get("stream", False):
+        logger.info("Starting streaming response")
         return await load_balancer.generate_stream(
             modified_request, prefill_server, decode_server, "generate"
         )
     else:
+        logger.info("Starting non-streaming response")
         return await load_balancer.generate(
             modified_request, prefill_server, decode_server, "generate"
         )
