@@ -303,7 +303,7 @@ class DeepseekV2MoE(nn.Module):
         self, hidden_states: torch.Tensor, forward_batch: Optional[ForwardBatch] = None
     ) -> torch.Tensor:
         if (not self._enable_deepep_moe) or is_non_idle_and_non_empty(
-            forward_mode, hidden_states
+            forward_batch.forward_mode, hidden_states
         ):
             # router_logits: (num_tokens, n_experts)
             router_logits = self.gate(hidden_states)
@@ -312,7 +312,7 @@ class DeepseekV2MoE(nn.Module):
 
         if (self.n_share_experts_fusion == 0) and (
             (not self._enable_deepep_moe)
-            or is_non_idle_and_non_empty(forward_mode, hidden_states)
+            or is_non_idle_and_non_empty(forward_batch.forward_mode, hidden_states)
         ):
             shared_output = self.shared_experts(hidden_states)
         else:
