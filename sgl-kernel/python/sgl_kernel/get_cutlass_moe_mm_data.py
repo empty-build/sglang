@@ -37,7 +37,7 @@ def cutlass_moe_mm(out_tensors: torch.Tensor, a_tensors: torch.Tensor,
                    b_tensors: torch.Tensor, a_scales: torch.Tensor,
                    b_scales: torch.Tensor, expert_offsets: torch.Tensor,
                    problem_sizes: torch.Tensor, a_strides: torch.Tensor,
-                   b_strides: torch.Tensor, c_strides: torch.Tensor):
+                   b_strides: torch.Tensor, c_strides: torch.Tensor, kernel_id :int):
     """
     A single grouped matrix multiplication used in CUTLASS-based fused MoE.
     The function executes fp8-quantized OUT = AB matrix multiplication.
@@ -54,6 +54,6 @@ def cutlass_moe_mm(out_tensors: torch.Tensor, a_tensors: torch.Tensor,
     #                             a_strides, b_strides, c_strides)    
     torch.ops.sgl_kernel.cutlass_moe_mm.default(out_tensors, a_tensors, b_tensors, a_scales,
                                         b_scales, expert_offsets, problem_sizes,
-                                        a_strides, b_strides, c_strides)
+                                        a_strides, b_strides, c_strides, kernel_id)
 
 

@@ -6,6 +6,8 @@ import torch
 
 from vllm import _custom_ops as ops # TODO
 from sgl_kernel import silu_and_mul
+DEEPSEEK_TP8_OP1_LABEL = 112121 
+DEEPSEEK_TP8_OP2_LABEL = 142121 
 
 # Functions that require adjustment for integrating vLLM’s code into sglang.
 # ops.scaled_fp8_quant() -> scaled_fp8_quant # ref: fused_moe()
@@ -232,7 +234,7 @@ def cutlass_moe_fp8(
     #                    ab_strides1, c_strides1)
     cutlass_moe_mm(c1, rep_a_q, w1_q, rep_a1_scales, w1_scale,
                        expert_offsets[:-1], problem_sizes1, ab_strides1,
-                       ab_strides1, c_strides1)
+                       ab_strides1, c_strides1, DEEPSEEK_TP8_OP1_LABEL)
 
 
     intermediate = torch.empty((m * topk, n), device=device, dtype=out_dtype)
@@ -280,7 +282,7 @@ def cutlass_moe_fp8(
     #                    ab_strides2, c_strides2)
     cutlass_moe_mm(c2, intemediate_q, w2_q, a2_scale, w2_scale,
                        expert_offsets[:-1], problem_sizes2, ab_strides2,
-                       ab_strides2, c_strides2)
+                       ab_strides2, c_strides2, DEEPSEEK_TP8_OP2_LABEL)
     # Gather tokens
     c2 = c2[c_map].view(m, topk, k)
     if not apply_router_weight_on_input:

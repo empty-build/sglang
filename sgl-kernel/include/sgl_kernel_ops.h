@@ -286,7 +286,7 @@ void cutlass_moe_mm(
     torch::Tensor const& b_tensors, torch::Tensor const& a_scales,
     torch::Tensor const& b_scales, torch::Tensor const& expert_offsets,
     torch::Tensor const& problem_sizes, torch::Tensor const& a_strides,
-    torch::Tensor const& b_strides, torch::Tensor const& c_strides);
+    torch::Tensor const& b_strides, torch::Tensor const& c_strides, const int64_t force_kernel_id);
 
 /*
  * From FlashInfer
