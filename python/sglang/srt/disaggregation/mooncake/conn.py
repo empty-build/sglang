@@ -282,6 +282,11 @@ class MooncakeKVManager(BaseKVManager):
                     # Note(shangming): might need to assert MLA is used when prefill instances and decode instances have different tp_size_per_dp_rank
                     reqs_to_be_processed = self.transfer_infos[kv_chunk.room].values()
                     for req in reqs_to_be_processed:
+                        if req.is_dummy:
+                            if kv_chunk.is_last:
+                                self.request_status[req.room] = KVPoll.Success
+                                self.transfer_infos.pop(req.room)
+                            continue
                         chunked_dst_kv_indice = req.dst_kv_indices[kv_chunk.index_slice]
                         assert len(chunked_dst_kv_indice) == len(
                             kv_chunk.prefill_kv_indices
