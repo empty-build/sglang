@@ -122,7 +122,6 @@ class NixlKVManager(BaseKVManager):
         args: KVArgs,
         disaggregation_mode: DisaggregationMode,
         server_args: ServerArgs,
-        is_mla_backend: Optional[bool] = False,
     ):
         try:
             from nixl._api import nixl_agent

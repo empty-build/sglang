@@ -37,7 +37,6 @@ class BaseKVManager(ABC):
         args: KVArgs,
         disaggregation_mode: DisaggregationMode,
         server_args: ServerArgs,
-        is_mla_backend: Optional[bool] = False,
     ): ...
 
 
