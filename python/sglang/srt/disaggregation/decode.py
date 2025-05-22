@@ -39,6 +39,7 @@ from sglang.srt.disaggregation.utils import (
     get_kv_class,
     kv_to_page_indices,
     poll_and_all_reduce,
+    is_mla_backend
 )
 from sglang.srt.mem_cache.base_prefix_cache import BasePrefixCache
 from sglang.srt.mem_cache.memory_pool import ReqToTokenPool, TokenToKVPoolAllocator
@@ -86,6 +87,7 @@ class DecodePreallocQueue:
         self.req_to_token_pool = req_to_token_pool
         self.token_to_kv_pool_allocator = token_to_kv_pool_allocator
         self.token_to_kv_pool = token_to_kv_pool_allocator.get_kvcache()
+        self.is_mla_backend = is_mla_backend(self.token_to_kv_pool)
         self.aux_dtype = aux_dtype
         self.metadata_buffers = metadata_buffers
         self.req_to_metadata_buffer_idx_allocator = req_to_metadata_buffer_idx_allocator
@@ -131,7 +133,7 @@ class DecodePreallocQueue:
         kv_args.gpu_id = self.scheduler.gpu_id
         kv_manager_class = get_kv_class(self.transfer_backend, KVClassType.MANAGER)
         kv_manager = kv_manager_class(
-            kv_args, DisaggregationMode.DECODE, self.scheduler.server_args
+            kv_args, DisaggregationMode.DECODE, self.scheduler.server_args, self.is_mla_backend
         )
         return kv_manager
 

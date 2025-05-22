@@ -35,6 +35,7 @@ from sglang.srt.disaggregation.utils import (
     kv_to_page_indices,
     kv_to_page_num,
     poll_and_all_reduce,
+    is_mla_backend
 )
 from sglang.srt.managers.schedule_batch import FINISH_LENGTH, Req, ScheduleBatch
 
@@ -67,6 +68,7 @@ class PrefillBootstrapQueue:
         scheduler: Scheduler,
     ):
         self.token_to_kv_pool = token_to_kv_pool
+        self.is_mla_backend = is_mla_backend(token_to_kv_pool)
         self.aux_dtype = aux_dtype
 
         self.metadata_buffers = metadata_buffers
@@ -79,6 +81,7 @@ class PrefillBootstrapQueue:
         self.queue: List[Req] = []
         self.gloo_group = gloo_group
         self.bootstrap_port = bootstrap_port
+
 
     def store_prefill_results(self, idx: int, token_id: int):
         assert token_id >= 0, f"token_id: {token_id} is negative"
@@ -113,6 +116,7 @@ class PrefillBootstrapQueue:
             kv_args,
             DisaggregationMode.PREFILL,
             self.scheduler.server_args,
+            self.is_mla_backend,
             # self.scheduler.disagg_launch_done,
         )
         return kv_manager
