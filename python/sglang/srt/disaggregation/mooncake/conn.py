@@ -128,6 +128,8 @@ class MooncakeKVManager(BaseKVManager):
         args: KVArgs,
         disaggregation_mode: DisaggregationMode,
         server_args: ServerArgs,
+        is_mla_backend: Optional[bool] = True,
+
     ):
         self.kv_args = args
         self.engine = MooncakeTransferEngine(
@@ -142,7 +144,7 @@ class MooncakeKVManager(BaseKVManager):
         self.tp_size = server_args.tp_size
         self.dp_size = server_args.dp_size
         self.enable_dp_attention = server_args.enable_dp_attention
-        self.with_mla = server_args.disaggregation_with_mla
+        self.with_mla = is_mla_backend
         if not server_args.enable_dp_attention and server_args.dp_size != 1:
             raise ValueError(
                 "If dp_attention is not enabled, dp size must be 1 in disaggregation mode."
