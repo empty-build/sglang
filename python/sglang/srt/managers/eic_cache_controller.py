@@ -80,8 +80,8 @@ class EICCacheController(HiCacheController):
         ]:
             raise ValueError(f"Invalid write policy: {write_policy}")
 
-        self.write_queue = PriorityQueue()
-        self.load_queue = PriorityQueue()
+        self.write_queue = Queue()
+        self.load_queue = Queue()
 
         self.ack_write_queue = Queue()
         self.ack_load_queue = Queue()

@@ -291,7 +291,7 @@ class EICHiRadixCache(RadixCache):
         while len(self.ongoing_write_through) > 50 or len(self.ongoing_load_back) > 50:
             self.writing_check()
             self.loading_check()
-            time.sleep(0.1)
+            time.sleep(0.001)
 
         leaves = self._collect_leaves_device()
         heapq.heapify(leaves)

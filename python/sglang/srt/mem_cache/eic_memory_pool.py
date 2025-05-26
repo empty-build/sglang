@@ -174,7 +174,6 @@ class EICKVClient:
             self.kv_cache_shape,
             self.kv_cache_dtype,
         )
-
         self.kv_cache_write_mem_pool = FlexibleKVCacheMemoryPool(
             self.connection,
             self.device if G_EnableKVSetGPUDirect else "cpu",
@@ -524,7 +523,6 @@ class EICBaseTokenToKVPoolHost:
 
         bs = TensorPoolSize
         split_time = time.perf_counter()
-
         for i in range(0, len(keys), bs):
             key = keys[i : i + bs]
             value = values[i : i + bs]
