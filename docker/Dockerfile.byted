@@ -2,9 +2,10 @@ ARG base_version=v0.4.6.post2
 ARG cu=124
 FROM iaas-gpu-cn-beijing.cr.volces.com/serving/sglang:community_${base_version}-cu${cu}_pure
 
-ARG sglang_version=0.4.6.post2+byted.0.0.2.202505151654
-ARG sgl_kernel_version=0.1.1+byted.0.0.2.202505151652
+ARG sglang_version=0.4.6.post2+byted.0.0.2.202505261551
+ARG sgl_kernel_version=0.1.1+byted.0.0.2.202505261548
 ARG gdkv_sdk_version=0.0.1
+ARG eic_sdk_version=1.0
 RUN pip config set global.index-url https://mirrors.ivolces.com/pypi/simple/
 
 RUN pip index versions sglang -i https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/
@@ -18,13 +19,8 @@ RUN pip install sgl_kernel==${sgl_kernel_version} --extra-index-url https://scqq
 # gdkv sdk安装
 RUN pip install hpkv==${gdkv_sdk_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
 
-# examples 覆盖
-ARG branch=release_0.0.2
-RUN export http_proxy=http://sys-proxy-rd-relay.byted.org:8118 https_proxy=http://sys-proxy-rd-relay.byted.org:8118 no_proxy=.byted.org && \
-    cd /tmp && git clone https://github.com/bytedance-iaas/sglang.git -b ${branch} && \
-    rm -rf /sgl-workspace/sglang/examples && \
-    mv /tmp/sglang/examples /sgl-workspace/sglang/examples && \
-    rm -rf /tmp/sglang
+# eic sdk安装
+RUN pip install eic==${eic_sdk_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
 
 # onion 安装
 RUN curl -fsSL https://mirrors.byted.org/extra-tools/ubuntu/GPG-KEY-system | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/volc-extra-tools.gpg && \
