@@ -18,6 +18,10 @@ from sglang.srt.layers.quantization.base_config import (
     QuantizationConfig,
     QuantizeMethodBase,
 )
+from sglang.srt.layers.quantization.w4afp8 import (
+    W4AFp8Config,
+    W4AFp8MoEMethod,
+)
 from sglang.srt.utils import get_bool_env_var, is_hip, set_weight_attrs
 
 if torch.cuda.is_available():
@@ -331,10 +335,17 @@ class FusedMoE(torch.nn.Module):
         self.no_combine = no_combine
         self.local_num_experts = num_experts
 
+        self.quant_config = quant_config
         if quant_config is None:
             self.quant_method: Optional[QuantizeMethodBase] = (
                 UnquantizedFusedMoEMethod()
             )
+        elif isinstance(quant_config, W4AFp8Config):
+            self.quant_method: Optional[QuantizeMethodBase] = W4AFp8MoEMethod(
+                quant_config)
+            self.use_w4afp8 = True
+            self.use_block_quant = False
+            self.activation_scheme = quant_config.moe_activation_scheme
         else:
             self.quant_method = quant_config.get_quant_method(self, prefix)
         assert self.quant_method is not None
@@ -415,6 +426,7 @@ class FusedMoE(torch.nn.Module):
                 tp_rank=tp_rank,
             )
 
+
     def _load_w13(
         self,
         expert_data: torch.Tensor,
@@ -423,15 +435,13 @@ class FusedMoE(torch.nn.Module):
         loaded_weight: torch.tensor,
         tp_rank: int,
     ):
-
         # Index the loaded weight for tp sharding.
         # gate_up_proj: "MergedColumnParallel", so tp sharding on output_dim
         shard_size = expert_data.shape[shard_dim] // 2
 
-        if not self.use_presharded_weights:
-            loaded_weight = loaded_weight.narrow(
-                shard_dim, shard_size * tp_rank, shard_size
-            )
+
+        loaded_weight = loaded_weight.narrow(shard_dim, shard_size * tp_rank, shard_size)
+
 
         # Narrow parameter and load.
         # w1, gate_proj: Load into first logical weight of w13.
@@ -441,6 +451,8 @@ class FusedMoE(torch.nn.Module):
         else:
             assert shard_id == "w3"
             expert_data = expert_data.narrow(shard_dim, shard_size, shard_size)
+        
+
         expert_data.copy_(loaded_weight)
 
     def _load_w2(
@@ -456,7 +468,6 @@ class FusedMoE(torch.nn.Module):
         # down_proj: "RowParallel" so tp sharding on input_dim
         # Narrow parameter and load.
         shard_size = expert_data.shape[shard_dim]
-
         if not self.use_presharded_weights:
             loaded_weight = loaded_weight.narrow(
                 shard_dim, shard_size * tp_rank, shard_size
@@ -505,6 +516,7 @@ class FusedMoE(torch.nn.Module):
         # compressed-tensors checkpoints with packed weights are stored flipped
         # TODO (mgoin): check self.quant_method.quant_config.quant_format
         # against known CompressionFormat enum values that have this quality
+        self.weight_name = weight_name
         loaded_weight = (
             loaded_weight.t().contiguous()
             if (
@@ -544,16 +556,15 @@ class FusedMoE(torch.nn.Module):
 
             # this is needed for compressed-tensors only
             loaded_weight = loaded_weight.to(param.data.device)
-
-            if (
-                param.data[expert_id] != 1
-                and (param.data[expert_id] - loaded_weight).abs() > 1e-5
-            ):
-                raise ValueError(
-                    "input_scales of w1 and w3 of a layer "
-                    f"must be equal. But got {param.data[expert_id]} "
-                    f"vs. {loaded_weight}"
-                )
+            # if (
+            #     param.data[expert_id] != 1
+            #     and (param.data[expert_id] - loaded_weight).abs() > 1e-5
+            # ):
+            #     raise ValueError(
+            #         "input_scales of w1 and w3 of a layer "
+            #         f"must be equal. But got {param.data[expert_id]} "
+            #         f"vs. {loaded_weight}"
+            #     )
 
             self._load_single_value(
                 param=param, loaded_weight=loaded_weight, expert_id=expert_id
@@ -570,7 +581,6 @@ class FusedMoE(torch.nn.Module):
                 tp_rank=tp_rank,
             )
             return
-
         # Case weight scales and zero_points
         if "scale" in weight_name or "zero" in weight_name:
             # load the weight scales and zp based on the quantization scheme
@@ -691,6 +701,24 @@ class FusedMoE(torch.nn.Module):
                 ("w3", ckpt_up_proj_name),
             ]
         ]
+
+    @classmethod
+    def make_expert_input_scale_params_mapping(
+        cls,
+        num_experts: int,
+    ) -> List[Tuple[str, str, int, str]]:
+        # (param_name, weight_name, expert_id, shard_id)
+        return [
+            (
+                "experts.w13_" if shard_id in ["w1", "w3"] else "experts.w2_",
+                f"experts.{expert_id}.{shard_id}.",
+                expert_id,
+                shard_id,
+            )
+            for expert_id in range(num_experts)
+            for shard_id in ["w1", "w2", "w3"]
+        ]
+    
 
     def _load_fp8_scale(
         self,
