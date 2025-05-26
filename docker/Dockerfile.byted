@@ -28,6 +28,6 @@ RUN curl -fsSL https://mirrors.byted.org/extra-tools/ubuntu/GPG-KEY-system | sud
     rm -rf /etc/apt/sources.list.d/volctools.list
 
 # entrypoint
-COPY sglang/entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT [ "/entrypoint.sh" ]
