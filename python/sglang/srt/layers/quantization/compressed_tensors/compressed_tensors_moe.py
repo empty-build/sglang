@@ -192,6 +192,8 @@ class CompressedTensorsW8A8Fp8MoEMethod(CompressedTensorsMoEMethod):
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
         # Fp8 moe kernels require a single activation scale.
         # We take the max of all the scales in case they differ.
+        if 0: # DEBUG
+            print(f"XXX layers/quantization/compressed_tensors_moe.py process_weights_after_loading()")
         if self.static_input_scales:
             if layer.w13_input_scale is None or layer.w2_input_scale is None:
                 raise ValueError(
@@ -288,6 +290,8 @@ class CompressedTensorsW8A8Fp8MoEMethod(CompressedTensorsMoEMethod):
         from sglang.srt.layers.moe.fused_moe_triton import fused_experts
         from sglang.srt.layers.moe.topk import select_experts
 
+        if 0: # DEBUG
+            print(f"XXX layers/quantization/compressed_tensors_moe.py apply()")
         topk_weights, topk_ids = select_experts(
             hidden_states=x,
             router_logits=router_logits,

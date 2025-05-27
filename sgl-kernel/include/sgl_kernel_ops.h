@@ -270,6 +270,25 @@ void segment_packbits(
     at::Tensor x, at::Tensor input_indptr, at::Tensor output_indptr, at::Tensor y, int64_t cuda_stream);
 
 /*
+ * From csrc/quantization/get_cutlass_moe_mm_data
+ */
+void get_cutlass_moe_mm_data(
+    const torch::Tensor& topk_ids, torch::Tensor& expert_offsets,
+    torch::Tensor& problem_sizes1, torch::Tensor& problem_sizes2,
+    torch::Tensor& input_permutation, torch::Tensor& output_permutation,
+    const int64_t num_experts, const int64_t n, const int64_t k);
+
+/*
+ * From csrc/quantization/get_cutlass_moe_mm_data
+ */
+void cutlass_moe_mm(
+    torch::Tensor& out_tensors, torch::Tensor const& a_tensors,
+    torch::Tensor const& b_tensors, torch::Tensor const& a_scales,
+    torch::Tensor const& b_scales, torch::Tensor const& expert_offsets,
+    torch::Tensor const& problem_sizes, torch::Tensor const& a_strides,
+    torch::Tensor const& b_strides, torch::Tensor const& c_strides);
+
+/*
  * From FlashInfer
  */
 void min_p_sampling_from_probs(

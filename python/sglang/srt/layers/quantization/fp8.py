@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
+IS_CUTLASS=1
+
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (
         apply_fp8_marlin_linear,
@@ -467,6 +469,10 @@ class Fp8MoEMethod:
         return super().__new__(cls)
 
     def __init__(self, quant_config):
+        if IS_CUTLASS:
+            print("Jack Perf = IS_CUTLASS")
+        else:
+            print("Jack Perf = not IS_CUTLASS")
         self.quant_config = quant_config
         self.block_quant = self.quant_config.weight_block_size is not None
 
@@ -643,7 +649,36 @@ class Fp8MoEMethod:
             layer.w13_input_scale = None
             layer.w2_input_scale = None
 
+    def fp8_bf16_fp8(self, fp8_tensor, fp8_scale):
+        # Before - w13_weight shape: torch.Size([256, 512, 7168])
+        # Before - w13_weight_scale_inv shape: torch.Size([256, 4, 56])
+        # Before - w2_weight shape: torch.Size([256, 7168, 256])
+        # Before - w2_weight_scale_inv shape: torch.Size([256, 56, 2])
+        # Q1: why  w13 and w2不同
+        # w13_weight [256, 512 // 128, 128, 7168 // 128, 128]
+        blocked_tensor = fp8_tensor.view(
+                                        fp8_tensor.shape[0],
+                                        fp8_tensor.shape[1] // 128, 128,
+                                        fp8_tensor.shape[2] // 128,
+                                        128).to(torch.float32)
+        # dequant_tensor = (blocked_tensor *
+        #                 fp8_scale.unsqueeze(1).unsqueeze(3)).view(
+        #                     fp8_tensor.shape).to(torch.bfloat16).to(torch.float32)
+        # 原本是 .unsqueeze(1).unsqueeze(3)，那是對應 blocked_tensor 是 4 維的 case
+        # 現在 blocked_tensor 是 5 維，所以 reshape 成 [B, M//128, 1, N//128, 1]
+        dequant_tensor = (blocked_tensor *
+                  fp8_scale.unsqueeze(2).unsqueeze(4)).view(
+                      fp8_tensor.shape).to(torch.bfloat16).to(torch.float32)
+
+        scale_tensor = torch.abs(dequant_tensor).max() / 448
+        quant_tensor = dequant_tensor / scale_tensor
+
+        return quant_tensor, scale_tensor
+
     def process_weights_after_loading(self, layer: Module) -> None:
+        if 0: # DEBUG
+            print(f"layers/quantization/fp8.py process_weights_after_loading()")
+
         if _is_hip and get_bool_env_var("SGLANG_INT4_WEIGHT"):
             self.process_weights_hip_int4(layer)
             return
@@ -683,6 +718,100 @@ class Fp8MoEMethod:
                     layer.w2_weight.data = shuffle_weight(
                         layer.w2_weight.contiguous(), (16, 16)
                     )
+            
+            
+            """
+            # from vllm.platforms import current_platform
+            from vllm.model_executor.layers.quantization.utils.w8a8_utils import (
+                    normalize_e4m3fn_to_e4m3fnuz,)
+            assert self.quant_config.activation_scheme == "dynamic"
+            # if current_platform.is_fp8_fnuz(): # AMD
+            #     w13_weight, w13_weight_scale_inv, w13_input_scale = \
+            #         normalize_e4m3fn_to_e4m3fnuz(
+            #             layer.w13_weight, layer.w13_weight_scale_inv,
+            #             layer.w13_input_scale)
+            #     w2_weight, w2_weight_scale_inv, w2_input_scale = \
+            #         normalize_e4m3fn_to_e4m3fnuz(
+            #             layer.w2_weight, layer.w2_weight_scale_inv,
+            #             layer.w2_input_scale)
+            # else:
+                w13_weight = layer.w13_weight.data
+                w13_weight_scale_inv = layer.w13_weight_scale_inv.data
+                w2_weight = layer.w2_weight
+                w2_weight_scale_inv = layer.w2_weight_scale_inv
+            """
+
+            if IS_CUTLASS:
+                # Only support CUDA not AMD
+                w13_weight = layer.w13_weight.data
+                w13_weight_scale_inv = layer.w13_weight_scale_inv.data
+                w2_weight = layer.w2_weight
+                w2_weight_scale_inv = layer.w2_weight_scale_inv
+
+                #####
+                # TEST ALL CUDA
+                #####
+                if 0:
+                    print("Before - w13_weight shape:", w13_weight.shape)
+                    print("Before - w13_weight_scale_inv shape:", w13_weight_scale_inv.shape)
+                    print("Before - w2_weight shape:", w2_weight.shape)
+                    print("Before - w2_weight_scale_inv shape:", w2_weight_scale_inv.shape)
+                    print("Before - w13_weight_scale_inv.dim():", w13_weight_scale_inv.dim())
+                w13_weight, w13_weight_scale_inv = \
+                            self.fp8_bf16_fp8(w13_weight, w13_weight_scale_inv)
+                w2_weight, w2_weight_scale_inv = \
+                            self.fp8_bf16_fp8(w2_weight, w2_weight_scale_inv)
+                if 0:
+                    print("After - w13_weight shape:", w13_weight.shape)
+                    # print("After - w13_weight_scale_inv shape:", w13_weight_scale_inv.shape, w13_weight_scale_inv)
+                    print("After - w2_weight shape:", w2_weight.shape)
+                    # print("After - w2_weight_scale_inv shape:", w2_weight_scale_inv.shape, w2_weight_scale_inv)
+                    print("After - w13_weight_scale_inv.dim():", w13_weight_scale_inv.dim())
+                #########################################################
+                w13_weight_scale_inv = w13_weight_scale_inv.repeat(w13_weight.size(0))
+                #########################################################
+                if 0:
+                    # print("HACK - w13_weight_scale_inv shape:", w13_weight_scale_inv.shape, w13_weight_scale_inv)
+                    print("HACK - w13_weight_scale_inv.dim():", w13_weight_scale_inv.dim())
+                #########################################################
+                w2_weight_scale_inv = w2_weight_scale_inv.repeat(w13_weight.size(0))
+                #########################################################
+                if 0:
+                    # print("HACK - w2_weight_scale_inv shape:", w2_weight_scale_inv.shape, w13_weight_scale_inv)
+                    print("HACK - w2_weight_scale_inv.dim():", w2_weight_scale_inv.dim())
+                # layer.w13_weight.data.copy_(new_tensor)
+                # 清理
+                del layer.w13_weight_scale_inv
+                del layer.w2_weight_scale_inv
+                torch.cuda.empty_cache()
+                # 盡量不分配新 gpu memory
+                layer.w13_weight.data.copy_(w13_weight.contiguous())
+                layer.w13_weight_scale_inv = Parameter(w13_weight_scale_inv, requires_grad=False).contiguous() # cuz changed shape
+                layer.w2_weight.data.copy_(w2_weight.contiguous())
+                if 0:
+                    import time
+                    torch.cuda.synchronize()
+                    start = time.time()
+                layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv, requires_grad=False) # cuz changed shape
+                # layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv, requires_grad=False).contiguous() # cuz changed shape
+                # layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv.contiguous(), requires_grad=False) # cuz changed shape
+                #有沒有機會一開始shape就 allocate成對的 這邊就不需要額外copy了 直接用.data.copy(). 但考慮到這邊是一次性的 非runtime so就先忽略.
+                if 0:
+                    torch.cuda.synchronize()
+                    end = time.time()
+                    print(f"Elapsed time: {end - start:.6f} seconds")
+                if 0: # DEBUG
+                    if layer.w13_weight.is_contiguous():
+                        print("layer.w13_weight is contiguous.")
+                    else:
+                        print("layer.w13_weight is NOT contiguous.")
+                    if layer.w2_weight_scale_inv.is_contiguous():
+                        print("layer.w2_weight_scale_inv is contiguous.")
+                    else:
+                        print("layer.w2_weight_scale_inv is NOT contiguous.")
+                if 0:
+                    print("COPY - DONE")
+
             return
 
         # If checkpoint is fp16 or bfloat16, quantize in place.
@@ -893,6 +1022,8 @@ class Fp8MoEMethod:
         from sglang.srt.layers.moe.fused_moe_triton.fused_moe import fused_experts
         from sglang.srt.layers.moe.topk import select_experts
 
+        if 0:
+            print(f"layers/quantization/fp8.py apply()")
         # Expert selection
         topk_weights, topk_ids = select_experts(
             hidden_states=x,
@@ -962,30 +1093,99 @@ class Fp8MoEMethod:
                         ),
                     )
 
-        # Expert fusion with FP8 quantization
-        return fused_experts(
-            x,
-            layer.w13_weight,
-            layer.w2_weight,
-            topk_weights=topk_weights,
-            topk_ids=topk_ids,
-            inplace=inplace and not no_combine,
-            activation=activation,
-            apply_router_weight_on_input=apply_router_weight_on_input,
-            use_fp8_w8a8=True,
-            w1_scale=(
-                layer.w13_weight_scale_inv
-                if self.block_quant
-                else layer.w13_weight_scale
-            ),
-            w2_scale=(
-                layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
-            ),
-            a1_scale=layer.w13_input_scale,
-            a2_scale=layer.w2_input_scale,
-            block_shape=self.quant_config.weight_block_size,
-            no_combine=no_combine,
-        )
+        # print(f"fp8.py inplace: {inplace} no_combine: {no_combine}") # inplace: O no_combine: X
+        if not IS_CUTLASS:
+
+            # Expert fusion with FP8 quantization
+            return fused_experts(
+                x,
+                layer.w13_weight,
+                layer.w2_weight,
+                topk_weights=topk_weights,
+                topk_ids=topk_ids,
+                inplace=inplace and not no_combine,
+                activation=activation,
+                apply_router_weight_on_input=apply_router_weight_on_input,
+                use_fp8_w8a8=True,
+                w1_scale=(
+                    layer.w13_weight_scale_inv
+                    if self.block_quant
+                    else layer.w13_weight_scale
+                ),
+                w2_scale=(
+                    layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
+                ),
+                a1_scale=layer.w13_input_scale,
+                a2_scale=layer.w2_input_scale,
+                block_shape=self.quant_config.weight_block_size,
+                no_combine=no_combine,
+            )
+        else:
+            # Jack
+            m = x.shape[0]      # m = x.shape[0] same
+            k = x.shape[1]      # k = x.shape[1] same
+            # n = layer.w13_weight.shape[1] # / 2 # 不用除二
+            n = layer.w13_weight.shape[1] / 2 # 250507 Jack認為需要除二 因為 [E, 2N, K] before trans
+
+            device = layer.w13_weight.device
+
+            # return ops.group_gemm_xx()
+            num_experts = layer.w2_weight.shape[0]
+            # print(f"num_experts shape {num_experts}")
+            # > num_experts shape 256
+
+            self.ab_strides1 = torch.full((num_experts, ),
+                                        k, # k
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides1 = torch.full((num_experts, ),
+                                        2 * n, #n
+                                        device=device,
+                                        dtype=torch.int64)
+            self.ab_strides2 = torch.full((num_experts, ),
+                                        n,
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides2 = torch.full((num_experts, ),
+                                        k,
+                                        device=device,
+                                        dtype=torch.int64)
+            if 0:
+                if self.ab_strides1.is_contiguous():
+                    print("ab_strides1 is contiguous.")
+                else:
+                    print("ab_strides1 is NOT contiguous.")
+
+            # from vllm.model_executor.layers.fused_moe import cutlass_moe_fp8
+            from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
+            if 0:
+                # print(f"Jack type {type(layer)}")
+                # > Jack type <class 'vllm.model_executor.layers.fused_moe.layer.FusedMoE'>
+                # print(f"Jack dir(layer) {dir(layer)}")
+                print(f"Jack final check layer.w13_weight_scale_inv.dim(): {layer.w13_weight_scale_inv.dim()} -> cutlass_moe_fp8()")
+                # > Jack final check layer.w13_weight_scale_inv.dim(): 1
+            # origin
+            # layer.w13_weight.transpose(1, 2),   # per-block = scale_inv
+            # layer.w2_weight.transpose(1, 2),
+            return cutlass_moe_fp8(
+                x,
+                layer.w13_weight.transpose(1, 2),   # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
+                layer.w2_weight.transpose(1, 2),
+                layer.w13_weight_scale_inv,         # per-block = scale_inv # Hidden size match w2
+                layer.w2_weight_scale_inv,
+                topk_weights,
+                topk_ids,
+                self.ab_strides1,                 # missing
+                self.c_strides1,                  # missing
+                self.ab_strides2,                 # missing
+                self.c_strides2,                  # missing
+                a1_scale=layer.w13_input_scale,
+                a2_scale=layer.w2_input_scale,
+                out_dtype=x.dtype,
+                #expert_map=expert_map, # no map in sglang
+                apply_router_weight_on_input=apply_router_weight_on_input,
+            )
+
 
 
 class Fp8KVCacheMethod(BaseKVCacheMethod):

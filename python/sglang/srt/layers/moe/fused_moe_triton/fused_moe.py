@@ -1253,6 +1253,8 @@ def fused_experts(
     block_shape: Optional[List[int]] = None,
     no_combine: bool = False,
 ):
+    if 0: # DEBUG
+        print(f"\tlayers/moe/fused_moe_triton/fused_moe.py fused_experts()")
     if inplace:
         assert not no_combine, "no combine + inplace makes no sense"
         torch.ops.sglang.inplace_fused_experts(
@@ -1595,6 +1597,9 @@ def fused_moe(
     Returns:
     - torch.Tensor: The output tensor after applying the MoE layer.
     """
+
+    if 0: # DEBUG
+        print(f"XXX layers/moe/fused_moe_triton/fused_moe.py fused_moe()")
     # Check constraints.
     assert gating_output.shape[1] == w1.shape[0], "Number of experts mismatch"
 

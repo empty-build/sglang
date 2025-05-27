@@ -62,6 +62,13 @@ from sgl_kernel.speculative import (
     tree_speculative_sampling_target_only,
     verify_tree_greedy,
 )
+
+# from sgl_kernel.quantization.cutlass_w8a8 import (
+# from sgl_kernel.quantization import (
+from sgl_kernel.get_cutlass_moe_mm_data import (
+    get_cutlass_moe_mm_data,
+    cutlass_moe_mm,
+)
 from sgl_kernel.version import __version__
 
 build_tree_kernel = (
