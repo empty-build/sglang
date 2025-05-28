@@ -316,7 +316,9 @@ class FusedMoE(torch.nn.Module):
         self.inplace = inplace
         self.no_combine = no_combine
         self.local_num_experts = num_experts
-
+        
+        print("+++++++++quant_config+++++++++  \n")
+        print(quant_config)
         if quant_config is None:
             self.quant_method: Optional[QuantizeMethodBase] = (
                 UnquantizedFusedMoEMethod()
@@ -324,7 +326,10 @@ class FusedMoE(torch.nn.Module):
         else:
             self.quant_method = quant_config.get_quant_method(self, prefix)
         assert self.quant_method is not None
-
+        # import pdb
+        # pdb.set_trace()
+        print("!!!!!!self quant  method !!!!!! \n")
+        print(self.quant_method)
         self.quant_method.create_weights(
             layer=self,
             num_experts=num_experts,
@@ -626,7 +631,7 @@ class FusedMoE(torch.nn.Module):
 
     def forward(self, hidden_states: torch.Tensor, router_logits: torch.Tensor):
         assert self.quant_method is not None
-
+        
         # Matrix multiply.
         final_hidden_states = self.quant_method.apply(
             layer=self,

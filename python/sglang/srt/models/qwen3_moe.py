@@ -76,7 +76,8 @@ class Qwen3MoeSparseMoeBlock(nn.Module):
             )
 
         MoEImpl = EPMoE if global_server_args_dict["enable_ep_moe"] else FusedMoE
-
+        if MoEImpl == FusedMoE :
+            print("use FusedMOE as Moempl\n")
         self.experts = MoEImpl(
             num_experts=config.num_experts,
             top_k=config.num_experts_per_tok,
@@ -254,12 +255,14 @@ class Qwen3MoeDecoderLayer(nn.Module):
         if (layer_id not in mlp_only_layers) and (
             config.num_experts > 0 and (layer_id + 1) % config.decoder_sparse_step == 0
         ):
+            print("layer id {} create Qwen3MoeSparseMoe".format(layer_id))
             self.mlp = Qwen3MoeSparseMoeBlock(
                 config=config,
                 quant_config=quant_config,
                 prefix=add_prefix("mlp", prefix),
             )
         else:
+            print("layerId {} create Qwen3MoeMLP".format(layer_id))
             self.mlp = Qwen3MoeMLP(
                 hidden_size=config.hidden_size,
                 intermediate_size=config.intermediate_size,

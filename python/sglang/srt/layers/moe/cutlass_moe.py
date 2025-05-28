@@ -4,8 +4,9 @@ from typing import Optional # TODO
 
 import torch
 
-from vllm import _custom_ops as ops # TODO
+# import _custom_ops as ops # TODO
 from sgl_kernel import silu_and_mul
+from vllm import _custom_ops as vllm_ops
 
 # Functions that require adjustment for integrating vLLM’s code into sglang.
 # ops.scaled_fp8_quant() -> scaled_fp8_quant # ref: fused_moe()
@@ -167,7 +168,7 @@ def cutlass_moe_fp8(
     # from sglang.srt.layers.quantization.fp8_kernel import scaled_fp8_quant
     # a_q, a1_scale = scaled_fp8_quant(
     #     a, a1_scale, use_per_token_if_dynamic=per_act_token)
-    from vllm import _custom_ops as vllm_ops
+
     a_q, a1_scale  = vllm_ops.scaled_fp8_quant(
             a, a1_scale, use_per_token_if_dynamic=per_act_token)
 
@@ -251,7 +252,9 @@ def cutlass_moe_fp8(
             intermediate_cache2, intermediate_cache1.view(-1, N)
         )
     """
-    vllm_ops.silu_and_mul(intermediate, c1)
+    # print("c1.shape: ", c1.shape)
+    # print("itermdeidate shape: ", intermediate.shape )
+    silu_and_mul(c1, intermediate)
 
     # intemediate_q, a2_scale = ops.scaled_fp8_quant(
     #     intermediate, a2_scale, use_per_token_if_dynamic=per_act_token)

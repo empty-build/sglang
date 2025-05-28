@@ -486,7 +486,36 @@ class Fp8MoEMethod:
         **extra_weight_attrs,
     ):
         from sglang.srt.layers.moe.fused_moe_triton import FusedMoeWeightScaleSupported
+        
+        if IS_CUTLASS:
+            # m = x.shape[0]      # m = x.shape[0] same
+            # k = x.shape[1]      # k = x.shape[1] same
+            # # n = layer.w13_weight.shape[1] # / 2 # 不用除二
+            # n = layer.w13_weight.shape[1] / 2 # 250507 Jack認為需要除二 因為 [E, 2N, K] before trans
 
+            # device = layer.w13_weight.device
+
+            # # return ops.group_gemm_xx()
+            # num_experts = layer.w2_weight.shape[0]
+            # print(f"num_experts shape {num_experts}")
+            # > num_experts shape 256
+            device = "cuda"
+            self.ab_strides1 = torch.full((num_experts, ),
+                                        hidden_size, # k
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides1 = torch.full((num_experts, ),
+                                        2 * intermediate_size, #n
+                                        device=device,
+                                        dtype=torch.int64)
+            self.ab_strides2 = torch.full((num_experts, ),
+                                        intermediate_size,
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides2 = torch.full((num_experts, ),
+                                        hidden_size,
+                                        device=device,
+                                        dtype=torch.int64)
         if self.quant_config.is_checkpoint_fp8_serialized:
             params_dtype = (
                 torch.uint32
@@ -781,18 +810,18 @@ class Fp8MoEMethod:
                     print("HACK - w2_weight_scale_inv.dim():", w2_weight_scale_inv.dim())
                 # layer.w13_weight.data.copy_(new_tensor)
                 # 清理
-                del layer.w13_weight_scale_inv
-                del layer.w2_weight_scale_inv
+                #layer.w13_weight_scale_inv
+                #layer.w2_weight_scale_inv
                 torch.cuda.empty_cache()
                 # 盡量不分配新 gpu memory
                 layer.w13_weight.data.copy_(w13_weight.contiguous())
-                layer.w13_weight_scale_inv = Parameter(w13_weight_scale_inv, requires_grad=False).contiguous() # cuz changed shape
+                layer.w13_weight_scale = Parameter(w13_weight_scale_inv, requires_grad=False).contiguous() # cuz changed shape
                 layer.w2_weight.data.copy_(w2_weight.contiguous())
                 if 0:
                     import time
                     torch.cuda.synchronize()
                     start = time.time()
-                layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv, requires_grad=False) # cuz changed shape
+                layer.w2_weight_scale = Parameter(w2_weight_scale_inv, requires_grad=False) # cuz changed shape
                 # layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv, requires_grad=False).contiguous() # cuz changed shape
                 # layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv.contiguous(), requires_grad=False) # cuz changed shape
                 #有沒有機會一開始shape就 allocate成對的 這邊就不需要額外copy了 直接用.data.copy(). 但考慮到這邊是一次性的 非runtime so就先忽略.
@@ -1093,8 +1122,86 @@ class Fp8MoEMethod:
                         ),
                     )
 
+        
+
+        if 0:
+            w13 = layer.w13_weight
+            w2 = layer.w2_weight
+            act = activation
+
+            w1_scale_=(
+                layer.w13_weight_scale_inv
+                if self.block_quant
+                else layer.w13_weight_scale
+            )
+
+            w2_scale_=(
+                layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
+            )
+
+            print(">>>> x.shape {} x.dtype {}".format(x.shape, x.dtype))
+            print(">>>> w13.shape {} w13.dtype {}".format(w13.shape, w13.dtype))
+            print(">>>> w2.shape {} w2.dtype {}".format(w2.shape, w2.dtype))
+            # topk_ids
+            print(">>>> topk_idsd.shape {} x.dtype {}".format(topk_ids.shape, topk_ids.dtype))
+
+
+            a1_scale_=layer.w13_input_scale
+            a2_scale_=layer.w2_input_scale
+
+            if w1_scale_ is not None:
+                print(">>>> w1_scale_.shape {} w1_scale_.dtype {}".format(w1_scale_.shape, w1_scale_.dtype))
+            
+            if w2_scale_ is not None:
+                print(">>>> w2_scale_.shape {} w2_scale_.dtype {}".format(w2_scale_.shape, w2_scale_.dtype))
+
+            if a1_scale_ is not None:
+                print(">>>> a1_scale_.shape {} a1_scale_.dtype {}".format(a1_scale_.shape, a1_scale_.dtype))
+            else:
+                print("a1 scale is None")
+            if a2_scale_ is not None:
+                print(">>>> a2_scale_.shape {} a2_scale_.dtype {}".format(a2_scale_.shape, a2_scale_.dtype))
+            else:
+                print("a2 scale is None")
         # print(f"fp8.py inplace: {inplace} no_combine: {no_combine}") # inplace: O no_combine: X
-        if not IS_CUTLASS:
+        if x.shape[0] >=128 :
+            # print("use triton")
+            if 0:
+                w13 = layer.w13_weight
+                w2 = layer.w2_weight
+                act = activation
+
+                w1_scale_=(
+                    layer.w13_weight_scale_inv
+                    if self.block_quant
+                    else layer.w13_weight_scale
+                )
+
+                w2_scale_=(
+                    layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
+                )
+
+                print(">>>> x.shape {} x.dtype {}".format(x.shape, x.dtype))
+                print(">>>> w13.shape {} w13.dtype {}".format(w13.shape, w13.dtype))
+                print(">>>> w2.shape {} w2.dtype {}".format(w2.shape, w2.dtype))
+
+                a1_scale_=layer.w13_input_scale
+                a2_scale_=layer.w2_input_scale
+
+                if w1_scale_ is not None:
+                  print(">>>> w1_scale_.shape {} w1_scale_.dtype {}".format(w1_scale_.shape, w1_scale_.dtype))
+                
+                if w2_scale_ is not None:
+                  print(">>>> w2_scale_.shape {} w2_scale_.dtype {}".format(w2_scale_.shape, w2_scale_.dtype))
+
+                if a1_scale_ is not None:
+                  print(">>>> a1_scale_.shape {} a1_scale_.dtype {}".format(a1_scale_.shape, a1_scale_.dtype))
+                else:
+                  print("a1 scale is None")
+                if a2_scale_ is not None:
+                  print(">>>> a2_scale_.shape {} a2_scale_.dtype {}".format(a2_scale_.shape, a2_scale_.dtype))
+                else:
+                  print("a2 scale is None")
 
             # Expert fusion with FP8 quantization
             return fused_experts(
@@ -1122,34 +1229,34 @@ class Fp8MoEMethod:
             )
         else:
             # Jack
-            m = x.shape[0]      # m = x.shape[0] same
-            k = x.shape[1]      # k = x.shape[1] same
-            # n = layer.w13_weight.shape[1] # / 2 # 不用除二
-            n = layer.w13_weight.shape[1] / 2 # 250507 Jack認為需要除二 因為 [E, 2N, K] before trans
+            # m = x.shape[0]      # m = x.shape[0] same
+            # k = x.shape[1]      # k = x.shape[1] same
+            # # n = layer.w13_weight.shape[1] # / 2 # 不用除二
+            # n = layer.w13_weight.shape[1] / 2 # 250507 Jack認為需要除二 因為 [E, 2N, K] before trans
 
-            device = layer.w13_weight.device
+            # device = layer.w13_weight.device
 
-            # return ops.group_gemm_xx()
-            num_experts = layer.w2_weight.shape[0]
-            # print(f"num_experts shape {num_experts}")
-            # > num_experts shape 256
+            # # return ops.group_gemm_xx()
+            # num_experts = layer.w2_weight.shape[0]
+            # # print(f"num_experts shape {num_experts}")
+            # # > num_experts shape 256
 
-            self.ab_strides1 = torch.full((num_experts, ),
-                                        k, # k
-                                        device=device,
-                                        dtype=torch.int64)
-            self.c_strides1 = torch.full((num_experts, ),
-                                        2 * n, #n
-                                        device=device,
-                                        dtype=torch.int64)
-            self.ab_strides2 = torch.full((num_experts, ),
-                                        n,
-                                        device=device,
-                                        dtype=torch.int64)
-            self.c_strides2 = torch.full((num_experts, ),
-                                        k,
-                                        device=device,
-                                        dtype=torch.int64)
+            # self.ab_strides1 = torch.full((num_experts, ),
+            #                             k, # k
+            #                             device=device,
+            #                             dtype=torch.int64)
+            # self.c_strides1 = torch.full((num_experts, ),
+            #                             2 * n, #n
+            #                             device=device,
+            #                             dtype=torch.int64)
+            # self.ab_strides2 = torch.full((num_experts, ),
+            #                             n,
+            #                             device=device,
+            #                             dtype=torch.int64)
+            # self.c_strides2 = torch.full((num_experts, ),
+            #                             k,
+            #                             device=device,
+            #                             dtype=torch.int64)
             if 0:
                 if self.ab_strides1.is_contiguous():
                     print("ab_strides1 is contiguous.")
@@ -1171,8 +1278,8 @@ class Fp8MoEMethod:
                 x,
                 layer.w13_weight.transpose(1, 2),   # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
                 layer.w2_weight.transpose(1, 2),
-                layer.w13_weight_scale_inv,         # per-block = scale_inv # Hidden size match w2
-                layer.w2_weight_scale_inv,
+                layer.w13_weight_scale,         # per-block = scale_inv # Hidden size match w2
+                layer.w2_weight_scale,
                 topk_weights,
                 topk_ids,
                 self.ab_strides1,                 # missing
