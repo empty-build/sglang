@@ -52,6 +52,7 @@ from sglang.srt.layers.quantization.fp8_utils import (
     apply_w8a8_block_fp8_linear,
     cutlass_fp8_supported,
     input_to_float8,
+    is_sm90_supported,
     is_sm100_supported,
     normalize_e4m3fn_to_e4m3fnuz,
 )
@@ -573,32 +574,43 @@ class Fp8MoEMethod:
             if (
                 get_bool_env_var("CUTLASS_MOE")
                 and self.cutlass_fp8_supported
-                and is_sm100_supported()
             ):
-                self.ab_strides1 = torch.full(
-                    (num_experts,),
-                    hidden_size,
-                    device=w13_weight.device,
-                    dtype=torch.int64,
-                )
-                self.c_strides1 = torch.full(
-                    (num_experts,),
-                    2 * intermediate_size,
-                    device=w13_weight.device,
-                    dtype=torch.int64,
-                )
-                self.ab_strides2 = torch.full(
-                    (num_experts,),
-                    intermediate_size,
-                    device=w2_weight.device,
-                    dtype=torch.int64,
-                )
-                self.c_strides2 = torch.full(
-                    (num_experts,),
-                    hidden_size,
-                    device=w2_weight.device,
-                    dtype=torch.int64,
-                )
+                if is_sm90_supported(): # same as sm100
+                    device = w13_weight.device
+                    k = hidden_size
+                    n = intermediate_size   # == w13_weight.shape[1] / 2 (same as vllm pertensor)
+
+                    # vllm per-tensor and sm100 are using the same abc strides
+                    self.ab_strides1 = torch.full((num_experts, ), k, device=device, dtype=torch.int64)
+                    self.c_strides1 = torch.full((num_experts, ), 2 * n, device=device, dtype=torch.int64)
+                    self.ab_strides2 = torch.full((num_experts, ), n, device=device, dtype=torch.int64)
+                    self.c_strides2 = torch.full((num_experts, ), k, device=device, dtype=torch.int64)
+                elif is_sm100_supported(): # from sm100 original
+                    self.ab_strides1 = torch.full(
+                        (num_experts,),
+                        hidden_size,
+                        device=w13_weight.device,
+                        dtype=torch.int64,
+                    )
+                    self.c_strides1 = torch.full(
+                        (num_experts,),
+                        2 * intermediate_size,
+                        device=w13_weight.device,
+                        dtype=torch.int64,
+                    )
+                    self.ab_strides2 = torch.full(
+                        (num_experts,),
+                        intermediate_size,
+                        device=w2_weight.device,
+                        dtype=torch.int64,
+                    )
+                    self.c_strides2 = torch.full(
+                        (num_experts,),
+                        hidden_size,
+                        device=w2_weight.device,
+                        dtype=torch.int64,
+                    )
+
                 self.workspace = torch.empty(
                     90000, device=w13_weight.device, dtype=torch.uint8
                 )
@@ -976,33 +988,57 @@ class Fp8MoEMethod:
             get_bool_env_var("CUTLASS_MOE")
             and self.cutlass_fp8_supported
             and self.block_quant
-            and is_sm100_supported()
         ):
             from sglang.srt.layers.moe.cutlass_moe import cutlass_fused_experts
+            if is_sm90_supported():
+                return cutlass_fused_experts(
+                    x,
+                    layer.w13_weight.transpose(1, 2),
+                    layer.w2_weight.transpose(1, 2),
+                    layer.w13_weight_scale_inv.transpose(1, 2),
+                    layer.w2_weight_scale_inv.transpose(1, 2),
+                    topk_weights,
+                    topk_ids,
+                    self.ab_strides1,
+                    self.c_strides1,
+                    self.ab_strides2,
+                    self.c_strides2,
+                    self.workspace,
+                    self.a_ptr,
+                    self.b_ptr,
+                    self.out_ptr,
+                    self.a_scales_ptr,
+                    self.b_scales_ptr,
+                    self.expert_offsets,
+                    self.problem_sizes1,
+                    self.problem_sizes2,
+                    use_fp8_blockscale=True,
+                )
+            elif is_sm100_supported():
+                return cutlass_fused_experts(
+                    x,
+                    layer.w13_weight.transpose(1, 2),
+                    layer.w2_weight.transpose(1, 2),
+                    layer.w13_weight_scale_inv.transpose(1, 2),
+                    layer.w2_weight_scale_inv.transpose(1, 2),
+                    topk_weights,
+                    topk_ids,
+                    self.ab_strides1,
+                    self.c_strides1,
+                    self.ab_strides2,
+                    self.c_strides2,
+                    self.workspace,
+                    self.a_ptr,
+                    self.b_ptr,
+                    self.out_ptr,
+                    self.a_scales_ptr,
+                    self.b_scales_ptr,
+                    self.expert_offsets,
+                    self.problem_sizes1,
+                    self.problem_sizes2,
+                    use_fp8_blockscale=True,
+                )
 
-            return cutlass_fused_experts(
-                x,
-                layer.w13_weight.transpose(1, 2),
-                layer.w2_weight.transpose(1, 2),
-                layer.w13_weight_scale_inv.transpose(1, 2),
-                layer.w2_weight_scale_inv.transpose(1, 2),
-                topk_weights,
-                topk_ids,
-                self.ab_strides1,
-                self.c_strides1,
-                self.ab_strides2,
-                self.c_strides2,
-                self.workspace,
-                self.a_ptr,
-                self.b_ptr,
-                self.out_ptr,
-                self.a_scales_ptr,
-                self.b_scales_ptr,
-                self.expert_offsets,
-                self.problem_sizes1,
-                self.problem_sizes2,
-                use_fp8_blockscale=True,
-            )
         # Expert fusion with FP8 quantization
         return fused_experts(
             x,

@@ -31,6 +31,215 @@ using namespace cute;
 
 using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
 template <typename OutType, typename ScheduleConfig, typename LayoutD>
+void launch_sm90_fp8_blockwise_scaled_group_mm(
+    torch::Tensor& out_ptrs,
+    const torch::Tensor& a_ptrs,
+    const torch::Tensor& b_ptrs,
+    const torch::Tensor& a_scales_ptrs,
+    const torch::Tensor& b_scales_ptrs,
+    const torch::Tensor& stride_a,
+    const torch::Tensor& stride_b,
+    const torch::Tensor& stride_c,
+    const torch::Tensor& layout_sfa,
+    const torch::Tensor& layout_sfb,
+    const torch::Tensor& problem_sizes,
+    const torch::Tensor& expert_offsets,
+    const torch::Tensor& workspace) {
+  using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
+  using ElementA = cutlass::float_e4m3_t;
+  using ElementB = cutlass::float_e4m3_t;
+  using ElementC = OutType;
+  using ElementD = ElementC;
+  using ElementAccumulator = float;
+  using LayoutA = cutlass::layout::RowMajor;
+  using LayoutB = cutlass::layout::ColumnMajor;
+  using LayoutC = LayoutD;
+
+  static constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
+  static constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
+  static constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
+
+  using ArchTag = cutlass::arch::Sm90;
+  using OperatorClass = cutlass::arch::OpClassTensorOp;
+  using FusionOperation   = cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>; // 250602 new
+  using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
+      ArchTag,
+      OperatorClass,
+      typename ScheduleConfig::MmaTileShape,
+      typename ScheduleConfig::ClusterShape,
+      cutlass::epilogue::collective::EpilogueTileAuto,
+      ElementAccumulator,
+      ElementAccumulator,
+      void,
+      LayoutC*,
+      AlignmentC,
+      ElementD,
+      LayoutC*,
+      AlignmentC,
+      typename ScheduleConfig::EpilogueSchedule>::CollectiveOp;
+
+  using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
+      ArchTag,
+      OperatorClass,
+      ElementA,
+      cute::tuple<LayoutA*, typename ScheduleConfig::LayoutSFA*>,
+      AlignmentA,
+      ElementB,
+      cute::tuple<LayoutB*, typename ScheduleConfig::LayoutSFB*>,
+      AlignmentB,
+      ElementAccumulator,
+      typename ScheduleConfig::MmaTileShape,
+      typename ScheduleConfig::ClusterShape,
+      cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
+          sizeof(typename CollectiveEpilogue::SharedStorage))>,
+      typename ScheduleConfig::KernelSchedule>::CollectiveOp;
+
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue, void>;
+
+  using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+  using UnderlyingProblemShape = ProblemShape::UnderlyingProblemShape;
+  using StrideA = typename Gemm::GemmKernel::InternalStrideA;
+  using StrideB = typename Gemm::GemmKernel::InternalStrideB;
+  using StrideC = typename Gemm::GemmKernel::InternalStrideC;
+  using StrideD = typename Gemm::GemmKernel::InternalStrideD;
+
+  int num_experts = (int)expert_offsets.size(0);
+  // Create an instance of the GEMM
+  Gemm gemm_op;
+
+  std::vector<typename ScheduleConfig::LayoutSFA> layout_SFA_host;
+  std::vector<typename ScheduleConfig::LayoutSFB> layout_SFB_host;
+  cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_A;
+  cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_B;
+
+  cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFA> layout_SFA;
+  cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFB> layout_SFB;
+
+  auto problem_sizes_cpu = problem_sizes.to(torch::kCPU);
+  auto* problem_sizes_cpu_ptr = problem_sizes_cpu.data_ptr<int32_t>();
+
+  typename GemmKernel::MainloopArguments mainloop_args{
+    static_cast<const ElementA**>(a_ptrs.data_ptr()),
+    static_cast<StrideA*>(stride_a.data_ptr()),
+    static_cast<const ElementB**>(b_ptrs.data_ptr()),
+    static_cast<StrideB*>(stride_b.data_ptr()),
+    static_cast<const ElementAccumulator**>(a_scales_ptrs.data_ptr()),
+    reinterpret_cast<typename ScheduleConfig::LayoutSFA*>(layout_sfa.data_ptr()),
+    static_cast<const ElementAccumulator**>(b_scales_ptrs.data_ptr()),
+    reinterpret_cast<typename ScheduleConfig::LayoutSFB*>(layout_sfb.data_ptr())};
+
+  int device_id = 0;
+  cutlass::KernelHardwareInfo hw_info = cutlass::KernelHardwareInfo::make_kernel_hardware_info<typename Gemm::GemmKernel>(device_id);
+
+  typename GemmKernel::EpilogueArguments epilogue_args{
+      {},
+      nullptr,
+      static_cast<StrideC*>(stride_c.data_ptr()),
+      static_cast<ElementD**>(out_ptrs.data_ptr()),
+      static_cast<StrideC*>(stride_c.data_ptr())};
+
+  UnderlyingProblemShape* problem_sizes_as_shapes = static_cast<UnderlyingProblemShape*>(problem_sizes.data_ptr());
+  typename GemmKernel::Arguments args{
+      cutlass::gemm::GemmUniversalMode::kGrouped,
+      {num_experts, problem_sizes_as_shapes, nullptr},
+      mainloop_args,
+      epilogue_args,
+      hw_info};
+
+  at::cuda::CUDAGuard device_guard{(char)a_ptrs.get_device()};
+  const cudaStream_t stream = at::cuda::getCurrentCUDAStream(a_ptrs.get_device());
+
+  auto can_implement_status = gemm_op.can_implement(args);
+  TORCH_CHECK(can_implement_status == cutlass::Status::kSuccess, "Failed to implement GEMM");
+
+  auto status = gemm_op.initialize(args, workspace.data_ptr(), stream);
+  TORCH_CHECK(status == cutlass::Status::kSuccess, "Failed to initialize GEMM");
+
+  status = gemm_op.run(stream);
+  TORCH_CHECK(status == cutlass::Status::kSuccess, "Failed to run GEMM");
+}
+
+
+template <typename OutType>
+void sm90_fp8_blockwise_group_mm_dispatch_shape(
+    torch::Tensor& output,
+    torch::Tensor& a_ptrs,
+    torch::Tensor& b_ptrs,
+    torch::Tensor& out_ptrs,
+    torch::Tensor& a_scales_ptrs,
+    torch::Tensor& b_scales_ptrs,
+    const torch::Tensor& a,
+    const torch::Tensor& b,
+    const torch::Tensor& scales_a,
+    const torch::Tensor& scales_b,
+    const torch::Tensor& stride_a,
+    const torch::Tensor& stride_b,
+    const torch::Tensor& stride_c,
+    const torch::Tensor& layout_sfa,
+    const torch::Tensor& layout_sfb,
+    const torch::Tensor& problem_sizes,
+    const torch::Tensor& expert_offsets,
+    const torch::Tensor& workspace) {
+  // Check the first matrix size to decide on the configuration
+  // Assuming all matrices in the group have similar size characteristics
+  // bool use_small_config = a[0].size(0) <= 128;
+
+  struct MmaConfig2 {
+    using ElementA = cutlass::float_e4m3_t;
+    using MmaTileShape = Shape<_128, _128, _128>;
+    using ClusterShape = Shape<_1, _1, _1>;
+    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    using ScaleConfig =
+        cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+    using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+  };
+
+  int num_experts = (int)expert_offsets.size(0);
+  torch::TensorOptions options_int = torch::TensorOptions().dtype(torch::kInt64).device(a.device());
+  torch::Tensor problem_sizes_transpose = torch::empty(num_experts * 3, options_int);
+  torch::Tensor output_t = output.t();
+  torch::Tensor a_t = a.t();
+  torch::Tensor b_t = b.transpose(1, 2);
+  torch::Tensor scales_a_t = scales_a.t();
+  torch::Tensor scales_b_t = scales_b.transpose(1, 2);
+
+  run_get_group_gemm_starts<MmaConfig2::LayoutSFA, MmaConfig2::LayoutSFB, MmaConfig2::ScaleConfig>(
+      expert_offsets,
+      a_ptrs,
+      b_ptrs,
+      out_ptrs,
+      a_scales_ptrs,
+      b_scales_ptrs,
+      a,
+      b,
+      output,
+      scales_a,
+      scales_b,
+      layout_sfa,
+      layout_sfb,
+      problem_sizes,
+      problem_sizes_transpose);
+
+  launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig2, cutlass::layout::RowMajor>(
+      out_ptrs,
+      a_ptrs,
+      b_ptrs,
+      a_scales_ptrs,
+      b_scales_ptrs,
+      stride_a,
+      stride_b,
+      stride_c,
+      layout_sfa,
+      layout_sfb,
+      problem_sizes,
+      expert_offsets,
+      workspace);
+}
+
+using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
+template <typename OutType, typename ScheduleConfig, typename LayoutD>
 void launch_sm100_fp8_blockwise_scaled_group_mm(
     torch::Tensor& out_ptrs,
     const torch::Tensor& a_ptrs,
@@ -407,6 +616,55 @@ void fp8_blockwise_scaled_grouped_mm(
 
   bool can_implement = false;
   auto sm_version = getSMVersion();
+
+#if defined(CUTLASS_ARCH_MMA_SM90_SUPPORTED) // from cutlass
+#if defined CUDA_VERSION && CUDA_VERSION >= 12000
+  if (sm_version == 90) {
+    if (output.scalar_type() == torch::kBFloat16) {
+      sm90_fp8_blockwise_group_mm_dispatch_shape<cutlass::bfloat16_t>(
+          output,
+          a_ptrs,
+          b_ptrs,
+          out_ptrs,
+          a_scales_ptrs,
+          b_scales_ptrs,
+          a,
+          b,
+          scales_a,
+          scales_b,
+          stride_a,
+          stride_b,
+          stride_c,
+          layout_sfa,
+          layout_sfb,
+          problem_sizes,
+          expert_offsets,
+          workspace);
+    } else {
+      sm90_fp8_blockwise_group_mm_dispatch_shape<cutlass::half_t>(
+          output,
+          a_ptrs,
+          b_ptrs,
+          out_ptrs,
+          a_scales_ptrs,
+          b_scales_ptrs,
+          a,
+          b,
+          scales_a,
+          scales_b,
+          stride_a,
+          stride_b,
+          stride_c,
+          layout_sfa,
+          layout_sfb,
+          problem_sizes,
+          expert_offsets,
+          workspace);
+    }
+    can_implement = true;
+  }
+#endif
+#endif
 
 #if defined(CUTLASS_ARCH_MMA_SM100A_SUPPORTED) || defined(CUTLASS_ARCH_MMA_SM100_SUPPORTED)
 #if defined CUDA_VERSION && CUDA_VERSION >= 12080

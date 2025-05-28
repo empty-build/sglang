@@ -104,28 +104,48 @@ def cutlass_fused_experts(
         AssertionError: If input shapes, dtypes, or flags are inconsistent or unsupported.
         NotImplementedError: If CUDA is not available or `sgl_kernel` is not properly installed.
     """
-    assert use_fp8_blockscale, "Only support fp8 blockscale for now"
-    assert topk_weights.shape == topk_ids.shape, "topk shape mismatch"
-    assert w1_q.dtype == torch.float8_e4m3fn
-    assert w2_q.dtype == torch.float8_e4m3fn
-    assert a.shape[1] == w1_q.shape[1], "Hidden size mismatch w1"
-    assert w1_q.shape[2] == w2_q.shape[1] * 2, "Hidden size mismatch w2"
-    assert w1_q.shape[0] == w2_q.shape[0], "Expert number mismatch"
-    assert w1_q.shape[0] == w2_q.shape[0], "Weights expert number mismatch"
-    assert w1_q.shape[0] == w1_scale.shape[0], "w1 scales expert number mismatch"
-    assert w1_q.shape[0] == w2_scale.shape[0], "w2 scales expert number mismatch"
-    assert a.dtype in [torch.half, torch.bfloat16], "Invalid output dtype"
+    from sglang.srt.layers.quantization.fp8_utils import is_sm90_supported
+    if is_sm90_supported(): # same as origin
+        assert use_fp8_blockscale, "Only support fp8 blockscale for now"
+        assert topk_weights.shape == topk_ids.shape, "topk shape mismatch"
+        assert w1_q.dtype == torch.float8_e4m3fn
+        assert w2_q.dtype == torch.float8_e4m3fn
+        assert a.shape[1] == w1_q.shape[1], "Hidden size mismatch w1"
+        assert w1_q.shape[2] == w2_q.shape[1] * 2, "Hidden size mismatch w2" #origin
+        assert w1_q.shape[0] == w2_q.shape[0], "Expert number mismatch"
+        assert w1_q.shape[0] == w2_q.shape[0], "Weights expert number mismatch"
+        assert w1_q.shape[0] == w1_scale.shape[0], "w1 scales expert number mismatch"
+        assert w1_q.shape[0] == w2_scale.shape[0], "w2 scales expert number mismatch"
+        assert a.dtype in [torch.half, torch.bfloat16], "Invalid output dtype"
+
+        out_dtype = a.dtype
+        num_experts = w1_q.size(0)
+        m = a.size(0)
+        k = w1_q.size(1)
+        n = w2_q.size(1)
+    else: # origin for sm100
+        assert use_fp8_blockscale, "Only support fp8 blockscale for now"
+        assert topk_weights.shape == topk_ids.shape, "topk shape mismatch"
+        assert w1_q.dtype == torch.float8_e4m3fn
+        assert w2_q.dtype == torch.float8_e4m3fn
+        assert a.shape[1] == w1_q.shape[1], "Hidden size mismatch w1"
+        assert w1_q.shape[2] == w2_q.shape[1] * 2, "Hidden size mismatch w2" #origin
+        assert w1_q.shape[0] == w2_q.shape[0], "Expert number mismatch"
+        assert w1_q.shape[0] == w2_q.shape[0], "Weights expert number mismatch"
+        assert w1_q.shape[0] == w1_scale.shape[0], "w1 scales expert number mismatch"
+        assert w1_q.shape[0] == w2_scale.shape[0], "w2 scales expert number mismatch"
+        assert a.dtype in [torch.half, torch.bfloat16], "Invalid output dtype"
+
+        out_dtype = a.dtype
+        num_experts = w1_q.size(0)
+        m = a.size(0)
+        k = w1_q.size(1)
+        n = w2_q.size(1)
 
     if is_cuda:
         from sglang.srt.layers.quantization.fp8_kernel import (
             sglang_per_token_group_quant_fp8,
         )
-
-    out_dtype = a.dtype
-    num_experts = w1_q.size(0)
-    m = a.size(0)
-    k = w1_q.size(1)
-    n = w2_q.size(1)
 
     topk = topk_ids.size(1)
 
