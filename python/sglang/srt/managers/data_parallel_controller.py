@@ -297,7 +297,7 @@ class DataParallelController:
         else:
             counter = req.bootstrap_room % len(self.workers)
             self.workers[counter].send_pyobj(req)
-            logger.info(f"[hanhan] Round robin scheduler: {counter}")
+            logger.info(f"[hanhan] bootstrap room: {req.bootstrap_room}, Round robin scheduler: {counter}")
 
 
     def shortest_queue_scheduler(self, req):
