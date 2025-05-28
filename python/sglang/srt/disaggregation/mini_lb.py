@@ -26,6 +26,8 @@ class MiniLoadBalancer:
         self.prefill_configs = prefill_configs
         self.prefill_servers = [p.url for p in prefill_configs]
         self.decode_servers = decode_servers
+        self.bootstrap_room_counter = 0
+        self._counter_lock = asyncio.Lock()
 
     def select_pair(self):
         prefill_config = random.choice(self.prefill_configs)
@@ -94,6 +96,12 @@ class MiniLoadBalancer:
             stream_results(),
             media_type="text/event-stream",
         )
+
+    async def get_next_bootstrap_room(self):
+        async with self._counter_lock:
+            room = self.bootstrap_room_counter
+            self.bootstrap_room_counter = (self.bootstrap_room_counter + 1) % (2**63)
+            return room
 
 
 app = FastAPI()
@@ -221,7 +229,7 @@ async def handle_completion_request(request_data: dict, request: Request):
         {
             "bootstrap_host": hostname,
             "bootstrap_port": bootstrap_port,
-            "bootstrap_room": random.randint(0, 2**63 - 1),
+            "bootstrap_room": await load_balancer.get_next_bootstrap_room(),
         }
     )
 

@@ -295,11 +295,10 @@ class DataParallelController:
                 self.workers
             )
         else:
-            logger.info(f"[hanhan] Round robin scheduler: {self.round_robin_counter}")
-            self.workers[self.round_robin_counter].send_pyobj(req)
-            self.round_robin_counter = (self.round_robin_counter + 1) % len(
-                self.workers
-            )
+            counter = req.bootstrap_room % len(self.workers)
+            self.workers[counter].send_pyobj(req)
+            logger.info(f"[hanhan] Round robin scheduler: {counter}")
+
 
     def shortest_queue_scheduler(self, req):
         popped_element = heapq.heappop(self.dp_workload_status_heap)
