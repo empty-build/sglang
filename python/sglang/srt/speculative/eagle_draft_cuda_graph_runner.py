@@ -269,6 +269,7 @@ class EAGLEDraftCudaGraphRunner:
         self.topk_p[:raw_bs].copy_(forward_batch.spec_info.topk_p)
         self.topk_index[:raw_bs].copy_(forward_batch.spec_info.topk_index)
         self.hidden_states[:raw_bs].copy_(forward_batch.spec_info.hidden_states)
+        self.global_num_tokens_gpu.copy_(forward_batch.global_num_tokens_gpu)
 
         # Attention backend
         if bs != raw_bs:
