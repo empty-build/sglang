@@ -574,108 +574,43 @@ class Fp8MoEMethod:
             if (
                 get_bool_env_var("CUTLASS_MOE")
                 and self.cutlass_fp8_supported
-                and (is_sm100_supported()
-                     or is_sm90_supported())
             ):
-                # if is_sm90_supported(): # colum-major
-                if 1: # my testing # ///////////raw-major
-                    # by my previous fp8.py
-                    # Jack
+                if is_sm90_supported(): # colum-major
                     device = w13_weight.device
-                    # m = x.shape[0]      # m = x.shape[0] same
-                    # k = x.shape[1]      # k = x.shape[1] same
-                    k = hidden_size     # 7168
-                    # n = w13_weight.shape[1]     # 512
-                    # n = w13_weight.shape[1] # / 2 # 不用除二
-                    # n = w13_weight.shape[1] / 2 # 250507 Jack認為需要除二 因為 [E, 2N, K] before trans
-                    n = intermediate_size # == w13_weight.shape[1] / 2
-                    # print(f"intermediate_size {intermediate_size}")
-                    # print(f"w13_weight.shape[1] / 2 {w13_weight.shape[1] / 2}")
+                    # self.ab_strides1 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
+                    # self.c_strides1 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
+                    # self.ab_strides2 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
+                    # self.c_strides2 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
 
-                    # self.ab_strides1 = torch.full((num_experts, ),
-                    #                     k, # k
-                    #                     device=device,
-                    #                     dtype=torch.int64)
-                    # self.c_strides1 = torch.full((num_experts, ),
-                    #                             2 * n, #n
-                    #                             device=device,
-                    #                             dtype=torch.int64)
-                    # self.ab_strides2 = torch.full((num_experts, ),
-                    #                             n,
-                    #                             device=device,
-                    #                             dtype=torch.int64)
-                    # self.c_strides2 = torch.full((num_experts, ),
-                    #                             k,
-                    #                             device=device,
-                    #                             dtype=torch.int64)
-                    # gpt說的 colum-major / (1, N, 0) 
+                    ########## below is testing area ############
+                    # m = x.shape[0]        # m = x.shape[0] same 拿不到m
+                    k = hidden_size         # 7168
+                    n = intermediate_size   # == w13_weight.shape[1] / 2 (同vllm最後對的方式)
+
+                    # vllm per-tensor and sm100 are using the same abc strides
+                    self.ab_strides1 = torch.full((num_experts, ), k, device=device, dtype=torch.int64)
+                    self.c_strides1 = torch.full((num_experts, ), 2 * n, device=device, dtype=torch.int64)
+                    self.ab_strides2 = torch.full((num_experts, ), n, device=device, dtype=torch.int64)
+                    self.c_strides2 = torch.full((num_experts, ), k, device=device, dtype=torch.int64)
+
+                    # GPT's explanation
+                    # colum-major / (1, N, 0)
                     # (1, N, 0) stride 代表的意義是：
-                    # •	最內層 stride 為 1 → 代表 colum-major
-                    # •	第二層 stride 為 N
-                    # •	最外層 stride 為 0 → 所有 batch/expert 都 broadcast 使用同一塊資料
+                    # • Inner layer: stride = 1 → 代表 colum-major
+                    # •	2nd later: stride = N
+                    # •	Outer layer: stride = 0 → 所有 batch/expert 都 broadcast 使用同一塊資料
                     # For colum-major layout, inner dim fastest → stride = 1
                     # self.ab_strides1 = torch.full((num_experts,), 1, dtype=torch.int64, device=device)
                     # self.c_strides1  = torch.full((num_experts,), 2 * n, dtype=torch.int64, device=device)
                     # self.ab_strides2 = torch.full((num_experts,), 1, dtype=torch.int64, device=device)
                     # self.c_strides2  = torch.full((num_experts,), k, dtype=torch.int64, device=device)
 
-                    # # by GPT
-                    # # assume shape: [E, N, K]
-                    # self.ab_strides1 = torch.tensor(
-                    #     [w13_weight[i].stride(0) for i in range(num_experts)],
-                    #     device=w13_weight.device,
-                    #     dtype=torch.int64
-                    # )
-                    # self.c_strides1 = torch.full(
-                    #     (num_experts,),
-                    #     2 * intermediate_size,  # usually row-major output [M, N] -> stride[1] = N
-                    #     device=w13_weight.device,
-                    #     dtype=torch.int64
-                    # )
-
-                    # self.ab_strides2 = torch.tensor(
-                    #     [w2_weight[i].stride(0) for i in range(num_experts)],
-                    #     device=w2_weight.device,
-                    #     dtype=torch.int64
-                    # )
-                    # self.c_strides2 = torch.full(
-                    #     (num_experts,),
-                    #     hidden_size,  # output: [M, H] row-major -> stride[1] = H
-                    #     device=w2_weight.device,
-                    #     dtype=torch.int64
-                    # )
-
-                    # from sm100 original
+                    # test this 'm'
                     # self.ab_strides1 = torch.full((num_experts,), m * k, device=device, dtype=torch.int64,)
                     # self.c_strides1 = torch.full((num_experts,), m * n, device=device, dtype=torch.int64,)
                     # self.ab_strides2 = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
                     # self.c_strides2 = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
-
-                    # from sm100 original
-                    # self.ab_strides1 = torch.full((num_experts,), k, device=device, dtype=torch.int64,)
-                    # self.c_strides1 = torch.full((num_experts,), 2 * n, device=device, dtype=torch.int64,)
-                    # self.ab_strides2 = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
-                    # self.c_strides2 = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
-
-                    # my init + refill
-                    if not hasattr(self, "ab_strides1"):
-                        print("Jack create_weights 1st")
-                    else:
-                        print("Jack create_weights 2nd")
-                    # print("Jack create_weights11 ab_strides1 dtype:", self.ab_strides1.dtype)
-                    # print("Jack create_weights11 c_strides1 dtype:", self.c_strides1.dtype)
-                    # print("Jack create_weights11 ab_strides2 dtype:", self.ab_strides2.dtype)
-                    # print("Jack create_weights11 c_strides2 dtype:", self.c_strides2.dtype)
-                    self.ab_strides1 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
-                    self.c_strides1 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
-                    self.ab_strides2 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
-                    self.c_strides2 = torch.empty((num_experts,), device=device, dtype=torch.int64,)
-                    print("Jack create_weights22 ab_strides1 dtype:", self.ab_strides1.dtype)
-                    print("Jack create_weights22 c_strides1 dtype:", self.c_strides1.dtype)
-                    print("Jack create_weights22 ab_strides2 dtype:", self.ab_strides2.dtype)
-                    print("Jack create_weights22 c_strides2 dtype:", self.c_strides2.dtype)
-                else: # from sm100 original
-                    pass
+                elif is_sm100_supported(): # from sm100 original
                     self.ab_strides1 = torch.full(
                         (num_experts,),
                         hidden_size,
@@ -1074,118 +1009,118 @@ class Fp8MoEMethod:
             if ret is not None:
                 return ret
 
-        # print(f"Jack fp8.py check env(CUTLASS_MOE): {get_bool_env_var('CUTLASS_MOE')}, "
-        #         f"cutlass_fp8_supported: {self.cutlass_fp8_supported}, "
-        #         f"block_quant: {self.block_quant}, "
-        #         f"is_sm100_supported(): {is_sm100_supported()}"
-        #     )
         if (
             get_bool_env_var("CUTLASS_MOE")
             and self.cutlass_fp8_supported
             and self.block_quant
-            and (is_sm100_supported()
-                or is_sm90_supported())
+            and (is_sm100_supported() # can remove
+                or is_sm90_supported()) # can remove
         ):
-            # print("Jack fp8.py cutlass_fused_experts()")
             from sglang.srt.layers.moe.cutlass_moe import cutlass_fused_experts
+            if is_sm90_supported():
+                # Ref: SM100 original
+                # layer.w13_weight.transpose(1, 2),
+                # layer.w2_weight.transpose(1, 2),
+                # layer.w13_weight_scale_inv.transpose(1, 2),
+                # layer.w2_weight_scale_inv.transpose(1, 2),
 
-            # layer.w13_weight.transpose(1, 2),
-            # layer.w2_weight.transpose(1, 2),
-            # layer.w13_weight_scale_inv.transpose(1, 2),
-            # layer.w2_weight_scale_inv.transpose(1, 2),
+                # Summary:
+                # x/a.shape: [M, K] [160, 7168] [batch, hidden_size]
+                # w13_weight: [E, 2N, K] [264, 512, 7168]
+                # w2_weight: [E, K, N] [264, 7168, 256]
+                # w13_weight_scale_inv: [E, 2N/128, K/128] [264, 4, 56]
+                # # 目前 weight 是按 (expert, 512, 7168)，而 FP8 scale 是按 512//128 × 7168//128 = 4×56 的 tile 排列
+                # # • 4 × 128 = 512 → 每 128 input channel 分一組 → FP8 scaling 是按 input dimension 切 tile
+                # # • 56 × 128 = 7168 → 每 128 output 分一組 → scaling 是按 output dimension 切 tile
+                # w2_weight_scale_inv: [E, K/128, N/128] [264, 56, 2]
 
-            # layer.w13_weight,
-            # layer.w2_weight,
-            # layer.w13_weight_scale_inv,
-            # layer.w2_weight_scale_inv,
+                ####################################################################################
+                # Jack: 沒辦法 我需要m建構stride, 只能在這才有m, create_weights()沒有
+                # So用這寫法:
+                # self.c_strides2 = torch.empty((num_experts,), dtype=torch.int64, device=device)
+                # self.c_strides2.fill_(k * m)
+                # =
+                # self.c_strides2 = torch.full((num_experts,), m * k, device=device, dtype=torch.int64)
 
-            # x.shape [M, K] == [batch, hidden_size]
-            # print("x/a shpae:", x.shape)
-            # print("w13_weight shape:", layer.w13_weight.shape) # [E, K, N] [264, 512, 7168]
-            # print("w2_weight shape:", layer.w2_weight.shape) # [E, K, N] [264, 7168, 256]
-            # print("w13_weight_scale_inv shape:", layer.w13_weight_scale_inv.shape) # [264, 4, 56]
-            # 	目前 weight 是按 (expert, 512, 7168)，而 FP8 scale 是按 512//128 × 7168//128 = 4×56 的 tile 排列
-            #   •	4 × 128 = 512 → 每 128 input channel 分一組 → FP8 scaling 是按 input dimension 切 tile
-            # 	•	56 × 128 = 7168 → 每 128 output 分一組 → scaling 是按 output dimension 切 tile
-            # print("w2_weight_scale_inv shape:", layer.w2_weight_scale_inv.shape) # [264, 56, 2]
-            #
-            # summary:
-            # x/a.shape: [M, K] [160, 7168]
-            # w13_weight: [E, 2N, K] [264, 512, 7168] 
-            # w2_weight: [E, K, N] [264, 7168, 256]
-            # w13_weight_scale_inv: [E, 2N/128, K/128] [264, 4, 56] 
-            # # 目前 weight 是按 (expert, 512, 7168)，而 FP8 scale 是按 512//128 × 7168//128 = 4×56 的 tile 排列
-            # # • 4 × 128 = 512 → 每 128 input channel 分一組 → FP8 scaling 是按 input dimension 切 tile
-            # # • 56 × 128 = 7168 → 每 128 output 分一組 → scaling 是按 output dimension 切 tile
-            # w2_weight_scale_inv: [E, K/128, N/128] [264, 56, 2]
+                # Convert data type, otherwise assertion error
+                # print("x.shape:", x.shape, type(x.shape))
+                # print("layer.w2_weight[2]: ",  layer.w2_weight[2], "layer.w2_weight[2].shape: ", layer.w2_weight[2].shape)
+                # m = int(x.shape[0])
+                # k = int(x.shape[1])
+                # n = int(layer.w2_weight.shape[2])
 
+                # Ref: Try "m"
+                # self.ab_strides1 = torch.full((num_experts,), m * k, device=device, dtype=torch.int64,)
+                # self.c_strides1 = torch.full((num_experts,), m * n, device=device, dtype=torch.int64,)
+                # self.ab_strides2 = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
+                # self.c_strides2 = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
 
+                # my new m
+                # self.ab_strides1.fill_(k * m)
+                # self.c_strides1.fill_(m * n)
+                # self.ab_strides2.fill_(k)
+                # self.c_strides2.fill_(n)
 
-            ####################################################################################
-            # Jack: 沒辦法 我需要m建構stride
-            # 用這寫法:
-            # self.c_strides2 = torch.empty((num_experts,), dtype=torch.int64, device=device)
-            # self.c_strides2.fill_(k * m)
-            # =
-            # self.c_strides2 = torch.full((num_experts,), m * k, device=device, dtype=torch.int64)
+                # Reference: origin sm100 reference
+                # self.ab_strides1 = torch.full((num_experts,), k, device=device, dtype=torch.int64,)
+                # self.c_strides1 = torch.full((num_experts,), 2 * n, device=device, dtype=torch.int64,)
+                # self.ab_strides2 = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
+                # self.c_strides2 = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
 
-            # conver data type, otherwise error
-            m = int(x.shape[0])
-            k = int(x.shape[1])
-            n = int(layer.w2_weight[2])
-            # self.ab_strides1 = torch.full((num_experts,), m * k, device=device, dtype=torch.int64,)
-            # self.c_strides1 = torch.full((num_experts,), m * n, device=device, dtype=torch.int64,)
-            # self.ab_strides2 = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
-            # self.c_strides2 = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
-            # self.ab_strides1.fill_(k * m)
-            # self.c_strides1.fill_(m * n)# = torch.full((num_experts,), m * n, device=device, dtype=torch.int64,)
-            # self.ab_strides2.fill_(k) # optimize it # = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
-            # self.c_strides2.fill_(n)# optimize it# = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
-            
-            # origin sm100
-            # self.ab_strides1 = torch.full((num_experts,), k, device=device, dtype=torch.int64,)
-            # self.c_strides1 = torch.full((num_experts,), 2 * n, device=device, dtype=torch.int64,)
-            # self.ab_strides2 = torch.full((num_experts,), n, device=device,dtype=torch.int64,)
-            # self.c_strides2 = torch.full((num_experts,), k, device=device,dtype=torch.int64,)
-            print("ab_strides1 dtype:", self.ab_strides1.dtype)
-            print("c_strides1 dtype:", self.c_strides1.dtype)
-            print("ab_strides2 dtype:", self.ab_strides2.dtype)
-            print("c_strides2 dtype:", self.c_strides2.dtype)
-            self.ab_strides1.fill_(k)
-            self.c_strides1.fill_(2 * n)
-            self.ab_strides2.fill_(n)
-            self.c_strides2.fill_(k)
-            #############################################################################
+                # origin sm100
+                # self.ab_strides1.fill_(k)
+                # self.c_strides1.fill_(2 * n)
+                # self.ab_strides2.fill_(n)
+                # self.c_strides2.fill_(k)
+                #############################################################################
+                return cutlass_fused_experts(
+                    x,
+                    layer.w13_weight, #sm90 need [E, K, 2N]
+                    layer.w2_weight, #sm90 need[E, N, K]
+                    layer.w13_weight_scale_inv,
+                    layer.w2_weight_scale_inv,
+                    topk_weights,
+                    topk_ids,
+                    self.ab_strides1,
+                    self.c_strides1,
+                    self.ab_strides2,
+                    self.c_strides2,
+                    self.workspace,
+                    self.a_ptr,
+                    self.b_ptr,
+                    self.out_ptr,
+                    self.a_scales_ptr,
+                    self.b_scales_ptr,
+                    self.expert_offsets,
+                    self.problem_sizes1,
+                    self.problem_sizes2,
+                    use_fp8_blockscale=True,
+                )
+            elif is_sm100_supported():
+                return cutlass_fused_experts(
+                    x,
+                    layer.w13_weight.transpose(1, 2),
+                    layer.w2_weight.transpose(1, 2),
+                    layer.w13_weight_scale_inv.transpose(1, 2),
+                    layer.w2_weight_scale_inv.transpose(1, 2),
+                    topk_weights,
+                    topk_ids,
+                    self.ab_strides1,
+                    self.c_strides1,
+                    self.ab_strides2,
+                    self.c_strides2,
+                    self.workspace,
+                    self.a_ptr,
+                    self.b_ptr,
+                    self.out_ptr,
+                    self.a_scales_ptr,
+                    self.b_scales_ptr,
+                    self.expert_offsets,
+                    self.problem_sizes1,
+                    self.problem_sizes2,
+                    use_fp8_blockscale=True,
+                )
 
-            # 找到cuda kernel少invoke最主要的運算....
-            # latest: gpt說的 colum-major / (1, N, 0)  + transpose全拿掉 (illigal mem)
-            # strides改回原本sm100跟我以前那樣raw, 這邊分析了一下應該不用transpose? (illegal memory access was encountered)
-            # 四個 transpose(1, 2) fail
-            # 慢慢退回去
-            return cutlass_fused_experts(
-                x,
-                layer.w13_weight, #sm90 need [E, K, 2N]
-                layer.w2_weight, #sm90 need[E, N, K]
-                layer.w13_weight_scale_inv,
-                layer.w2_weight_scale_inv,
-                topk_weights,
-                topk_ids,
-                self.ab_strides1,
-                self.c_strides1,
-                self.ab_strides2,
-                self.c_strides2,
-                self.workspace,
-                self.a_ptr,
-                self.b_ptr,
-                self.out_ptr,
-                self.a_scales_ptr,
-                self.b_scales_ptr,
-                self.expert_offsets,
-                self.problem_sizes1,
-                self.problem_sizes2,
-                use_fp8_blockscale=True,
-            )
-        # print("Jack fp8.py TRITON fused_experts()")
         # Expert fusion with FP8 quantization
         return fused_experts(
             x,

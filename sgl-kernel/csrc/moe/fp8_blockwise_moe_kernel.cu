@@ -207,30 +207,34 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 
     // gpt建議改origin精度的解法, 滿近說真話的
-    using ElementA = cutlass::float_e4m3_t;
-    using MmaTileShape = Shape<_128, _128, _128>; 
-    using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
-    // using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedBlockwise1SmSm100;
-    // using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
-    using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
-    using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
-    using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<32, 1, 128>;
-        // cutlass::detail::Sm100BlockwiseScaleConfig<128, 1, 128, cute::UMMA::Major::K, cute::UMMA::Major::K>;
-    using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
-    using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+    // using ElementA = cutlass::float_e4m3_t;
+    // using MmaTileShape = Shape<_128, _128, _128>;
+    // using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
+    // // using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedBlockwise1SmSm100;
+    // // using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
+    // using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    // using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<32, 1, 128>;
+    // // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<1, 32, 128>; // [ret=cannot compile]
+    //     // cutlass::detail::Sm100BlockwiseScaleConfig<128, 1, 128, cute::UMMA::Major::K, cute::UMMA::Major::K>;
+    // using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 
     // 250527
-    using ElementA = cutlass::float_e4m3_t;
-    using MmaTileShape = Shape<_128, _128, _128>; 
-    using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
-    // using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedBlockwise1SmSm100;
-    // using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
-    using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
-    using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
-    using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128>;
-        // cutlass::detail::Sm100BlockwiseScaleConfig<128, 1, 128, cute::UMMA::Major::K, cute::UMMA::Major::K>;
-    using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
-    using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+    // using ElementA = cutlass::float_e4m3_t;
+    // // using MmaTileShape = Shape<_128, _128, _128>;
+    // using MmaTileShape = Shape<_128, _32, _128>;
+    // using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
+    // // using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedBlockwise1SmSm100;
+    // // using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
+    // using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    // using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    // // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<32, 1, 128>; // try [ret=胡話]
+    // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128>; // 這跟sm100 config2一樣了, example68=1,128,128  [ret=胡話]
+    // // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // example68=1,128,128. sm100也有這種shpae 但, mmatile也跟著比較小=32 [ret=illegal memory]
+    //     // cutlass::detail::Sm100BlockwiseScaleConfig<128, 1, 128, cute::UMMA::Major::K, cute::UMMA::Major::K>;
+    // using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 
     // // (gpt)
     // using ElementA = cutlass::float_e4m3_t;
@@ -245,14 +249,14 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());  // = RowMajor
 
     // 全用sm90 68example (works but still accuracy wrong)
-    // using ElementA = cutlass::float_e4m3_t;
-    // using MmaTileShape = Shape<_128, _128, _128>;
-    // using ClusterShape = Shape<_1, _2, _1>;  // Layout type for SFB matrix operand
-    // using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
-    // using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
-    // using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
-    // using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
-    // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+    using ElementA = cutlass::float_e4m3_t;
+    using MmaTileShape = Shape<_128, _128, _128>;
+    using ClusterShape = Shape<_1, _2, _1>;  // Layout type for SFB matrix operand
+    using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+    using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
   };
 #if 0 // testing: only use MmaConfig1 for testing,  turn  2,3 off 這兩個都還沒用對. 基本上config2=config3.....
   struct MmaConfig2 {
@@ -304,6 +308,14 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
   torch::Tensor scales_a_t = scales_a.t();
   torch::Tensor scales_b_t = scales_b.transpose(1, 2);
 
+  /* [基本上rets=胡話] */
+  // torch::Tensor output_t = output; // [remove ret=胡話] [remove "output = output_t.t()"" ret=胡話]
+  // torch::Tensor a_t = a; // [remove ret=胡話]
+  // torch::Tensor b_t = b;  // [remove ret=胡話]
+  // torch::Tensor scales_a_t = scales_a; // [remove ret=胡話]
+  // torch::Tensor scales_b_t = scales_b; // [remove ret=胡話]
+
+
 #if 1 // Jack for testing
   // Jack for testing
   // if (a.size(0) <= 512 && a.size(1) >= 2048) {
@@ -324,6 +336,7 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
           problem_sizes,
           problem_sizes_transpose,
           true);
+    // launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::RowMajor>( // [ret=illegal memory]
     launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::ColumnMajor>(
         out_ptrs,
         a_ptrs,
@@ -338,7 +351,7 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
         problem_sizes_transpose,
         expert_offsets,
         workspace);
-    output = output_t.t();
+    output = output_t.t(); // [remove doens't help]
   // // } else {
   //   // // printf("Jack entered config2\n");
   //   // run_get_group_gemm_starts<MmaConfig2::LayoutSFA, MmaConfig2::LayoutSFB, MmaConfig2::ScaleConfig>(
