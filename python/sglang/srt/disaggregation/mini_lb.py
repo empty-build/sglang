@@ -185,7 +185,7 @@ async def handle_generate_request(request_data: dict):
                 "bootstrap_host": [hostname] * batch_size,
                 "bootstrap_port": [bootstrap_port] * batch_size,
                 "bootstrap_room": [
-                    (await _generate_next_bootstrap_room() if neat else _generate_bootstrap_room()) for _ in range(batch_size)
+                    (await _generate_next_bootstrap_room() if neat_room else _generate_bootstrap_room()) for _ in range(batch_size)
                 ],
             }
         )
@@ -194,7 +194,7 @@ async def handle_generate_request(request_data: dict):
             {
                 "bootstrap_host": hostname,
                 "bootstrap_port": bootstrap_port,
-                "bootstrap_room": await _generate_next_bootstrap_room() if neat else _generate_bootstrap_room(),
+                "bootstrap_room": await _generate_next_bootstrap_room() if neat_room else _generate_bootstrap_room(),
             }
         )
 
@@ -223,7 +223,7 @@ async def handle_completion_request(request_data: dict, request: Request):
         {
             "bootstrap_host": hostname,
             "bootstrap_port": bootstrap_port,
-            "bootstrap_room": await _generate_next_bootstrap_room() if neat else _generate_bootstrap_room(),
+            "bootstrap_room": await _generate_next_bootstrap_room() if neat_room else _generate_bootstrap_room(),
         }
     )
 
@@ -287,7 +287,7 @@ def run(prefill_configs, decode_addrs, host, port):
     load_balancer = MiniLoadBalancer(prefill_configs, decode_addrs)
     uvicorn.run(app, host=host, port=port)
 
-neat = False
+neat_room = False
 
 if __name__ == "__main__":
     import argparse
@@ -311,12 +311,12 @@ if __name__ == "__main__":
         "--port", type=int, default=8000, help="Port to bind the server (default: 8000)"
     )
     parser.add_argument(
-        "--neat-id", type=bool, default=False, help="use increment id as bootstrap room"
+        "--neat-room", type=bool, default=False, help="use increment id as bootstrap room"
     )
 
     args = parser.parse_args()
 
-    neat = args.neat_id
+    neat_room = args.neat_room
     prefill_urls = args.prefill.split(",")
     bootstrap_ports = [int(p) for p in args.prefill_bootstrap_ports.split(",")]
 
