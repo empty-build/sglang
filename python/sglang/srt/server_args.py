@@ -212,6 +212,7 @@ class ServerArgs:
     disaggregation_transfer_backend: str = "mooncake"
     disaggregation_ib_device: Optional[str] = None
     disaggregation_with_mla: bool = True
+    skip_sample_on_prefill: bool = False
 
     def __post_init__(self):
         # Expert parallelism
@@ -1320,6 +1321,12 @@ class ServerArgs:
             type=bool,
             default=ServerArgs.disaggregation_with_mla,
             help="Enable disaggregation with MLA. Default is True.",
+        )
+        parser.add_argument(
+            "--skip-sample-on-prefill",
+            type=bool,
+            default=ServerArgs.skip_sample_on_prefill,
+            help="If true, the first sampling will be done in decode side instead of prefill side. Default is False.",
         )
 
     @classmethod
