@@ -311,7 +311,7 @@ if __name__ == "__main__":
         "--port", type=int, default=8000, help="Port to bind the server (default: 8000)"
     )
     parser.add_argument(
-        "--neat-room", type=bool, default=False, help="use increment id as bootstrap room"
+        "--neat-room", action="store_true", help="use increment id as bootstrap room"
     )
 
     args = parser.parse_args()
