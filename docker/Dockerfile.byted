@@ -22,6 +22,13 @@ RUN pip install hpkv==${gdkv_sdk_version} --extra-index-url https://scqq9isgq31i
 # eic sdk安装
 RUN pip install eic==${eic_sdk_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
 
+# examples 覆盖
+ARG branch=release_0.0.2
+RUN cd /tmp && git clone https://github.com/bytedance-iaas/sglang.git -b ${branch} && \
+    rm -rf /root/sglang/examples && \
+    mv /tmp/sglang/examples /root/sglang/examples && \
+    rm -rf /tmp/sglang
+    
 # onion 安装
 RUN curl -fsSL https://mirrors.byted.org/extra-tools/ubuntu/GPG-KEY-system | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/volc-extra-tools.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/volc-extra-tools.gpg] http://mirrors.byted.org/extra-tools/ubuntu jammy main" > /etc/apt/sources.list.d/volctools.list && apt update && apt install -y onion-ai-data && \
