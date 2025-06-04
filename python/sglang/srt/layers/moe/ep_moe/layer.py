@@ -6,6 +6,10 @@ import torch._dynamo
 from torch.nn import Module
 
 torch._dynamo.config.suppress_errors = True
+from sglang.srt.layers.quantization.w4afp8 import (
+    W4AFp8Config,
+    W4AFp8MoEMethod,
+)
 
 try:
     from deep_gemm import (
@@ -186,6 +190,12 @@ class EPMoE(torch.nn.Module):
             self.use_block_quant = False
             self.block_shape = None
             self.activation_scheme = None
+        elif isinstance(quant_config, W4AFp8Config):
+            self.quant_method: Optional[QuantizeMethodBase] = W4AFp8MoEMethod(
+                quant_config)
+            self.use_w4afp8 = True
+            self.use_block_quant = False
+            self.activation_scheme = quant_config.moe_activation_scheme
         else:
             self.quant_method: Optional[QuantizeMethodBase] = Fp8EPMoEMethod(
                 quant_config
@@ -336,6 +346,23 @@ class EPMoE(torch.nn.Module):
 
     def forward_normal(self, hidden_states: torch.Tensor, router_logits: torch.Tensor):
         assert self.quant_method is not None
+
+        if self.use_w4afp8:
+            hidden_states = self.quant_method.apply(
+                layer=self,
+                x=hidden_states,
+                router_logits=router_logits,
+                top_k=self.top_k,
+                renormalize=self.renormalize,
+                use_grouped_topk=self.use_grouped_topk,
+                topk_group=self.topk_group,
+                num_expert_group=self.num_expert_group,
+                custom_routing_function=self.custom_routing_function,
+                correction_bias=self.correction_bias,
+                activation=self.activation,
+                routed_scaling_factor=self.routed_scaling_factor,
+            )
+            return hidden_states
 
         if self.grouped_gemm_runner is None:
             self.grouped_gemm_runner = GroupedGemmRunner(
@@ -535,6 +562,23 @@ class EPMoE(torch.nn.Module):
             ]
         ]
 
+    @classmethod
+    def make_expert_input_scale_params_mapping(
+        cls,
+        num_experts: int,
+    ) -> List[Tuple[str, str, int, str]]:
+        # (param_name, weight_name, expert_id, shard_id)
+        return [
+            (
+                "experts.w13_" if shard_id in ["w1", "w3"] else "experts.w2_",
+                f"experts.{expert_id}.{shard_id}.",
+                expert_id,
+                shard_id,
+            )
+            for expert_id in range(num_experts)
+            for shard_id in ["w1", "w2", "w3"]
+        ]
+
     def weight_loader(
         self,
         param: torch.nn.Parameter,
@@ -584,6 +628,15 @@ class EPMoE(torch.nn.Module):
 
         # Input scales can be loaded directly and should be equal.
         if "input_scale" in weight_name:
+            if self.use_w4afp8:
+                if shard_id == "w1":
+                    param_data[expert_id][0] = loaded_weight
+                elif shard_id == "w3":
+                    param_data[expert_id][1] = loaded_weight
+                else:
+                    param_data[expert_id] = loaded_weight
+                return
+
             if (
                 param_data[expert_id] != 1
                 and (param_data[expert_id] - loaded_weight).abs() > 1e-5
@@ -607,6 +660,13 @@ class EPMoE(torch.nn.Module):
                         (self.intermediate_size + block_n - 1) // block_n :, :
                     ] = loaded_weight
                 else:  # w2
+                    param_data[expert_id] = loaded_weight
+            elif self.use_w4afp8:
+                if shard_id == "w1":
+                    param_data[expert_id][:self.intermediate_size, :] = loaded_weight
+                elif shard_id == "w3":
+                    param_data[expert_id][self.intermediate_size:, :] = loaded_weight
+                else:
                     param_data[expert_id] = loaded_weight
             # If we are in merged column case (gate_up_proj)
             else:
