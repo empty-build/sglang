@@ -1164,8 +1164,8 @@ class Fp8MoEMethod:
                 x,
                 layer.w13_weight.transpose(1, 2),   # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
                 layer.w2_weight.transpose(1, 2),
-                layer.w13_weight_scale,         # per-block = scale_inv # Hidden size match w2
-                layer.w2_weight_scale,
+                layer.w13_weight_scale_inv,         # per-block = scale_inv # Hidden size match w2
+                layer.w2_weight_scale_inv,
                 topk_weights,
                 topk_ids,
                 self.ab_strides1,                 # missing
