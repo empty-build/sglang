@@ -151,7 +151,7 @@ class EICHiRadixCache(RadixCache):
             height += 1
         return height
 
-    def write_backup(self, node: TreeNode):
+    def write_backup(self, node: TreeNode, write_back=False):
         logger.debug(f"write backup for node {node.id}")
         host_indices = self.cache_controller.write(
             device_indices=node.value,
@@ -168,7 +168,8 @@ class EICHiRadixCache(RadixCache):
         if host_indices is not None:
             node.host_value = host_indices
             self.ongoing_write_through[node.id] = node
-            self.inc_lock_ref(node)
+            if not write_back:
+                self.inc_lock_ref(node)
         else:
             return None
 
@@ -200,8 +201,14 @@ class EICHiRadixCache(RadixCache):
             result.append(result_list[i] == 0)
         return result
 
-    def writing_check(self):
+    def writing_check(self, write_back=False):
         write_check_start_time = time.perf_counter()
+        if write_back:
+            while (
+                len(self.ongoing_write_through)
+                != self.cache_controller.ack_write_queue.qsize()
+            ):
+                time.sleep(0.01)
         queue_size = torch.tensor(
             self.cache_controller.ack_write_queue.qsize(), dtype=torch.int
         )
@@ -234,7 +241,8 @@ class EICHiRadixCache(RadixCache):
                         self.ongoing_write_through[ack_id].host_value
                     )
                 self.ongoing_write_through[ack_id].host_value = None
-            self.dec_lock_ref(self.ongoing_write_through[ack_id])
+            if not write_back:
+                self.dec_lock_ref(self.ongoing_write_through[ack_id])
             # clear the reference
             del self.ongoing_write_through[ack_id]
         cost_time = time.perf_counter() - write_check_start_time
@@ -287,73 +295,67 @@ class EICHiRadixCache(RadixCache):
     def evictable_size(self):
         return self.evictable_size_
 
-    def evict(self, num_tokens: int, evict_callback=None):
+    def evict(self, num_tokens: int, evict_callback=None, retry_times: int = 5):
         while len(self.ongoing_write_through) > 50 or len(self.ongoing_load_back) > 50:
             self.writing_check()
             self.loading_check()
             time.sleep(0.001)
 
-        leaves = self._collect_leaves_device()
-        heapq.heapify(leaves)
-
         num_evicted = 0
-        write_back_nodes = []
-        idx = 0
+        while retry_times > 0:
+            retry_times -= 1
+            leaves = self._collect_leaves_device()
+            heapq.heapify(leaves)
 
-        while num_evicted < num_tokens and len(leaves):
-            x = heapq.heappop(leaves)
-            logger.debug(f"evicting {idx} node {x.id}, access {x.last_access_time}")
-            idx += 1
+            write_back_nodes = []
+            idx = 0
 
-            if x.lock_ref > 0:
-                logger.debug(f"node {x.id} is locked, skip eviction")
-                continue
+            logger.debug(
+                f"evict {num_tokens} tokens, current evictable size {self.evictable_size_}, protect_size {self.protected_size_}, leaves {len(leaves)}"
+            )
+            while num_evicted < num_tokens and len(leaves):
+                x = heapq.heappop(leaves)
+                logger.debug(f"evicting {idx} node {x.id}, access {x.last_access_time}")
+                idx += 1
 
-            if self.tp_size > 1:
-                torch.distributed.barrier(group=self.tp_group)
-                host_len = 0 if x.host_value is None else len(x.host_value)
-                len_tensor = torch.tensor([host_len], dtype=torch.int64, device="cpu")
-                torch.distributed.all_reduce(
-                    len_tensor, op=torch.distributed.ReduceOp.SUM, group=self.tp_group
-                )
-                if len_tensor.item() != host_len * self.tp_size:
-                    logger.error(
-                        f"host value length mismatch {len_tensor.item()} {host_len}, nodeid: {x.id}"
-                    )
-                    # the host value is not synced, free it
-                    if x.host_value is not None:
-                        self.cache_controller.mem_pool_host.free(x.host_value)
-                        x.host_value = None
-
-            if not x.backuped:
-                if self.cache_controller.write_policy == "write_back":
-                    # write to host if the node is not backuped
-                    num_evicted += self.write_backup(x)
-                    write_back_nodes.append(x)
-                else:
-                    num_evicted += self._evict_regular(x)
-            else:
-                num_evicted += self._evict_backuped(x)
-
-            for child in x.parent.children.values():
-                if child in write_back_nodes:
+                if x.lock_ref > 0:
+                    logger.debug(f"node {x.id} is locked, skip eviction")
                     continue
-                if not child.evicted:
-                    break
-            else:
-                # all children are evicted or no children
-                heapq.heappush(leaves, x.parent)
 
-        if self.cache_controller.write_policy == "write_back":
-            # blocking till all write back complete
-            while len(self.ongoing_write_through) > 0:
-                self.writing_check()
-                time.sleep(0.01)
-            for node in write_back_nodes:
-                if node.backuped:
-                    self._evict_backuped(node)
+                if not x.backuped:
+                    if self.cache_controller.write_policy == "write_back":
+                        # write to host if the node is not backuped
+                        num_evicted += self.write_backup(x, write_back=True)
+                        write_back_nodes.append(x)
+                    else:
+                        num_evicted += self._evict_regular(x)
                 else:
-                    self._evict_regular(node)
+                    num_evicted += self._evict_backuped(x)
+
+                for child in x.parent.children.values():
+                    if child in write_back_nodes:
+                        continue
+                    if not child.evicted:
+                        break
+                else:
+                    # all children are evicted or no children
+                    heapq.heappush(leaves, x.parent)
+
+            if self.cache_controller.write_policy == "write_back":
+                # blocking till all write back complete
+                self.writing_check(write_back=True)
+                for node in write_back_nodes:
+                    if node.backuped:
+                        self._evict_backuped(node)
+                    else:
+                        self._evict_regular(node)
+
+            if num_evicted < num_tokens:
+                logger.info(
+                    f"only evicted {num_evicted} tokens, less than requested {num_tokens}"
+                )
+            else:
+                return
 
     def _evict_backuped(self, node: TreeNode):
         if node.host_value is None:
@@ -792,7 +794,9 @@ class EICPagedHiRadixCache(EICHiRadixCache):
         assert (
             last_node.children.get(self.get_child_key_fn(eic_key)) is None
         ), f"eic key {eic_key} already exists in radix cache"
-        logger.debug(f"load token from eic: {len(eic_key)}")
+        logger.debug(
+            f"load token from eic: {len(eic_key)}, node {load_node.id}, parent {last_node.id}"
+        )
         last_node.children[self.get_child_key_fn(eic_key)] = load_node
         load_node.parent = last_node
         return load_node
@@ -827,7 +831,7 @@ class EICPagedHiRadixCache(EICHiRadixCache):
         else:
             return value, last_node
 
-    def write_backup(self, node: TreeNode):
+    def write_backup(self, node: TreeNode, write_back=False):
         if _need_calculate_hash(node, self.page_size):
             self._calculate_content_hash(node)
         host_indices = self.cache_controller.write_page(
@@ -847,7 +851,8 @@ class EICPagedHiRadixCache(EICHiRadixCache):
         if host_indices is not None:
             node.host_value = host_indices
             self.ongoing_write_through[node.id] = node
-            self.inc_lock_ref(node)
+            if not write_back:
+                self.inc_lock_ref(node)
         else:
             return None
 
