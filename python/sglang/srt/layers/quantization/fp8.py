@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
+from sglang.srt.utils import get_bool_env_var
+
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (
         apply_fp8_marlin_linear,
@@ -643,6 +645,22 @@ class Fp8MoEMethod:
             layer.w13_input_scale = None
             layer.w2_input_scale = None
 
+    def fp8_bf16_fp8(self, fp8_tensor, fp8_scale):
+        blocked_tensor = fp8_tensor.view(
+                                        fp8_tensor.shape[0],
+                                        fp8_tensor.shape[1] // 128, 128,
+                                        fp8_tensor.shape[2] // 128,
+                                        128).to(torch.float32)
+
+        dequant_tensor = (blocked_tensor *
+                  fp8_scale.unsqueeze(2).unsqueeze(4)).view(
+                      fp8_tensor.shape).to(torch.bfloat16).to(torch.float32)
+
+        scale_tensor = torch.abs(dequant_tensor).max() / 448
+        quant_tensor = dequant_tensor / scale_tensor
+
+        return quant_tensor, scale_tensor
+
     def process_weights_after_loading(self, layer: Module) -> None:
         if _is_hip and get_bool_env_var("SGLANG_INT4_WEIGHT"):
             self.process_weights_hip_int4(layer)
@@ -683,6 +701,29 @@ class Fp8MoEMethod:
                     layer.w2_weight.data = shuffle_weight(
                         layer.w2_weight.contiguous(), (16, 16)
                     )
+
+
+            if get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8"):
+                # Only support CUDA not AMD
+                w13_weight = layer.w13_weight.data
+                w13_weight_scale_inv = layer.w13_weight_scale_inv.data
+                w2_weight = layer.w2_weight
+                w2_weight_scale_inv = layer.w2_weight_scale_inv
+
+                w13_weight, w13_weight_scale_inv = \
+                            self.fp8_bf16_fp8(w13_weight, w13_weight_scale_inv)
+                w2_weight, w2_weight_scale_inv = \
+                            self.fp8_bf16_fp8(w2_weight, w2_weight_scale_inv)
+
+                w13_weight_scale_inv = w13_weight_scale_inv.repeat(w13_weight.size(0))
+                w2_weight_scale_inv = w2_weight_scale_inv.repeat(w13_weight.size(0))
+
+                # Minimize new GPU memory allocations
+                layer.w13_weight.data.copy_(w13_weight.contiguous())
+                layer.w13_weight_scale_inv = Parameter(w13_weight_scale_inv, requires_grad=False) # cuz changed shape
+                layer.w2_weight.data.copy_(w2_weight.contiguous())
+                layer.w2_weight_scale_inv = Parameter(w2_weight_scale_inv, requires_grad=False) # cuz changed shape
+
             return
 
         # If checkpoint is fp16 or bfloat16, quantize in place.
@@ -962,30 +1003,77 @@ class Fp8MoEMethod:
                         ),
                     )
 
-        # Expert fusion with FP8 quantization
-        return fused_experts(
-            x,
-            layer.w13_weight,
-            layer.w2_weight,
-            topk_weights=topk_weights,
-            topk_ids=topk_ids,
-            inplace=inplace and not no_combine,
-            activation=activation,
-            apply_router_weight_on_input=apply_router_weight_on_input,
-            use_fp8_w8a8=True,
-            w1_scale=(
-                layer.w13_weight_scale_inv
-                if self.block_quant
-                else layer.w13_weight_scale
-            ),
-            w2_scale=(
-                layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
-            ),
-            a1_scale=layer.w13_input_scale,
-            a2_scale=layer.w2_input_scale,
-            block_shape=self.quant_config.weight_block_size,
-            no_combine=no_combine,
-        )
+        if not get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8"):
+            # Expert fusion with FP8 quantization
+            return fused_experts(
+                x,
+                layer.w13_weight,
+                layer.w2_weight,
+                topk_weights=topk_weights,
+                topk_ids=topk_ids,
+                inplace=inplace and not no_combine,
+                activation=activation,
+                apply_router_weight_on_input=apply_router_weight_on_input,
+                use_fp8_w8a8=True,
+                w1_scale=(
+                    layer.w13_weight_scale_inv
+                    if self.block_quant
+                    else layer.w13_weight_scale
+                ),
+                w2_scale=(
+                    layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
+                ),
+                a1_scale=layer.w13_input_scale,
+                a2_scale=layer.w2_input_scale,
+                block_shape=self.quant_config.weight_block_size,
+                no_combine=no_combine,
+            )
+        else:
+            m = x.shape[0]      # m = x.shape[0] same
+            k = x.shape[1]      # k = x.shape[1] same
+            n = layer.w13_weight.shape[1] / 2 # Divide by 2 cuz [E, 2N, K] before trans
+
+            device = layer.w13_weight.device
+
+            num_experts = layer.w2_weight.shape[0]
+
+            self.ab_strides1 = torch.full((num_experts, ),
+                                        k,
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides1 = torch.full((num_experts, ),
+                                        2 * n,
+                                        device=device,
+                                        dtype=torch.int64)
+            self.ab_strides2 = torch.full((num_experts, ),
+                                        n,
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides2 = torch.full((num_experts, ),
+                                        k,
+                                        device=device,
+                                        dtype=torch.int64)
+
+
+            from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
+            return cutlass_moe_fp8(
+                x,
+                layer.w13_weight.transpose(1, 2),   # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
+                layer.w2_weight.transpose(1, 2),
+                layer.w13_weight_scale_inv,         # per-block = scale_inv # Hidden size match w2
+                layer.w2_weight_scale_inv,
+                topk_weights,
+                topk_ids,
+                self.ab_strides1,                 # missing
+                self.c_strides1,                  # missing
+                self.ab_strides2,                 # missing
+                self.c_strides2,                  # missing
+                a1_scale=layer.w13_input_scale,
+                a2_scale=layer.w2_input_scale,
+                out_dtype=x.dtype,
+                #expert_map=expert_map, # no map in sglang
+                apply_router_weight_on_input=apply_router_weight_on_input,
+            )
 
 
 class Fp8KVCacheMethod(BaseKVCacheMethod):
