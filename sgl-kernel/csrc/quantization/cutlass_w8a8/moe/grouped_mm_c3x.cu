@@ -76,7 +76,35 @@ struct sm90_fp8_config_N8192 {
   using Cutlass3xGemm =
       cutlass_3x_group_gemm<InType, OutType, Epilogue, TileShape, ClusterShape,
                             KernelSchedule, EpilogueSchedule>;
+                            
 };
+
+#define JOIN_STRUCT_NAME(m, n, k, a, b, c) \
+    sm90_fp8_config##_##m##_##n##_##k##_##a##_##b##_##c
+
+#define GENERATE_SM90_FP8_CONFIG(M, N, K, A, B, C) \
+template <typename InType, typename OutType, \
+          template <typename, typename, typename> typename Epilogue> \
+struct JOIN_STRUCT_NAME(M, N, K, A, B, C) { \
+  static_assert(std::is_same<InType, cutlass::float_e4m3_t>()); \
+  using KernelSchedule = \
+      cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpongFP8FastAccum; \
+  using EpilogueSchedule = \
+      cutlass::epilogue::PtrArrayTmaWarpSpecializedPingpong; \
+  using TileShape = cute::Shape<cute::Int<M>, cute::Int<N>, cute::Int<K>>; \
+  using ClusterShape = cute::Shape<cute::Int<A>, cute::Int<B>, cute::Int<C>>; \
+  \
+  using Cutlass3xGemm = \
+      cutlass_3x_group_gemm<InType, OutType, Epilogue, TileShape, ClusterShape, \
+                            KernelSchedule, EpilogueSchedule>; \
+};
+
+
+
+GENERATE_SM90_FP8_CONFIG(64, 64, 128,1,2,1)
+
+GENERATE_SM90_FP8_CONFIG(64, 256, 128,1,1,1)
+
 
 template <typename InType, typename OutType>
 void run_cutlass_moe_mm_sm90(
@@ -109,8 +137,23 @@ void run_cutlass_moe_mm_sm90(
   uint32_t const m = a_tensors.size(0);
   uint32_t const n = out_tensors.size(1);
   uint32_t const k = a_tensors.size(1);
+  
+  auto tune_switch = getenv("tune_switch");
+//   bool swith = tune_swith;
 
-  if (n >= 8192) {
+  if(n==768 && k==2048 && tune_switch ){
+    // std::cout<<"n==768 && k==2048"<<std::endl;
+    using Cutlass3xGemmKSelected = typename JOIN_STRUCT_NAME(64,64,128,1,2,1)<InType, OutType, vllm::c3x::ScaledEpilogueArray>::Cutlass3xGemm;
+    cutlass_group_gemm_caller<Cutlass3xGemmKSelected>(
+        out_tensors, a_tensors, b_tensors, a_scales, b_scales, expert_offsets, 
+        problem_sizes, a_strides, b_strides, c_strides);
+  } else if(k==384 && n==2048  && tune_switch ){
+    // std::cout<<"k==384 && n==2048"<<std::endl;
+    using Cutlass3xGemmKSelected = typename JOIN_STRUCT_NAME(64,256,128,1,1,1)<InType, OutType, vllm::c3x::ScaledEpilogueArray>::Cutlass3xGemm;
+    cutlass_group_gemm_caller<Cutlass3xGemmKSelected>(
+        out_tensors, a_tensors, b_tensors, a_scales, b_scales, expert_offsets,
+        problem_sizes, a_strides, b_strides, c_strides);
+  } else if (n >= 8192) {
     cutlass_group_gemm_caller<Cutlass3xGemmN8192>(
         out_tensors, a_tensors, b_tensors, a_scales, b_scales, expert_offsets,
         problem_sizes, a_strides, b_strides, c_strides);

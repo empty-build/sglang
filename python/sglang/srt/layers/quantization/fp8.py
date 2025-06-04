@@ -7,6 +7,8 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
+from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
+from grouped_gemm.ops import permute
 
 IS_CUTLASS=1
 
@@ -86,6 +88,76 @@ ACTIVATION_SCHEMES = ["static", "dynamic"]
 
 logger = logging.getLogger(__name__)
 
+
+def singleton(cls):
+    instances = {}
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+    return get_instance
+
+@singleton
+class GlobalVar:
+    def __init__(self):
+        self.inited = False  # 全局状态
+        self.act_scale = None
+        self.a_q_fp8 = None
+        self.expert_offsets = None
+        self.problem_sizes =  []
+        self.permute_map = [ ]
+        self.inter = None
+        self.c1 = None
+        self.c2 = None
+        self.inter_q = None
+        self.remap_q = None
+        self.permute_ws_inited = False
+       
+    def init_permute_ws(self):
+        if not self.permute_ws_inited:
+            errs = [list(range(8)) for i in range(16384)]
+            indexes = torch.tensor(errs, dtype = torch.int32, device = 'cuda')
+        
+            input_act = torch.empty((16384, 2048), dtype=torch.float8_e4m3fn, device='cuda')
+            print(">>>>> permute <<<<<<<")
+            _, _ = permute(input_act, indexes, max_token_num= 16384)
+            self.permute_ws_inited = True
+        
+    def create_workspace(self, max_m, n, k, top_k, expert_num):
+        # import pdb
+        # pdb.set_trace()
+        device_id = torch.cuda.current_device()
+        # print("#####create new moe ws on device {}#####".format(device_id))
+        if self.inited:
+            # print("return directly")
+            return
+        
+        # print("add ws tensors")
+        # print("check args m {} n {} k {}, top_k {} expert_num {} ".format(max_m, n, k, top_k, expert_num))
+        self.inited = True
+        device = "cuda"
+        self.act_scale = torch.empty((1), device= device, dtype= torch.float)
+        self.a_q_fp8 = torch.empty((max_m, k), device= device, dtype = torch.float8_e4m3fn)
+        self.expert_offsets =   torch.empty((expert_num + 1),
+                                 dtype=torch.int32,
+                                 device=device)
+        self.problem_sizes =  [torch.empty((expert_num, 3),
+                                 dtype=torch.int32,
+                                 device=device), torch.empty((expert_num, 3),
+                                 dtype=torch.int32,
+                                 device=device)]
+        self.permute_map = [torch.empty((int(max_m * top_k)),
+                              dtype=torch.int32,
+                              device=device), torch.empty((int(max_m * top_k)),
+                              dtype=torch.int32,
+                              device=device)]
+        
+        self.inter = torch.empty((int(max_m * top_k), n), device=device, dtype= torch.bfloat16)
+        self.c1 = torch.empty((int(max_m * top_k), n * 2), device=device, dtype= torch.bfloat16)
+        self.c2 = torch.empty((int(max_m * top_k), k), device=device, dtype= torch.bfloat16)
+        self.inter_q = torch.empty((int(max_m * top_k), n), device = device, dtype= torch.float8_e4m3fn)
+        self.remap_q = torch.empty((max_m * top_k, k), device = device, dtype = torch.float8_e4m3fn)
+        
 
 class Fp8Config(QuantizationConfig):
     """Config class for FP8."""
@@ -516,6 +588,11 @@ class Fp8MoEMethod:
                                         hidden_size,
                                         device=device,
                                         dtype=torch.int64)
+            
+            # indices = torch.tensor([[1,2,3,4,5,6,7,8]], dtype=torch.int32, device='cuda')
+            singleton_var = GlobalVar()
+            singleton_var.init_permute_ws()
+            
         if self.quant_config.is_checkpoint_fp8_serialized:
             params_dtype = (
                 torch.uint32
@@ -1164,7 +1241,12 @@ class Fp8MoEMethod:
             else:
                 print("a2 scale is None")
         # print(f"fp8.py inplace: {inplace} no_combine: {no_combine}") # inplace: O no_combine: X
-        if x.shape[0] >=128 :
+        # [8, 96]
+        # [4, 128]
+        
+        if x.shape[0] < 0 :
+        # if x.shape[0] < 8 or x.shape[0] > 96:
+        # if x.shape[0] < 4 or x.shape[0] > 128:
             # print("use triton")
             if 0:
                 w13 = layer.w13_weight
@@ -1264,7 +1346,6 @@ class Fp8MoEMethod:
                     print("ab_strides1 is NOT contiguous.")
 
             # from vllm.model_executor.layers.fused_moe import cutlass_moe_fp8
-            from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
             if 0:
                 # print(f"Jack type {type(layer)}")
                 # > Jack type <class 'vllm.model_executor.layers.fused_moe.layer.FusedMoE'>
@@ -1274,6 +1355,15 @@ class Fp8MoEMethod:
             # origin
             # layer.w13_weight.transpose(1, 2),   # per-block = scale_inv
             # layer.w2_weight.transpose(1, 2),
+            moe_args = GlobalVar()
+            n = layer.w13_weight.shape[1] / 2
+            k = x.shape[1]
+            expert_num = layer.w13_weight.shape[0]
+            top_k = topk_ids.shape[1]
+            # print(x.shape)
+            # print(layer.w13_weight.shape)
+            moe_args.create_workspace(16384, int(n), k, top_k, expert_num)
+            
             return cutlass_moe_fp8(
                 x,
                 layer.w13_weight.transpose(1, 2),   # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
@@ -1291,6 +1381,7 @@ class Fp8MoEMethod:
                 out_dtype=x.dtype,
                 #expert_map=expert_map, # no map in sglang
                 apply_router_weight_on_input=apply_router_weight_on_input,
+                moe_ws= moe_args
             )
 
 
