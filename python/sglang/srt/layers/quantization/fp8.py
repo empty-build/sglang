@@ -7,8 +7,12 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
+from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
+from grouped_gemm.ops import permute
 
 from sglang.srt.utils import get_bool_env_var
+
+MAX_SEQ_LEN=32768
 
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (
@@ -86,6 +90,74 @@ ACTIVATION_SCHEMES = ["static", "dynamic"]
 
 logger = logging.getLogger(__name__)
 
+
+def singleton(cls):
+    instances = {}
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+    return get_instance
+
+@singleton
+class GlobalVar:
+    def __init__(self):
+        self.inited = False
+        self.act_scale = None
+        self.a_q_fp8 = None
+        self.expert_offsets = None
+        self.problem_sizes =  []
+        self.permute_map = [ ]
+        self.inter = None
+        self.c1 = None
+        self.c2 = None
+        self.inter_q = None
+        self.remap_q = None
+        self.permute_ws_inited = False
+       
+    def init_permute_ws(self, top_k, hidden_size):
+        if not self.permute_ws_inited:
+            errs = [list(range(top_k)) for i in range(MAX_SEQ_LEN)]
+            indexes = torch.tensor(errs, dtype = torch.int32, device = 'cuda')
+        
+            input_act = torch.empty((MAX_SEQ_LEN, hidden_size), dtype=torch.float8_e4m3fn, device='cuda')
+            _, _ = permute(input_act, indexes, max_token_num= MAX_SEQ_LEN)
+            self.permute_ws_inited = True
+            del input_act
+        
+    def create_workspace(self, max_m, n, k, top_k, expert_num):
+
+        device_id = torch.cuda.current_device()
+        
+        if self.inited:
+            return
+        
+        # print("add ws tensors")
+        # print("check args m {} n {} k {}, top_k {} expert_num {} ".format(max_m, n, k, top_k, expert_num))
+        self.inited = True
+        device = "cuda"
+        self.act_scale = torch.empty((1), device= device, dtype= torch.float)
+        self.a_q_fp8 = torch.empty((max_m, k), device= device, dtype = torch.float8_e4m3fn)
+        self.expert_offsets =   torch.empty((expert_num + 1),
+                                 dtype=torch.int32,
+                                 device=device)
+        self.problem_sizes =  [torch.empty((expert_num, 3),
+                                 dtype=torch.int32,
+                                 device=device), torch.empty((expert_num, 3),
+                                 dtype=torch.int32,
+                                 device=device)]
+        self.permute_map = [torch.empty((int(max_m * top_k)),
+                              dtype=torch.int32,
+                              device=device), torch.empty((int(max_m * top_k)),
+                              dtype=torch.int32,
+                              device=device)]
+        
+        self.inter = torch.empty((int(max_m * top_k), n), device=device, dtype= torch.bfloat16)
+        self.c1 = torch.empty((int(max_m * top_k), n * 2), device=device, dtype= torch.bfloat16)
+        self.c2 = torch.empty((int(max_m * top_k), k), device=device, dtype= torch.bfloat16)
+        self.inter_q = torch.empty((int(max_m * top_k), n), device = device, dtype= torch.float8_e4m3fn)
+        self.remap_q = torch.empty((max_m * top_k, k), device = device, dtype = torch.float8_e4m3fn)
+        
 
 class Fp8Config(QuantizationConfig):
     """Config class for FP8."""
@@ -482,7 +554,30 @@ class Fp8MoEMethod:
         **extra_weight_attrs,
     ):
         from sglang.srt.layers.moe.fused_moe_triton import FusedMoeWeightScaleSupported
-
+        
+        if get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8"):
+            device = "cuda"
+            self.ab_strides1 = torch.full((num_experts, ),
+                                        hidden_size, # k
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides1 = torch.full((num_experts, ),
+                                        2 * intermediate_size, #n
+                                        device=device,
+                                        dtype=torch.int64)
+            self.ab_strides2 = torch.full((num_experts, ),
+                                        intermediate_size,
+                                        device=device,
+                                        dtype=torch.int64)
+            self.c_strides2 = torch.full((num_experts, ),
+                                        hidden_size,
+                                        device=device,
+                                        dtype=torch.int64)
+            
+            singleton_var = GlobalVar()
+            #[TODO]: for other moe  topk_nums modify here 
+            singleton_var.init_permute_ws(8, hidden_size)
+            
         if self.quant_config.is_checkpoint_fp8_serialized:
             params_dtype = (
                 torch.uint32
@@ -1031,39 +1126,46 @@ class Fp8MoEMethod:
                 no_combine=no_combine,
             )
         else:
-            m = x.shape[0]      # m = x.shape[0] same
-            k = x.shape[1]      # k = x.shape[1] same
-            n = layer.w13_weight.shape[1] / 2 # Divide by 2 cuz [E, 2N, K] before trans
+            # m = x.shape[0]      # m = x.shape[0] same
+            # k = x.shape[1]      # k = x.shape[1] same
+            # n = layer.w13_weight.shape[1] / 2 # Divide by 2 cuz [E, 2N, K] before trans
 
-            device = layer.w13_weight.device
+            # device = layer.w13_weight.device
 
-            num_experts = layer.w2_weight.shape[0]
+            # num_experts = layer.w2_weight.shape[0]
 
-            self.ab_strides1 = torch.full((num_experts, ),
-                                        k,
-                                        device=device,
-                                        dtype=torch.int64)
-            self.c_strides1 = torch.full((num_experts, ),
-                                        2 * n,
-                                        device=device,
-                                        dtype=torch.int64)
-            self.ab_strides2 = torch.full((num_experts, ),
-                                        n,
-                                        device=device,
-                                        dtype=torch.int64)
-            self.c_strides2 = torch.full((num_experts, ),
-                                        k,
-                                        device=device,
-                                        dtype=torch.int64)
+            # self.ab_strides1 = torch.full((num_experts, ),
+            #                             k,
+            #                             device=device,
+            #                             dtype=torch.int64)
+            # self.c_strides1 = torch.full((num_experts, ),
+            #                             2 * n,
+            #                             device=device,
+            #                             dtype=torch.int64)
+            # self.ab_strides2 = torch.full((num_experts, ),
+            #                             n,
+            #                             device=device,
+            #                             dtype=torch.int64)
+            # self.c_strides2 = torch.full((num_experts, ),
+            #                             k,
+            #                             device=device,
+            #                             dtype=torch.int64)
 
 
-            from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
+            # from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
+            moe_args = GlobalVar()
+            n = layer.w13_weight.shape[1] / 2
+            k = x.shape[1]
+            expert_num = layer.w13_weight.shape[0]
+            top_k = topk_ids.shape[1]
+
+            moe_args.create_workspace(MAX_SEQ_LEN, int(n), k, top_k, expert_num)
             return cutlass_moe_fp8(
                 x,
                 layer.w13_weight.transpose(1, 2),   # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
                 layer.w2_weight.transpose(1, 2),
-                layer.w13_weight_scale_inv,         # per-block = scale_inv # Hidden size match w2
-                layer.w2_weight_scale_inv,
+                layer.w13_weight_scale,         # per-block = scale_inv # Hidden size match w2
+                layer.w2_weight_scale,
                 topk_weights,
                 topk_ids,
                 self.ab_strides1,                 # missing
@@ -1075,6 +1177,7 @@ class Fp8MoEMethod:
                 out_dtype=x.dtype,
                 #expert_map=expert_map, # no map in sglang
                 apply_router_weight_on_input=apply_router_weight_on_input,
+                moe_ws = moe_args
             )
 
 
