@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
+from sglang.srt.utils import get_bool_env_var
+
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (
         apply_fp8_marlin_linear,
@@ -698,6 +700,22 @@ class Fp8MoEMethod:
         else:
             layer.w13_input_scale = None
             layer.w2_input_scale = None
+
+    def fp8_bf16_fp8(self, fp8_tensor, fp8_scale):
+        blocked_tensor = fp8_tensor.view(
+                                        fp8_tensor.shape[0],
+                                        fp8_tensor.shape[1] // 128, 128,
+                                        fp8_tensor.shape[2] // 128,
+                                        128).to(torch.float32)
+
+        dequant_tensor = (blocked_tensor *
+                  fp8_scale.unsqueeze(2).unsqueeze(4)).view(
+                      fp8_tensor.shape).to(torch.bfloat16).to(torch.float32)
+
+        scale_tensor = torch.abs(dequant_tensor).max() / 448
+        quant_tensor = dequant_tensor / scale_tensor
+
+        return quant_tensor, scale_tensor
 
     def process_weights_after_loading(self, layer: Module) -> None:
         if _is_hip and _use_hip_int4:
