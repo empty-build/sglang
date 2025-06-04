@@ -9,6 +9,7 @@ from torch.nn import Module
 from torch.nn.parameter import Parameter
 from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
 from grouped_gemm.ops import permute
+import os
 
 IS_CUTLASS=1
 
@@ -115,13 +116,14 @@ class GlobalVar:
        
     def init_permute_ws(self):
         if not self.permute_ws_inited:
-            errs = [list(range(8)) for i in range(16384)]
+            errs = [list(range(8)) for i in range(32768)]
             indexes = torch.tensor(errs, dtype = torch.int32, device = 'cuda')
         
-            input_act = torch.empty((16384, 2048), dtype=torch.float8_e4m3fn, device='cuda')
+            input_act = torch.empty((32768, 2048), dtype=torch.float8_e4m3fn, device='cuda')
             print(">>>>> permute <<<<<<<")
-            _, _ = permute(input_act, indexes, max_token_num= 16384)
+            _, _ = permute(input_act, indexes, max_token_num= 32768)
             self.permute_ws_inited = True
+            del input_act
         
     def create_workspace(self, max_m, n, k, top_k, expert_num):
         # import pdb
@@ -1244,7 +1246,7 @@ class Fp8MoEMethod:
         # [8, 96]
         # [4, 128]
         
-        if x.shape[0] < 0 :
+        if os.getenv("TRITON_MOE") :
         # if x.shape[0] < 8 or x.shape[0] > 96:
         # if x.shape[0] < 4 or x.shape[0] > 128:
             # print("use triton")
@@ -1362,7 +1364,7 @@ class Fp8MoEMethod:
             top_k = topk_ids.shape[1]
             # print(x.shape)
             # print(layer.w13_weight.shape)
-            moe_args.create_workspace(16384, int(n), k, top_k, expert_num)
+            moe_args.create_workspace(32768, int(n), k, top_k, expert_num)
             
             return cutlass_moe_fp8(
                 x,

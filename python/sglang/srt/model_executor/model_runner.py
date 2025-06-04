@@ -1099,7 +1099,7 @@ class ModelRunner:
         skip_attn_backend_init: bool = False,
         pp_proxy_tensors: Optional[PPProxyTensors] = None,
     ) -> Union[LogitsProcessorOutput, PPProxyTensors]:
-        print("forward size is {} \n".format(forward_batch.input_ids.shape))
+        # print("forward size is {} \n".format(forward_batch.input_ids.shape))
         can_run_cuda_graph = bool(
             forward_batch.forward_mode.is_cuda_graph()
             and self.cuda_graph_runner
