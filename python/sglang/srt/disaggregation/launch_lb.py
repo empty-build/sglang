@@ -71,6 +71,10 @@ class LBArgs:
             default=LBArgs.timeout,
             help=f"Timeout in seconds (default: {LBArgs.timeout})",
         )
+        parser.add_argument(
+            "--neat-room", action="store_true", help="use increment id as bootstrap room"
+    )   
+
 
     @classmethod
     def from_cli_args(cls, args: argparse.Namespace) -> "LBArgs":
@@ -98,6 +102,7 @@ class LBArgs:
             decode_infos=args.decode,
             log_interval=args.log_interval,
             timeout=args.timeout,
+            neat_room=args.neat_room,
         )
 
     def __post_init__(self):
@@ -133,7 +138,7 @@ def main():
         prefill_configs = [
             PrefillConfig(url, port) for url, port in lb_args.prefill_infos
         ]
-        run(prefill_configs, lb_args.decode_infos, lb_args.host, lb_args.port)
+        run(prefill_configs, lb_args.decode_infos, lb_args.host, lb_args.port, lb_args.neat_room)
 
 
 if __name__ == "__main__":
