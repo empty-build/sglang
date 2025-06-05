@@ -308,8 +308,8 @@ class EPMoE(torch.nn.Module):
         m_grouped_gemm_fp8_fp8_bf16_nt_masked(
             gateup_input_fp8, self.w13_weight_fp8, gateup_output, masked_m, expected_m
         )
-        del gateup_input
-        del gateup_input_scale
+        dispose_tensor(gateup_input_fp8[0])
+        dispose_tensor(gateup_input_fp8[1])
         del gateup_input_fp8
 
         # Act
@@ -353,8 +353,8 @@ class EPMoE(torch.nn.Module):
         m_grouped_gemm_fp8_fp8_bf16_nt_masked(
             down_input_fp8, self.w2_weight_fp8, down_output, masked_m, expected_m
         )
-        del down_input
-        del down_input_scale
+        dispose_tensor(down_input_fp8[0])
+        dispose_tensor(down_input_fp8[1])
         del down_input_fp8
         # PostReorder
         output = torch.empty(
