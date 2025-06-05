@@ -12,6 +12,7 @@ class LBArgs:
     decode_infos: list = dataclasses.field(default_factory=list)
     log_interval: int = 5
     timeout: int = 600
+    neat_room: bool = False
 
     @staticmethod
     def add_cli_args(parser: argparse.ArgumentParser):
