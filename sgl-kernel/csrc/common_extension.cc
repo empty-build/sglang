@@ -156,6 +156,22 @@ TORCH_LIBRARY_FRAGMENT(sgl_kernel, m) {
       "expert_offsets) -> ()");
   m.impl("fp8_blockwise_scaled_grouped_mm", torch::kCUDA, &fp8_blockwise_scaled_grouped_mm);
 
+  m.def(
+    "get_cutlass_moe_mm_data(Tensor topk_ids, Tensor! expert_offsets, "
+    "                        Tensor! problem_sizes1, Tensor! problem_sizes2, "
+    "                        Tensor! input_permutation, "
+    "                        Tensor! output_permutation, int num_experts, "
+    "                        int n, int k) -> ()");
+  m.impl("get_cutlass_moe_mm_data", torch::kCUDA, &get_cutlass_moe_mm_data);
+
+  m.def(
+    "cutlass_w4a8_moe_mm(Tensor! d, Tensor a, Tensor b, "
+    "               Tensor a_scales, Tensor b_scales, Tensor expert_offsets, "
+    "               Tensor problem_sizes, Tensor a_strides, "
+    "               Tensor b_strides, Tensor d_strides, Tensor s_strides,"
+    "               int chunk_size, int M) -> ()");
+  m.impl("cutlass_w4a8_moe_mm", torch::kCUDA, &cutlass_w4a8_moe_mm);
+
   /*
    * From csrc/speculative
    */

@@ -180,7 +180,8 @@ class EPMoE(torch.nn.Module):
         self.layer_id = layer_id
         self.num_experts = num_experts
         assert self.num_experts % self.tp_size == 0
-        self.num_experts_per_partition = self.num_experts // self.tp_size
+        # self.num_experts_per_partition = self.num_experts // self.tp_size
+        self.num_experts_per_partition, self.expert_map = self.determine_expert_map()
         self.start_expert_id = self.tp_rank * self.num_experts_per_partition
         self.end_expert_id = self.start_expert_id + self.num_experts_per_partition - 1
 
@@ -234,15 +235,79 @@ class EPMoE(torch.nn.Module):
 
         self.grouped_gemm_runner = None
 
+    def determine_expert_map(self) -> Tuple[int, Optional[torch.Tensor]]:
+        """
+            Calculates how many experts should be assigned to each rank for EP and
+            creates a mapping from global to local expert index. Experts are
+            distributed evenly across ranks. Any remaining are assigned to the
+            last rank.
+
+            Returns:
+                Tuple[int, Optional[torch.Tensor]]: A tuple containing:
+                    - local_num_experts (int): The number of experts assigned
+                        to the current rank.
+                    - expert_map (Optional[torch.Tensor]): A tensor of shape
+                        (global_num_experts,) mapping from global to local index.
+                        Contains -1 for experts not assigned to the current rank.
+                        Returns None if ep_size is 1.
+            """
+        ep_size = self.tp_size
+        ep_rank = self.tp_rank
+        global_num_experts = self.num_experts
+        
+        assert ep_size > 0
+        if ep_size == 1:
+            return (global_num_experts, None)
+
+        local_num_experts = global_num_experts // ep_size
+
+        # Create a tensor of size num_experts filled with -1
+        expert_map = torch.full((global_num_experts, ), -1, dtype=torch.int32)
+        # Create a expert map for the local experts
+        if ep_rank < (ep_size - 1):
+            # Each non-last rank gets local_num_experts experts.
+            expert_map[ep_rank * local_num_experts:
+                            (ep_rank + 1) * local_num_experts] = \
+                torch.arange(0, local_num_experts, dtype=torch.int32)
+        else:
+            # All remaining experts are assigned to the last rank.
+            local_num_experts = (global_num_experts - ep_rank * local_num_experts)
+
+            expert_map[-local_num_experts:] = \
+                torch.arange(0, local_num_experts, dtype=torch.int32)
+        return (local_num_experts, expert_map)
+
     def forward(
         self, hidden_states: MaybeDisposibleTensor, router_logits: torch.Tensor
     ):
         assert self.quant_method is not None
 
+        topk_weights, topk_ids = select_experts(
+            hidden_states=hidden_states,
+            router_logits=router_logits,
+            top_k=self.top_k,
+            use_grouped_topk=self.use_grouped_topk,
+            renormalize=self.renormalize,
+            topk_group=self.topk_group,
+            num_expert_group=self.num_expert_group,
+            correction_bias=self.correction_bias,
+            custom_routing_function=self.custom_routing_function,
+            routed_scaling_factor=self.routed_scaling_factor,
+            expert_location_dispatch_info=ExpertLocationDispatchInfo.init_new(
+                ep_rank=self.tp_rank,
+                layer_id=self.layer_id,
+            ),
+        )
+        # print(f"topk_weights: {topk_weights}")
+        # print(f"topk_ids: {topk_ids}")
+
         if self.use_w4afp8:
             hidden_states = self.quant_method.apply(
                 layer=self,
                 x=hidden_states,
+                topk_weights=topk_weights,
+                topk_ids=topk_ids,
+                expert_map=self.expert_map,
                 router_logits=router_logits,
                 top_k=self.top_k,
                 renormalize=self.renormalize,
@@ -261,23 +326,6 @@ class EPMoE(torch.nn.Module):
                 hidden_states.device,
                 use_flashinfer=False,  # TODO: use flashinfer
             )
-
-        topk_weights, topk_ids = select_experts(
-            hidden_states=hidden_states,
-            router_logits=router_logits,
-            top_k=self.top_k,
-            use_grouped_topk=self.use_grouped_topk,
-            renormalize=self.renormalize,
-            topk_group=self.topk_group,
-            num_expert_group=self.num_expert_group,
-            correction_bias=self.correction_bias,
-            custom_routing_function=self.custom_routing_function,
-            routed_scaling_factor=self.routed_scaling_factor,
-            expert_location_dispatch_info=ExpertLocationDispatchInfo.init_new(
-                ep_rank=self.tp_rank,
-                layer_id=self.layer_id,
-            ),
-        )
 
         reorder_topk_ids, src2dst, seg_indptr = run_moe_ep_preproess(
             topk_ids, self.num_experts
