@@ -500,6 +500,7 @@ class EAGLEWorker(TpModelWorker):
             )
         else:
             ret = EagleVerifyInput.create_for_idle(
+                self.topk,
                 self.speculative_num_steps,
                 self.speculative_num_draft_tokens,
             )
