@@ -20,7 +20,7 @@ import copy
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from sglang.srt.mm_utils import has_valid_data
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 else:
     Image = Any
 
-from sglang.srt.managers.schedule_batch import BaseFinishReason, flatten_nested_list
+from sglang.srt.managers.schedule_batch import BaseFinishReason
 from sglang.srt.sampling.sampling_params import SamplingParams
 
 
@@ -941,6 +941,7 @@ class ParseFunctionCallReq:
         None  # Specify the parser type, e.g. 'llama3', 'qwen25', or 'mistral'. If not specified, tries all.
     )
 
+
 @dataclass
 class WorkerPayloadStatus:
     running_reqs: int
@@ -951,6 +952,7 @@ class WorkerPayloadStatus:
 class DPWorkerPayloadStatus:
     dp_rank: int
     status: WorkerPayloadStatus
+
 
 @dataclass
 class SeparateReasoningReqInput:

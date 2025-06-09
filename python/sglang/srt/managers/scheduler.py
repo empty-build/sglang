@@ -24,6 +24,7 @@ from collections import defaultdict, deque
 from concurrent import futures
 from dataclasses import dataclass
 from http import HTTPStatus
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -240,7 +241,9 @@ class Scheduler(
                     context, zmq.PUSH, port_args.worker_workload_status_ipc_name, False
                 )
 
-                self.report_thread = threading.Thread(target=self._report_workload_status_thread)
+                self.report_thread = threading.Thread(
+                    target=self._report_workload_status_thread
+                )
                 self.report_thread.start()
 
             if server_args.skip_tokenizer_init:
@@ -376,7 +379,7 @@ class Scheduler(
         if self.device == "cpu":
             self.current_stream.synchronize = lambda: None  # No-op for CPU
         self.forward_sleep_time = None
-        
+
         # Init session info
         self.sessions: Dict[str, Session] = {}
 
@@ -1301,6 +1304,29 @@ class Scheduler(
             self.metrics_collector.log_stats(self.stats)
         self._publish_kv_events()
 
+    def coordinate_spec_dp_attn_batch(self, new_batch: Optional[ScheduleBatch]):
+        """Coordinate the DP attention batch."""
+
+        local_info = torch.tensor(
+            [
+                (new_batch is not None),
+            ],
+            dtype=torch.int64,
+        )
+        global_info = torch.empty(
+            (self.server_args.dp_size, self.attn_tp_size, 1),
+            dtype=torch.int64,
+        )
+        torch.distributed.all_gather_into_tensor(
+            global_info.flatten(),
+            local_info,
+            group=self.tp_cpu_group,
+        )
+        any_new_batch = any(
+            global_info[:, 0, 0].tolist()
+        )  # Any DP worker has forward batch
+        return any_new_batch
+
     def get_next_batch_to_run(self) -> Optional[ScheduleBatch]:
         # Merge the prefill batch into the running batch
         chunked_req_to_exclude = set()
@@ -1334,7 +1360,12 @@ class Scheduler(
                     self.running_batch.merge_batch(self.last_batch)
 
         new_batch = self.get_new_batch_prefill()
-        if new_batch is not None:
+        any_new_batch = (
+            self.server_args.enable_dp_attention
+            and not self.spec_algorithm.is_none()
+            and self.coordinate_spec_dp_attn_batch(new_batch)
+        )
+        if new_batch is not None or any_new_batch:
             # Run prefill first if possible
             ret = new_batch
         else:
@@ -1684,8 +1715,6 @@ class Scheduler(
             num_tokens_for_logprob = 0
         elif local_batch.forward_mode.is_decode():
             num_tokens = local_batch.batch_size()
-            if not spec_algorithm.is_none() and spec_algorithm.is_eagle():
-                num_tokens = num_tokens * speculative_num_draft_tokens
             num_tokens_for_logprob = num_tokens
         else:
             num_tokens = local_batch.extend_num_tokens
@@ -1761,6 +1790,7 @@ class Scheduler(
                 local_batch.global_num_tokens_for_logprob = (
                     global_num_tokens_for_logprob
                 )
+            local_batch.global_is_extend_in_batch = any(is_extend_in_batch)
             local_batch.tbo_split_seq_index = tbo_split_seq_index
             local_batch.global_forward_mode = global_forward_mode
 
@@ -2048,9 +2078,22 @@ class Scheduler(
 
         # Sort in reverse order to avoid index issues when deleting
         for i in reversed(to_del):
+            # Abort method 1: directly pop from the queue
+            # This only works for requests that have not started anything.
+            # We still need to send something back to TokenizerManager to clean up the state.
             req = self.waiting_queue.pop(i)
             self.send_to_tokenizer.send_pyobj(AbortReq(req.rid))
             logger.debug(f"Abort queued request. {req.rid=}")
+
+        # Delete the requests in the grammar queue
+        for req in self.grammar_queue:
+            # Abort method 2: call `set_finish_with_abort`
+            # The request will still run one prefill forward pass.
+            # In this case, we change the input_ids to be only one token to make this prefill cheap.
+            if req.rid.startswith(recv_req.rid):
+                logger.debug(f"Abort grammar queue request. {req.rid=}")
+                req.grammar.cancel()
+                req.set_finish_with_abort("Aborted by AbortReq.")
 
         # Delete requests in the running batch
         if self.cur_batch is self.running_batch or self.cur_batch is None:
@@ -2060,16 +2103,11 @@ class Scheduler(
 
         for req in reqs:
             if req.rid.startswith(recv_req.rid) and not req.finished():
+                # Abort method 3: set `to_abort=True`
+                # The request will still run one decode forward pass.
+                # Then we reuse all existing code to clean up the KV cache allocation.
                 logger.debug(f"Abort running request. {req.rid=}")
-                # We must use to_abort because it is in a running batch
                 req.to_abort = True
-
-        # Delete the requests in the grammar queue
-        for req in self.grammar_queue:
-            if req.rid.startswith(recv_req.rid):
-                logger.debug(f"Abort grammar queue request. {req.rid=}")
-                req.grammar.cancel()
-                req.set_finish_with_abort("Aborted by AbortReq.")
 
     def _pause_engine(self) -> Tuple[List[Req], int]:
         raise NotImplementedError()
@@ -2220,7 +2258,7 @@ class Scheduler(
     ) -> ProfileReqOutput | None:
         stage_str = f" for {stage.__str__()}" if stage else ""
         logger.info(
-            f"Profiling starts{stage_str}. Traces will be saved to: {self.torch_profiler_output_dir}",
+            f"Profiling starts{stage_str}. Traces will be saved to: {self.torch_profiler_output_dir} (with profile id: {self.profile_id})",
         )
 
         activities = self.profiler_activities
@@ -2290,6 +2328,9 @@ class Scheduler(
                 success=False,
                 message="Profiling is not in progress. Call /start_profile first.",
             )
+
+        if not Path(self.torch_profiler_output_dir).exists():
+            Path(self.torch_profiler_output_dir).mkdir(parents=True, exist_ok=True)
 
         stage_suffix = f"-{stage.__str__()}" if stage else ""
         logger.info("Stop profiling" + stage_suffix + "...")
