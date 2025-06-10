@@ -59,6 +59,8 @@ RUN pip install .
 WORKDIR /sgl-workspace
 RUN git clone --branch h20_support https://github.com/bytedance-iaas/DeepEP.git
 
+RUN wget https://github.com/bytedance-iaas/sglang/blob/ep_main/benchmark/config/deepep_tuned_H20_4rnic.json 
+
 # NVSHMEM
 WORKDIR /sgl-workspace
 RUN wget https://developer.download.nvidia.com/compute/redist/nvshmem/3.2.5/source/nvshmem_src_3.2.5-1.txz
