@@ -29,6 +29,406 @@
 
 using namespace cute;
 
+/* Jack debugging */
+
+void print_tensor_info(const torch::Tensor& t, const std::string& name, int max_elements = 20) {
+    std::cout << name << " shape: " << t.sizes() << std::endl;
+    auto flattened = t.flatten();
+    auto numel = std::min((int)flattened.numel(), max_elements);
+    std::cout << name << " values (first " << numel << "): [";
+    for (int i = 0; i < numel; ++i) {
+        std::cout << flattened[i].item<float>(); // 你可以根據實際 dtype 換成 int, half 等
+        if (i < numel - 1) std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
+}
+
+void print_tensor_meta(const torch::Tensor& t, const std::string& name) {
+  std::cout << "Tensor: " << name << "\n";
+  std::cout << "  Shape: " << t.sizes() << "\n";
+  std::cout << "  Dtype: " << t.dtype().name() << "\n";
+  std::cout << "  Device: " << t.device() << "\n\n";
+}
+
+template <typename T>
+void print_tensor_cpu(torch::Tensor t, const std::string& name, int count = 20) {
+    t = t.contiguous().cpu();
+    std::cout << name << ": ";
+    auto ptr = t.data_ptr<T>();
+    for (int i = 0; i < std::min((int)t.numel(), count); ++i) {
+        std::cout << ptr[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+// If the DeviceAllocation<> was wrapped as Tensor, convert it back to host array (optional helper)
+template <typename T>
+void print_device_allocation(const T* device_ptr, int count, const std::string& name) {
+    std::vector<T> host_data(count);
+    cudaMemcpy(host_data.data(), device_ptr, count * sizeof(T), cudaMemcpyDeviceToHost);
+    std::cout << name << ": ";
+    for (int i = 0; i < count; ++i) {
+        std::cout << host_data[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+/* 250609 */
+
+// // Print shape + first 20 values of a regular tensor
+// void print_tensor_debug(const std::string& name, const torch::Tensor& t) {
+//   std::cout << "[Tensor] " << name << " shape: " << t.sizes() << std::endl;
+//   auto flat = t.flatten();
+//   int64_t n = std::min<int64_t>(20, flat.numel());
+//   std::cout << "  values: [ ";
+//   for (int64_t i = 0; i < n; ++i) {
+//     std::cout << flat[i].item<float>() << " ";
+//   }
+//   std::cout << "]" << std::endl;
+// }
+// void print_tensor_debug(const std::string& name, const at::Tensor& t) {
+//   std::cout << "[Tensor] " << name << " shape: " << t.sizes()
+//             << ", dtype: " << t.scalar_type() << std::endl;
+
+//   int64_t n = std::min<int64_t>(20, t.numel());
+//   auto flat = t.view({-1});
+
+//   std::cout << "  values: [ ";
+//   if (t.scalar_type() == torch::kFloat32) {
+//     for (int64_t i = 0; i < n; ++i)
+//       std::cout << flat[i].item<float>() << " ";
+//   } else if (t.scalar_type() == torch::kFloat16) {
+//     for (int64_t i = 0; i < n; ++i)
+//       std::cout << static_cast<float>(flat[i].item<at::Half>()) << " ";
+//   } else if (t.scalar_type() == torch::kBFloat16) {
+//     for (int64_t i = 0; i < n; ++i)
+//       std::cout << static_cast<float>(flat[i].item<at::BFloat16>()) << " ";
+//   } else if (t.scalar_type() == torch::kInt32) {
+//     for (int64_t i = 0; i < n; ++i)
+//       std::cout << flat[i].item<int32_t>() << " ";
+//   } else if (t.scalar_type() == torch::kInt64) {
+//     for (int64_t i = 0; i < n; ++i)
+//       std::cout << flat[i].item<int64_t>() << " ";
+//   } else if (t.scalar_type() == torch::ScalarType::Float8_e4m3fn ||
+//              t.scalar_type() == torch::ScalarType::Float8_e5m2 ||
+//              t.scalar_type() == torch::kUInt8) {
+//     auto tmp = torch::empty({n}, torch::kUInt8);
+//     cudaMemcpy(tmp.data_ptr(), t.data_ptr(), n, cudaMemcpyDeviceToHost);
+//     auto acc = tmp.accessor<uint8_t, 1>();
+//     for (int64_t i = 0; i < n; ++i)
+//       std::cout << static_cast<int>(acc[i]) << " ";
+//   } else {
+//     std::cout << "(unsupported dtype)";
+//   }
+//   std::cout << "]" << std::endl;
+// }
+
+// template <typename T>
+// void print_tensor_debug(const std::string& name, const at::Tensor& t, int num_values = 20) {
+//     std::cout << "============start==============" << std::endl;
+//     std::cout << "[Tensor] " << name << " shape: " << t.sizes() << ", dtype: " << t.dtype() << std::endl;
+
+//     try {
+//         // 降維
+//         auto flat = t.flatten();
+
+//         // 嘗試轉換 dtype 並複製到 CPU（不直接用 .data()）
+//         at::Tensor cpu_tensor;
+//         if (flat.device().is_cuda()) {
+//             cpu_tensor = flat.to(at::kFloat, /*non_blocking=*/false).cpu();
+//         } else {
+//             cpu_tensor = flat.to(at::kFloat);
+//         }
+
+//         // 印出前 num_values 個值
+//         auto accessor = cpu_tensor.accessor<float, 1>();
+//         std::cout << "  values: [ ";
+//         for (int i = 0; i < std::min(num_values, (int)cpu_tensor.numel()); ++i) {
+//             std::cout << accessor[i] << " ";
+//         }
+//         std::cout << "]" << std::endl;
+//     } catch (const std::exception& e) {
+//         std::cerr << "  ERROR converting or printing tensor " << name << ": " << e.what() << std::endl;
+//     }
+// }
+// .view報錯
+// void print_tensor_debug(const std::string& name, const at::Tensor& t, int max_elements = 20) {
+//     std::cout << "[Tensor] " << name << " shape: " << t.sizes() 
+//               << ", dtype: " << t.dtype() << std::endl;
+
+//     at::Tensor cpu_tensor;
+//     try {
+//         // 轉換為 float32 或 int64 以供打印（根據 dtype）
+//         switch (t.scalar_type()) {
+//             case at::kFloat:
+//                 cpu_tensor = t.flatten().cpu();
+//                 break;
+//             case at::kHalf:
+//             case at::kBFloat16:
+//             case at::kFloat8_e4m3fn:
+//             case at::kFloat8_e5m2:
+//                 cpu_tensor = t.flatten().to(at::kFloat).cpu();
+//                 break;
+//             case at::kInt:
+//             case at::kShort:
+//             case at::kByte:
+//             case at::kLong:
+//                 cpu_tensor = t.flatten().to(at::kLong).cpu();
+//                 break;
+//             case at::kBool:
+//                 cpu_tensor = t.flatten().to(at::kByte).cpu();
+//                 break;
+//             default:
+//                 std::cerr << "Unsupported dtype: " << t.dtype() << std::endl;
+//                 return;
+//         }
+
+//         // 根據實際 dtype 印出內容
+//         std::cout << "  values: [ ";
+//         int64_t total = cpu_tensor.numel();
+//         int64_t count = std::min<int64_t>(total, max_elements);
+
+//         if (cpu_tensor.scalar_type() == at::kFloat) {
+//             auto accessor = cpu_tensor.accessor<float, 1>();
+//             for (int64_t i = 0; i < count; ++i) {
+//                 std::cout << accessor[i] << " ";
+//             }
+//         } else if (cpu_tensor.scalar_type() == at::kLong) {
+//             auto accessor = cpu_tensor.accessor<int64_t, 1>();
+//             for (int64_t i = 0; i < count; ++i) {
+//                 std::cout << accessor[i] << " ";
+//             }
+//         } else if (cpu_tensor.scalar_type() == at::kByte) {
+//             auto accessor = cpu_tensor.accessor<uint8_t, 1>();
+//             for (int64_t i = 0; i < count; ++i) {
+//                 std::cout << static_cast<int>(accessor[i]) << " ";
+//             }
+//         } else {
+//             std::cerr << "Unsupported print format for dtype: " << cpu_tensor.scalar_type() << std::endl;
+//             return;
+//         }
+
+//         if (total > count) std::cout << "...";
+//         std::cout << "]" << std::endl;
+//     } catch (const std::exception& e) {
+//         std::cerr << "Error printing tensor: " << e.what() << std::endl;
+//     }
+// }
+
+void print_tensor_debug(const std::string& name, const at::Tensor& t, int max_elements = 20) {
+    std::cout << "[Tensor] " << name << " shape: " << t.sizes() 
+              << ", dtype: " << t.dtype() << std::endl;
+
+    at::Tensor cpu_tensor;
+    try {
+        switch (t.scalar_type()) {
+            case at::kFloat:
+                cpu_tensor = t.contiguous().reshape({-1}).cpu();
+                break;
+            case at::kHalf:
+            case at::kBFloat16:
+            case at::kFloat8_e4m3fn:
+            case at::kFloat8_e5m2:
+                cpu_tensor = t.contiguous().to(at::kFloat).reshape({-1}).cpu();
+                break;
+            case at::kInt:
+            case at::kShort:
+            case at::kByte:
+            case at::kLong:
+                cpu_tensor = t.contiguous().to(at::kLong).reshape({-1}).cpu();
+                break;
+            case at::kBool:
+                cpu_tensor = t.contiguous().to(at::kByte).reshape({-1}).cpu();
+                break;
+            default:
+                std::cerr << "Unsupported dtype: " << t.dtype() << std::endl;
+                return;
+        }
+
+        std::cout << "  values: " << name << " [ ";
+        int64_t total = cpu_tensor.numel();
+        int64_t count = std::min<int64_t>(total, max_elements);
+
+        if (cpu_tensor.scalar_type() == at::kFloat) {
+            auto accessor = cpu_tensor.accessor<float, 1>();
+            for (int64_t i = 0; i < count; ++i) {
+                std::cout << accessor[i] << " ";
+            }
+        } else if (cpu_tensor.scalar_type() == at::kLong) {
+            auto accessor = cpu_tensor.accessor<int64_t, 1>();
+            for (int64_t i = 0; i < count; ++i) {
+                std::cout << accessor[i] << " ";
+            }
+        } else if (cpu_tensor.scalar_type() == at::kByte) {
+            auto accessor = cpu_tensor.accessor<uint8_t, 1>();
+            for (int64_t i = 0; i < count; ++i) {
+                std::cout << static_cast<int>(accessor[i]) << " ";
+            }
+        } else {
+            std::cerr << "Unsupported print format for dtype: " << cpu_tensor.scalar_type() << std::endl;
+            return;
+        }
+
+        if (total > count) std::cout << "...";
+        std::cout << "]" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error printing tensor: " << e.what() << std::endl;
+    }
+}
+
+void print_tensor_from_ptr_debug(const std::string& name, const void* ptr, at::ScalarType dtype, std::vector<int64_t> shape) {
+  std::cout << "[From Ptr] " << name << " shape: " << shape
+            << ", dtype: " << dtype << std::endl;
+
+  int64_t numel = std::accumulate(shape.begin(), shape.end(), 1LL, std::multiplies<int64_t>());
+  int64_t n = std::min<int64_t>(20, numel);
+
+  std::cout << "[From Ptr] " << name << "  values: [ ";
+
+  if (dtype == torch::kFloat32) {
+    std::vector<float> tmp(n);
+    cudaMemcpy(tmp.data(), ptr, n * sizeof(float), cudaMemcpyDeviceToHost);
+    for (auto v : tmp) std::cout << v << " ";
+  } else if (dtype == torch::kFloat16) {
+    std::vector<at::Half> tmp(n);
+    cudaMemcpy(tmp.data(), ptr, n * sizeof(at::Half), cudaMemcpyDeviceToHost);
+    for (auto v : tmp) std::cout << static_cast<float>(v) << " ";
+  } else if (dtype == torch::kBFloat16) {
+    std::vector<at::BFloat16> tmp(n);
+    cudaMemcpy(tmp.data(), ptr, n * sizeof(at::BFloat16), cudaMemcpyDeviceToHost);
+    for (auto v : tmp) std::cout << static_cast<float>(v) << " ";
+  } else if (dtype == torch::kUInt8 || dtype == torch::ScalarType::Float8_e4m3fn || dtype == torch::ScalarType::Float8_e5m2) {
+    std::vector<uint8_t> tmp(n);
+    cudaMemcpy(tmp.data(), ptr, n, cudaMemcpyDeviceToHost);
+    for (auto v : tmp) std::cout << static_cast<int>(v) << " ";
+  } else if (dtype == torch::kInt32) {
+    std::vector<int32_t> tmp(n);
+    cudaMemcpy(tmp.data(), ptr, n * sizeof(int32_t), cudaMemcpyDeviceToHost);
+    for (auto v : tmp) std::cout << v << " ";
+  } else if (dtype == torch::kInt64) {
+    std::vector<int64_t> tmp(n);
+    cudaMemcpy(tmp.data(), ptr, n * sizeof(int64_t), cudaMemcpyDeviceToHost);
+    for (auto v : tmp) std::cout << v << " ";
+  } else {
+    std::cout << "(unsupported dtype)";
+  }
+  std::cout << "]" << std::endl;
+}
+
+void print_tensor_full_debug(const std::string& name, const at::Tensor& t, int max_print = 20) {
+    try {
+        at::Tensor t_cpu = t.to(torch::kCPU, /*non_blocking=*/true).contiguous();
+        at::Tensor flat = t_cpu.reshape({-1});
+
+        std::cout << name << " shape: " << t.sizes()
+                  << ", stride: " << t.strides()
+                  << ", dtype: " << t.dtype() << std::endl;
+
+        std::cout << "  values: " << name << " [ ";
+        for (int i = 0; i < std::min<int64_t>(max_print, flat.numel()); ++i) {
+            std::cout << flat[i].item<float>() << " ";
+        }
+        std::cout << "]" << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cout << name << " shape: " << t.sizes()
+                  << ", stride: " << t.strides()
+                  << ", dtype: " << t.dtype() << std::endl;
+        std::cout << "  values: " << name << " [Error] " << e.what() << std::endl;
+    }
+}
+
+
+// // Print shape + first 20 values of a pointer tensor (int64)
+// void print_pointer_tensor_debug(const std::string& name, const torch::Tensor& ptr_tensor) {
+//   std::cout << "[Pointer] " << name << " shape: " << ptr_tensor.sizes() << std::endl;
+//   int64_t n = std::min<int64_t>(20, ptr_tensor.numel());
+//   auto ptr_data = ptr_tensor.cpu().data_ptr<int64_t>();
+//   std::cout << "  addresses: [ ";
+//   for (int64_t i = 0; i < n; ++i) {
+//     std::cout << ptr_data[i] << " ";
+//   }
+//   std::cout << "]" << std::endl;
+// }
+
+// // Print actual tensor from pointer tensor's first address (e.g., a_ptrs[0])
+// void print_tensor_from_ptr(const std::string& name, const torch::Tensor& full_tensor, int64_t index) {
+//   torch::Tensor slice;
+//   if (full_tensor.dim() >= 2) {
+//     slice = full_tensor[index];  // e.g., a[0]
+//   } else {
+//     std::cout << "[TensorFromPtr] " << name << " has dim < 2, skip." << std::endl;
+//     return;
+//   }
+
+//   std::cout << "[From Ptr] " << name << "[" << index << "] shape: " << slice.sizes() << std::endl;
+//   auto flat = slice.flatten();
+//   int64_t n = std::min<int64_t>(20, flat.numel());
+//   std::cout << "  values: [ ";
+//   for (int64_t i = 0; i < n; ++i) {
+//     std::cout << flat[i].item<float>() << " ";
+//   }
+//   std::cout << "]" << std::endl;
+// }
+
+/* Jack porting */
+#if 0
+/// Fills a tensor with random values with a uniform random distribution.
+template <typename Element>
+void BlockFillRandomUniform(
+  Element *ptr,
+  size_t capacity,
+  uint64_t seed,                          ///< seed for RNG
+  typename RealType<Element>::Type max,   ///< upper bound of distribution
+  typename RealType<Element>::Type min,   ///< lower bound for distribution
+  int bits = -1,                          ///< If non-negative, specifies number of fractional bits that
+                                          ///  are not truncated to zero. Permits reducing precision of
+                                          ///  data.
+  double pnan = 0,                        ///< Percentage of NaN elements.
+  cudaStream_t stream = nullptr) {
+
+  using RandomFunc = detail::RandomUniformFunc<Element>;
+
+  typename RandomFunc::Params params(seed, max, min, bits, pnan);
+
+  BlockForEach<Element, RandomFunc>(ptr, capacity, params, /*grid_size*/0, /*block_size*/0, stream);
+}
+
+
+template <class Element, class ScopeMin = std::nullopt_t, class ScopeMax = std::nullopt_t>
+bool initialize_block(
+  cutlass::DeviceAllocation<Element>& block,
+  uint64_t seed=2023,
+  ScopeMin scope_min = std::nullopt, ScopeMax scope_max = std::nullopt) {
+
+  double _scope_max, _scope_min;
+  int bits_input = cutlass::sizeof_bits<Element>::value;
+  if (bits_input == 1) {
+    _scope_max = 2;
+    _scope_min = 0;
+  } else if (bits_input <= 8) {
+    _scope_max = 2;
+    _scope_min = -2;
+  } else if (bits_input == 16) {
+    _scope_max = 5;
+    _scope_min = -5;
+  } else {
+    _scope_max = 8;
+    _scope_min = -8;
+  }
+  if constexpr (!std::is_same_v<ScopeMax, std::nullopt_t>) {
+    _scope_max = scope_max;
+  }
+  if constexpr (!std::is_same_v<ScopeMin, std::nullopt_t>) {
+    _scope_min = scope_min;
+  }
+  // cutlass::reference::device::BlockFillRandomUniform( // This I cannot help!!!!!
+  BlockFillRandomUniform(
+    block.get(), block.size(), seed, (Element) _scope_max, (Element) _scope_min, 0);
+
+  return true;
+}
+#endif
 
 // using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
 template <typename OutType, typename ScheduleConfig, typename LayoutD>
@@ -49,7 +449,13 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
   using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
   using ElementA = cutlass::float_e4m3_t;
   using ElementB = cutlass::float_e4m3_t;
-  using ElementC = OutType;
+  using ElementC = OutType; // Jack 250602: origin以下解釋
+  // using ElementC = cutlass::float_e4m3_t; // Jack 250602: 強制改成exp68type 單純改exp68format (保留後面那邊nullptr) 結果一樣.
+  // epx68 uses ElementC = cutlass::float_e4m3_t; 
+  // 但這邊是傳入的 <OutType>
+  // sm90_fp8_blockwise_group_mm_dispatch_shape<cutlass::bfloat16_t>(
+  // or
+  // sm90_fp8_blockwise_group_mm_dispatch_shape<cutlass::half_t>(
   using ElementD = ElementC;
   using ElementAccumulator = float;
   using LayoutA = cutlass::layout::RowMajor;
@@ -62,6 +468,7 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
 
   using ArchTag = cutlass::arch::Sm90;
   using OperatorClass = cutlass::arch::OpClassTensorOp;
+  using FusionOperation   = cutlass::epilogue::fusion::LinearCombination<ElementC, ElementAccumulator>; // 250602 new
   using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
       ArchTag,
       OperatorClass,
@@ -70,13 +477,17 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
       cutlass::epilogue::collective::EpilogueTileAuto,
       ElementAccumulator,
       ElementAccumulator,
-      void,
+      void, // 250602 origin
+      // ElementC, // 250602 new
       LayoutC*,
       AlignmentC,
       ElementD,
-      LayoutC*,
-      AlignmentC,
-      typename ScheduleConfig::EpilogueSchedule>::CollectiveOp;
+      LayoutC*, // 250602 D=C
+      AlignmentC, // 250602 D=C
+      // typename ScheduleConfig::EpilogueSchedule, // 250602 new
+      // FusionOperation // 250602 new new
+      // >::CollectiveOp; // 250602 new
+      typename ScheduleConfig::EpilogueSchedule>::CollectiveOp; // 250602 origin
 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
       ArchTag,
@@ -94,7 +505,9 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
           sizeof(typename CollectiveEpilogue::SharedStorage))>,
       typename ScheduleConfig::KernelSchedule>::CollectiveOp;
 
-  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue, void>;
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue, void>; // 250602 origin
+  // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>; // 250602 new
+
 
   using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
   using UnderlyingProblemShape = ProblemShape::UnderlyingProblemShape;
@@ -107,27 +520,147 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
   // Create an instance of the GEMM
   Gemm gemm_op;
 
+  /* Jack: TODO example68, test it with no cuda graph */
+  /* Jack: TODO example68, test it with no cuda graph */
+  /* Jack: TODO example68, test it with no cuda graph */
+  /* Jack: TODO example68, test it with no cuda graph */
+  /* Jack: TODO example68, test it with no cuda graph */
+  /* Jack: TODO example68, test it with no cuda graph */
+  // int groups = num_experts; int options.groups = num_experts;
+  std::vector<typename ScheduleConfig::LayoutSFA> layout_SFA_host;
+  std::vector<typename ScheduleConfig::LayoutSFB> layout_SFB_host;
+  cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_A;
+  cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_B;
+
+  cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFA> layout_SFA;
+  cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFB> layout_SFB;
+
+  auto problem_sizes_cpu = problem_sizes.to(torch::kCPU);
+  auto* problem_sizes_cpu_ptr = problem_sizes_cpu.data_ptr<int32_t>();
+
+  // /* Jack: 0602 */
+  // using ElementBlockScale   = float;
+  // cutlass::DeviceAllocation<ElementBlockScale> blockscale_block_A;
+  // cutlass::DeviceAllocation<ElementBlockScale> blockscale_block_B;
+  // std::vector<int64_t> offset_blockscale_A;
+  // std::vector<int64_t> offset_blockscale_B;
+
+  // /* Jack: 0602 alloc-1 */
+  // int64_t total_elements_blockscale_A = 0;
+  // int64_t total_elements_blockscale_B = 0;
+  // offset_blockscale_A.clear();
+  // offset_blockscale_B.clear();
+
+  /* yichen new */
+  // for (int32_t i = 0; i < num_experts; ++i) {
+  //     // auto problem = problem_sizes_cpu_ptr[i];
+  //     // int32_t M = get<0>(problem);
+  //     // int32_t N = get<1>(problem);
+  //     // int32_t K = get<2>(problem);
+  //     int32_t M = problem_sizes_cpu_ptr[(i * 3) + 0];
+  //     int32_t N = problem_sizes_cpu_ptr[(i * 3) + 1];
+  //     int32_t K = problem_sizes_cpu_ptr[(i * 3) + 2];
+
+  //     auto group_layout_SFA = ScheduleConfig::ScaleConfig::tile_atom_to_shape_SFA(make_shape(M, N, K, 1));
+  //     auto group_layout_SFB = ScheduleConfig::ScaleConfig::tile_atom_to_shape_SFB(make_shape(M, N, K, 1));
+
+  //     layout_SFA_host.push_back(group_layout_SFA);
+  //     layout_SFB_host.push_back(group_layout_SFB);
+
+  //     // /* Jack: 0602 alloc-2 */
+  //     // offset_blockscale_A.push_back(total_elements_blockscale_A);
+  //     // offset_blockscale_B.push_back(total_elements_blockscale_B);
+      
+  //     // int64_t elements_blockscale_A = size(filter_zeros(group_layout_SFA)); // 
+  //     // int64_t elements_blockscale_B = size(filter_zeros(group_layout_SFB)); // 
+  //     // total_elements_blockscale_A += elements_blockscale_A;
+  //     // total_elements_blockscale_B += elements_blockscale_B;
+  // }
+
+  // layout_SFA.reset(num_experts);
+  // layout_SFA.copy_from_host(layout_SFA_host.data());
+  // layout_SFB.reset(num_experts);
+  // layout_SFB.copy_from_host(layout_SFB_host.data());
+   /* yichen end */
+
+  // /* Jack: 0602 alloc-3 */
+  // blockscale_block_A.reset(total_elements_blockscale_A);
+  // blockscale_block_B.reset(total_elements_blockscale_B);
+
+  // /* Jack: 0602 init */
+  // uint64_t seed = 2023;
+  // std::vector<ElementBlockScale *> ptr_blockscale_A_host(num_experts);
+  // std::vector<ElementBlockScale *> ptr_blockscale_B_host(num_experts);
+  // for (int i = 0; i < num_experts; i++) {
+  //   ptr_blockscale_A_host.at(i) = blockscale_block_A.get() + offset_blockscale_A.at(i);
+  //   ptr_blockscale_B_host.at(i) = blockscale_block_B.get() + offset_blockscale_B.at(i);
+
+  // }
+  // ptr_blockscale_A.reset(num_experts);
+  // ptr_blockscale_A.copy_from_host(ptr_blockscale_A_host.data());
+
+  // ptr_blockscale_B.reset(num_experts);
+  // ptr_blockscale_B.copy_from_host(ptr_blockscale_B_host.data());
+
+  // initialize_block(blockscale_block_A, seed + 2025, -1, 1);
+  // initialize_block(blockscale_block_B, seed + 2026, -1, 1);
+
   typename GemmKernel::MainloopArguments mainloop_args{
-      static_cast<const ElementA**>(a_ptrs.data_ptr()),
-      static_cast<StrideA*>(stride_a.data_ptr()),
-      static_cast<const ElementB**>(b_ptrs.data_ptr()),
-      static_cast<StrideB*>(stride_b.data_ptr()),
-      static_cast<const ElementAccumulator**>(a_scales_ptrs.data_ptr()),
-      reinterpret_cast<typename ScheduleConfig::LayoutSFA*>(layout_sfa.data_ptr()),
-      static_cast<const ElementAccumulator**>(b_scales_ptrs.data_ptr()),
-      reinterpret_cast<typename ScheduleConfig::LayoutSFB*>(layout_sfb.data_ptr())};
+    static_cast<const ElementA**>(a_ptrs.data_ptr()),
+    static_cast<StrideA*>(stride_a.data_ptr()),
+    static_cast<const ElementB**>(b_ptrs.data_ptr()),
+    static_cast<StrideB*>(stride_b.data_ptr()),
+    static_cast<const ElementAccumulator**>(a_scales_ptrs.data_ptr()),
+    reinterpret_cast<typename ScheduleConfig::LayoutSFA*>(layout_sfa.data_ptr()), // original
+    // layout_SFA.get(), // yichen
+    static_cast<const ElementAccumulator**>(b_scales_ptrs.data_ptr()),
+    reinterpret_cast<typename ScheduleConfig::LayoutSFB*>(layout_sfb.data_ptr())}; // original
+    // layout_SFB.get() // yichen
+    // }; // yichen
 
-  cutlass::KernelHardwareInfo hw_info;
+  /* Jack debug */
+  // print_device_allocation(layout_SFA.get(), 20, "layout_SFA");
+  // print_device_allocation(layout_SFB.get(), 20, "layout_SFB");
 
-  hw_info.device_id = 0;
+
+
+  // sm100 origin
+  // typename GemmKernel::MainloopArguments mainloop_args{
+  //     static_cast<const ElementA**>(a_ptrs.data_ptr()),
+  //     static_cast<StrideA*>(stride_a.data_ptr()),
+  //     static_cast<const ElementB**>(b_ptrs.data_ptr()),
+  //     static_cast<StrideB*>(stride_b.data_ptr()),
+  //     static_cast<const ElementAccumulator**>(a_scales_ptrs.data_ptr()),
+  //     reinterpret_cast<typename ScheduleConfig::LayoutSFA*>(layout_sfa.data_ptr()),
+  //     static_cast<const ElementAccumulator**>(b_scales_ptrs.data_ptr()),
+  //     reinterpret_cast<typename ScheduleConfig::LayoutSFB*>(layout_sfb.data_ptr())};
+
   // sm_count is the number of SMs on the current device, since we here support H20 (SM90), so we set it to 78
-  hw_info.sm_count = 78;
+  // hw_info.sm_count = 78;
+  int device_id = 0;
+  cutlass::KernelHardwareInfo hw_info = cutlass::KernelHardwareInfo::make_kernel_hardware_info<typename Gemm::GemmKernel>(device_id);
+  // cutlass::KernelHardwareInfo hw_info;
+  // hw_info.device_id = a_tensors.device().index();
+  // hw_info.sm_count =
+  //     cutlass::KernelHardwareInfo::query_device_multiprocessor_count(
+  //         hw_info.device_id);
+
+  // 250602 origin
   typename GemmKernel::EpilogueArguments epilogue_args{
       {},
       nullptr,
       static_cast<StrideC*>(stride_c.data_ptr()),
       static_cast<ElementD**>(out_ptrs.data_ptr()),
       static_cast<StrideC*>(stride_c.data_ptr())};
+
+  // 250602 new - fail
+  // typename GemmKernel::EpilogueArguments epilogue_args{
+  //     {},
+  //     // nullptr, // 這個不改成exp68format的話會報錯 單純改exp68format保留這邊nullptr結果一樣
+  //     static_cast<ElementC**>(out_ptrs.data_ptr()), // 改成exp68format 依然錯 所以這條路不通
+  //     static_cast<StrideC*>(stride_c.data_ptr()),
+  //     static_cast<ElementD**>(out_ptrs.data_ptr()),
+  //     static_cast<StrideC*>(stride_c.data_ptr())};
 
   UnderlyingProblemShape* problem_sizes_as_shapes = static_cast<UnderlyingProblemShape*>(problem_sizes.data_ptr());
   typename GemmKernel::Arguments args{
@@ -149,6 +682,7 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
   status = gemm_op.run(stream);
   TORCH_CHECK(status == cutlass::Status::kSuccess, "Failed to run GEMM");
 }
+
 
 template <typename OutType>
 void sm90_fp8_blockwise_group_mm_dispatch_shape(
@@ -173,6 +707,7 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
   // Check the first matrix size to decide on the configuration
   // Assuming all matrices in the group have similar size characteristics
   // bool use_small_config = a[0].size(0) <= 128;
+  // Ref: origin sm100
   struct MmaConfig1_origin {
     using ElementA = cutlass::float_e4m3_t;
     using MmaTileShape = Shape<_128, _32, _128>;
@@ -191,8 +726,13 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
     using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
   };
-  // SM90-friendly configs
-  struct MmaConfig1 {
+  // (WIP) SM90-friendly configs
+  struct MmaConfig1_old {
+    /* Jack: note
+     * MmaTileShape & ClusterShape 不影響精度
+     * ScaleConfig 影響精度
+     */
+    
     // origin
     // using ElementA = cutlass::float_e4m3_t;
     // using MmaTileShape = Shape<_128, _32, _128>;
@@ -221,20 +761,21 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 
     // 250527
-    // using ElementA = cutlass::float_e4m3_t;
-    // // using MmaTileShape = Shape<_128, _128, _128>;
+    using ElementA = cutlass::float_e4m3_t;
+    using MmaTileShape = Shape<_128, _128, _128>;
     // using MmaTileShape = Shape<_128, _32, _128>;
-    // using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
-    // // using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedBlockwise1SmSm100;
-    // // using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
-    // using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
-    // using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
-    // // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<32, 1, 128>; // try [ret=胡話]
-    // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128>; // 這跟sm100 config2一樣了, example68=1,128,128  [ret=胡話]
-    // // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // example68=1,128,128. sm100也有這種shpae 但, mmatile也跟著比較小=32 [ret=illegal memory]
-    //     // cutlass::detail::Sm100BlockwiseScaleConfig<128, 1, 128, cute::UMMA::Major::K, cute::UMMA::Major::K>;
-    // using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
-    // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+    using ClusterShape = Shape<_1, _1, _1>;  // gpt - Layout type for SFB matrix operand
+    // using ClusterShape = Shape<_1, _2, _1>;  // exp68 - Layout type for SFB matrix operand
+    // using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedBlockwise1SmSm100;
+    // using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
+    using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<32, 1, 128>; // try [ret=胡話]
+    using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128>; // 這跟sm100 config2一樣了, example68=1,128,128  [ret=胡話]
+    // using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // example68=1,128,128. sm100也有這種shpae 但, mmatile也跟著比較小=32 [ret=illegal memory]
+        // cutlass::detail::Sm100BlockwiseScaleConfig<128, 1, 128, cute::UMMA::Major::K, cute::UMMA::Major::K>;
+    using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 
     // // (gpt)
     // using ElementA = cutlass::float_e4m3_t;
@@ -249,15 +790,53 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());  // = RowMajor
 
     // 全用sm90 68example (works but still accuracy wrong)
+    // using ElementA = cutlass::float_e4m3_t;
+    // using MmaTileShape = Shape<_128, _128, _128>;
+    // using ClusterShape = Shape<_1, _2, _1>;  // Layout type for SFB matrix operand
+    // using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    // using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    // using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+    // using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    // using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+  };
+
+  // struct MmaConfig1 {
+  //   using ElementA = cutlass::float_e4m3_t;
+  //   using MmaTileShape = Shape<_128, _128, _128>;
+  //   using ClusterShape = Shape<_1, _2, _1>;  // Layout type for SFB matrix operand
+  //   using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+  //   using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+  //   using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+  //   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+  //   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+  // };
+
+  // 0529 with yichen
+  struct MmaConfig2 {
     using ElementA = cutlass::float_e4m3_t;
     using MmaTileShape = Shape<_128, _128, _128>;
-    using ClusterShape = Shape<_1, _2, _1>;  // Layout type for SFB matrix operand
-    using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
-    using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
-    using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+    using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
+    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    using ScaleConfig =
+        cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
     using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
     using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
   };
+  // struct MmaConfig2 {
+  //   using ElementA = cutlass::float_e4m3_t;
+  //   using MmaTileShape = Shape<_128, _128, _128>;
+  //   // using ClusterShape = Shape<_1, _2, _1>;  // or this?
+  //   using ClusterShape = Shape<_1, _2, _1>;  // Layout type for SFB matrix operand
+  //   using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+  //   using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+  //   using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // illigal when serving
+  //   // using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128>; // illigal killed when starup
+  //   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+  //   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+  // };
+
+
 #if 0 // testing: only use MmaConfig1 for testing,  turn  2,3 off 這兩個都還沒用對. 基本上config2=config3.....
   struct MmaConfig2 {
     using ElementA = cutlass::float_e4m3_t;
@@ -318,40 +897,289 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
 
 #if 1 // Jack for testing
   // Jack for testing
-  // if (a.size(0) <= 512 && a.size(1) >= 2048) {
-    run_get_group_gemm_starts<MmaConfig1::LayoutSFA, MmaConfig1::LayoutSFB, MmaConfig1::ScaleConfig>(
-          expert_offsets,
-          a_ptrs,
-          b_ptrs,
-          out_ptrs,
-          a_scales_ptrs,
-          b_scales_ptrs,
-          b_t,
-          a_t,
-          output_t,
-          scales_b_t,
-          scales_a_t,
-          layout_sfa,
-          layout_sfb,
-          problem_sizes,
-          problem_sizes_transpose,
-          true);
-    // launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::RowMajor>( // [ret=illegal memory]
-    launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::ColumnMajor>(
-        out_ptrs,
-        a_ptrs,
-        b_ptrs,
-        a_scales_ptrs,
-        b_scales_ptrs,
-        stride_a,
-        stride_b,
-        stride_c,
-        layout_sfa,
-        layout_sfb,
-        problem_sizes_transpose,
-        expert_offsets,
-        workspace);
-    output = output_t.t(); // [remove doens't help]
+  // // if (a.size(0) <= 512 && a.size(1) >= 2048) {
+  //   run_get_group_gemm_starts<MmaConfig1::LayoutSFA, MmaConfig1::LayoutSFB, MmaConfig1::ScaleConfig>(
+  //         expert_offsets,
+  //         a_ptrs,
+  //         b_ptrs,
+  //         out_ptrs,
+  //         a_scales_ptrs,
+  //         b_scales_ptrs,
+  //         b_t,
+  //         a_t,
+  //         output_t,
+  //         scales_b_t,
+  //         scales_a_t,
+  //         layout_sfa,
+  //         layout_sfb,
+  //         problem_sizes,
+  //         problem_sizes_transpose,
+  //         true);
+  //   // launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::RowMajor>( // [ret=illegal memory]
+  //   launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::ColumnMajor>(
+  //       out_ptrs,
+  //       a_ptrs,
+  //       b_ptrs,
+  //       a_scales_ptrs,
+  //       b_scales_ptrs,
+  //       stride_a,
+  //       stride_b,
+  //       stride_c,
+  //       layout_sfa,
+  //       layout_sfb,
+  //       problem_sizes_transpose,
+  //       expert_offsets,
+  //       workspace);
+  //   output = output_t.t(); // [remove doens't help]
+
+  // 250605 - Debug info print 跟exp68比較
+  // std::cout << "=== Tensor Info Debug ===" << std::endl;
+  // print_tensor_meta(a_t, "meta a_t");
+  // print_tensor_meta(b_t, "meta b_t");
+  // print_tensor_meta(a_ptrs, "meta a_ptrs");
+  // print_tensor_meta(b_ptrs, "meta b_ptrs");
+  // print_tensor_meta(a_scales_ptrs, "meta a_scales_ptrs");
+  // print_tensor_meta(b_scales_ptrs, "meta b_scales_ptrs");
+  // print_tensor_meta(layout_sfa, "meta layout_sfa");
+  // print_tensor_meta(layout_sfb, "meta layout_sfb");
+  // print_tensor_meta(problem_sizes, "meta problem_sizes");
+
+  // print_tensor_info(a, "a_t");
+  // // print_tensor_info(b, "b_t");
+  // print_tensor_info(a_ptrs, "a_ptrs");
+  // print_tensor_info(b_ptrs, "b_ptrs");
+  // print_tensor_info(a_scales_ptrs, "a_scales_ptrs");
+  // print_tensor_info(b_scales_ptrs, "b_scales_ptrs");
+  // print_tensor_info(layout_sfa, "layout_sfa");
+  // print_tensor_info(layout_sfb, "layout_sfb");
+  // print_tensor_info(problem_sizes, "problem_sizes");
+
+
+  // std::cout << "============start==============" << std::endl;
+
+  // print_tensor_cpu<uint8_t>(a_t, "a_t");  // float8 用 uint8_t 看原始位元
+  // // print_tensor_cpu<uint8_t>(b_t, "b_t");
+
+  // // print_tensor_cpu<int64_t>(a_ptrs, "a_ptrs");
+  // // print_tensor_cpu<int64_t>(b_ptrs, "b_ptrs");
+
+  // print_tensor_cpu<int64_t>(a_scales_ptrs, "a_scales_ptrs"); // pointer 所以 int64_t
+  // print_tensor_cpu<int64_t>(b_scales_ptrs, "b_scales_ptrs");
+
+  // print_tensor_cpu<int64_t>(layout_sfa, "layout_sfa");
+  // print_tensor_cpu<int64_t>(layout_sfb, "layout_sfb");
+
+  // print_tensor_cpu<int64_t>(problem_sizes, "problem_sizes");
+
+  // // print_device_allocation(layout_SFA.get(), 20, "layout_SFA");
+  // // print_device_allocation(layout_SFB.get(), 20, "layout_SFB");
+
+
+  // 250609
+  // // 分成兩類印：指標 + 資料 tensor
+  // print_pointer_tensor_debug("a_ptrs", a_ptrs);
+  // print_pointer_tensor_debug("b_ptrs", b_ptrs);
+  // print_pointer_tensor_debug("a_scales_ptrs", a_scales_ptrs);
+  // print_pointer_tensor_debug("b_scales_ptrs", b_scales_ptrs);
+
+  // print_tensor_debug("a", a);
+  // print_tensor_debug("b", b);
+  // print_tensor_debug("scales_a", scales_a);
+  // print_tensor_debug("scales_b", scales_b);
+  // print_tensor_debug("layout_sfa", layout_sfa);
+  // print_tensor_debug("layout_sfb", layout_sfb);
+  // print_tensor_debug("problem_sizes", problem_sizes);
+
+  // // 額外印第一個 expert 的真實 tensor 資料內容
+  // print_tensor_from_ptr("a", a, 0);
+  // print_tensor_from_ptr("b", b, 0);
+  // print_tensor_from_ptr("scales_a", scales_a, 0);
+  // print_tensor_from_ptr("scales_b", scales_b, 0);
+
+
+  // // 普通 tensor
+  // print_tensor_debug("a", a);
+  // print_tensor_debug("b", b);
+  // print_tensor_debug("scales_a", scales_a);
+  // print_tensor_debug("scales_b", scales_b);
+  // print_tensor_debug("layout_sfa", layout_sfa);
+  // print_tensor_debug("layout_sfb", layout_sfb); //
+  // print_tensor_debug("problem_sizes", problem_sizes);
+
+  // // // pointer tensor address
+  // auto a_ptrs_cpu = a_ptrs.to(torch::kCPU);
+  // auto b_ptrs_cpu = b_ptrs.to(torch::kCPU); //
+  // auto a_scales_ptrs_cpu = a_scales_ptrs.to(torch::kCPU); //
+  // auto b_scales_ptrs_cpu = b_scales_ptrs.to(torch::kCPU); //
+
+  // std::cout << "[Pointer] a_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, a_ptrs.numel()); ++i)
+  //   std::cout << a_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // //
+  // std::cout << "[Pointer] b_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, b_ptrs.numel()); ++i)
+  //   std::cout << b_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // //
+  // std::cout << "[Pointer] a_scales_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, a_scales_ptrs.numel()); ++i)
+  //   std::cout << a_scales_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // //
+  // std::cout << "[Pointer] b_scales_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, b_scales_ptrs.numel()); ++i)
+  //   std::cout << b_scales_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // // // deref 第一個實際內容
+  // void* a0 = reinterpret_cast<void*>(a_ptrs_cpu[0].item<int64_t>());
+  // void* b0 = reinterpret_cast<void*>(b_ptrs_cpu[0].item<int64_t>()); //
+  // void* sa0 = reinterpret_cast<void*>(a_scales_ptrs_cpu[0].item<int64_t>()); //
+  // void* sb0 = reinterpret_cast<void*>(b_scales_ptrs_cpu[0].item<int64_t>()); //
+
+  // print_tensor_from_ptr_debug("a_ptrs[0]", a0, a.scalar_type(), {a.size(1)});
+  // print_tensor_from_ptr_debug("b_ptrs[0]", b0, b.scalar_type(), {b.size(1)}); //
+  // print_tensor_from_ptr_debug("a_scales_ptrs[0]", sa0, scales_a.scalar_type(), {scales_a.size(1)}); //
+  // print_tensor_from_ptr_debug("b_scales_ptrs[0]", sb0, scales_b.scalar_type(), {scales_b.size(1)}); //
+
+  // print_tensor_full_debug("stride_a", stride_a);
+  // print_tensor_full_debug("stride_b", stride_b);
+  // print_tensor_full_debug("stride_c", stride_c);
+
+
+  // std::cout << "==========================" << std::endl;
+
+
+  // 250602 因為exp68是elementC/D 是 column-major
+  // exp68 => using LayoutC = cutlass::layout::ColumnMajor; // Layout type for C and D matrix operands
+  // run_get_group_gemm_starts<MmaConfig1::LayoutSFA, MmaConfig1::LayoutSFB, MmaConfig1::ScaleConfig>(
+  //     expert_offsets,
+  //     a_ptrs,
+  //     b_ptrs,
+  //     out_ptrs,
+  //     a_scales_ptrs,
+  //     b_scales_ptrs,
+  //     b_t,
+  //     a_t,
+  //     output_t,
+  //     scales_b_t,
+  //     scales_a_t,
+  //     layout_sfa,
+  //     layout_sfb,
+  //     problem_sizes,
+  //     problem_sizes_transpose,
+  //     true);
+  // launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig1, cutlass::layout::ColumnMajor>(
+  //     out_ptrs,
+  //     a_ptrs,
+  //     b_ptrs,
+  //     a_scales_ptrs,
+  //     b_scales_ptrs,
+  //     stride_a,
+  //     stride_b,
+  //     stride_c,
+  //     layout_sfa,
+  //     layout_sfb,
+  //     problem_sizes_transpose,
+  //     expert_offsets,
+  //     workspace);
+  // output = output_t.t();
+
+  //   // 0529 with yichen origin config2
+    run_get_group_gemm_starts<MmaConfig2::LayoutSFA, MmaConfig2::LayoutSFB, MmaConfig2::ScaleConfig>(
+      expert_offsets,
+      a_ptrs,
+      b_ptrs,
+      out_ptrs,
+      a_scales_ptrs,
+      b_scales_ptrs,
+      a,
+      b,
+      output,
+      scales_a,
+      scales_b,
+      layout_sfa,
+      layout_sfb,
+      problem_sizes,
+      problem_sizes_transpose);
+
+  // 250610 TODO print after get(create) tensors
+  // std::cout << "============start 250610 ==============" << std::endl;
+
+  // // 普通 tensor
+  // print_tensor_debug("a", a);
+  // print_tensor_debug("b", b);
+  // print_tensor_debug("scales_a", scales_a);
+  // print_tensor_debug("scales_b", scales_b);
+  // print_tensor_debug("layout_sfa", layout_sfa);
+  // print_tensor_debug("layout_sfb", layout_sfb); //
+  // print_tensor_debug("problem_sizes", problem_sizes);
+
+  // // // pointer tensor address
+  // auto a_ptrs_cpu = a_ptrs.to(torch::kCPU);
+  // auto b_ptrs_cpu = b_ptrs.to(torch::kCPU); //
+  // auto a_scales_ptrs_cpu = a_scales_ptrs.to(torch::kCPU); //
+  // auto b_scales_ptrs_cpu = b_scales_ptrs.to(torch::kCPU); //
+
+  // std::cout << "[Pointer] a_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, a_ptrs.numel()); ++i)
+  //   std::cout << a_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // //
+  // std::cout << "[Pointer] b_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, b_ptrs.numel()); ++i)
+  //   std::cout << b_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // //
+  // std::cout << "[Pointer] a_scales_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, a_scales_ptrs.numel()); ++i)
+  //   std::cout << a_scales_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // //
+  // std::cout << "[Pointer] b_scales_ptrs: ";
+  // for (int i = 0; i < std::min<int64_t>(20, b_scales_ptrs.numel()); ++i)
+  //   std::cout << b_scales_ptrs_cpu[i].item<int64_t>() << " ";
+  // std::cout << std::endl;
+
+  // // // deref 第一個實際內容
+  // void* a0 = reinterpret_cast<void*>(a_ptrs_cpu[0].item<int64_t>());
+  // void* b0 = reinterpret_cast<void*>(b_ptrs_cpu[0].item<int64_t>()); //
+  // void* sa0 = reinterpret_cast<void*>(a_scales_ptrs_cpu[0].item<int64_t>()); //
+  // void* sb0 = reinterpret_cast<void*>(b_scales_ptrs_cpu[0].item<int64_t>()); //
+
+  // // redundant?
+  // print_tensor_from_ptr_debug("a_ptrs[0]", a0, a.scalar_type(), {a.size(1)});
+  // print_tensor_from_ptr_debug("b_ptrs[0]", b0, b.scalar_type(), {b.size(1)}); //
+  // print_tensor_from_ptr_debug("a_scales_ptrs[0]", sa0, scales_a.scalar_type(), {scales_a.size(1)}); //
+  // print_tensor_from_ptr_debug("b_scales_ptrs[0]", sb0, scales_b.scalar_type(), {scales_b.size(1)}); //
+
+  // print_tensor_full_debug("stride_a", stride_a);
+  // print_tensor_full_debug("stride_b", stride_b);
+  // print_tensor_full_debug("stride_c", stride_c);
+  // std::cout << "============done==============" << std::endl;
+
+  launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig2, cutlass::layout::RowMajor>(
+      out_ptrs,
+      a_ptrs,
+      b_ptrs,
+      a_scales_ptrs,
+      b_scales_ptrs,
+      stride_a,
+      stride_b,
+      stride_c,
+      layout_sfa,
+      layout_sfb,
+      problem_sizes,
+      expert_offsets,
+      workspace);
+
   // // } else {
   //   // // printf("Jack entered config2\n");
   //   // run_get_group_gemm_starts<MmaConfig2::LayoutSFA, MmaConfig2::LayoutSFB, MmaConfig2::ScaleConfig>(

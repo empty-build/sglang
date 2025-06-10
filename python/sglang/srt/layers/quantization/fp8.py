@@ -1073,12 +1073,37 @@ class Fp8MoEMethod:
                 # self.ab_strides2.fill_(n)
                 # self.c_strides2.fill_(k)
                 #############################################################################
+
+
+                # debugging info
+                # w1_strides = layer.w13_weight.stride()
+                # w2_strides = layer.w2_weight.stride()
+                # print("w1_strides:", w1_strides, "w2_strides:", w2_strides) # w1_strides: (3670016, 7168, 1) w2_strides: (1835008, 256, 1)
+
+                # 250529
+                # print("x.shape:", x.shape)
+                # print("layer.w13_weight.shape:", layer.w13_weight.shape,
+                #     "-> transpose(1, 2).shape:", layer.w13_weight.transpose(1, 2).shape)
+                # print("layer.w2_weight.shape:", layer.w2_weight.shape,
+                #     "-> transpose(1, 2).shape:", layer.w2_weight.transpose(1, 2).shape)
+                # print("layer.w13_weight_scale_inv.shape:", layer.w13_weight_scale_inv.shape,
+                #     "-> transpose(1, 2).shape:", layer.w13_weight_scale_inv.transpose(1, 2).shape)
+                # print("layer.w2_weight_scale_inv.shape:", layer.w2_weight_scale_inv.shape,
+                #     "-> transpose(1, 2).shape:", layer.w2_weight_scale_inv.transpose(1, 2).shape)
+                # print("x.shape:", x.shape, "-> x.transpose(1, 2).shape:", x.transpose(1, 2).shape)
+                # print("output.shape:", output.shape, "-> output.transpose(1, 2).shape:", output.transpose(1, 2).shape)
+                # print("w1.shape:", w1.shape, "-> w1.transpose(1, 2).shape:", w1.transpose(1, 2).shape)
+                # print("w2.shape:", w2.shape, "-> w2.transpose(1, 2).shape:", w2.transpose(1, 2).shape)
                 return cutlass_fused_experts(
                     x,
-                    layer.w13_weight, #sm90 need [E, K, 2N]
-                    layer.w2_weight, #sm90 need[E, N, K]
-                    layer.w13_weight_scale_inv,
-                    layer.w2_weight_scale_inv,
+                    # layer.w13_weight, #sm90 need [E, K, 2N]
+                    # layer.w2_weight, #sm90 need[E, N, K]
+                    # layer.w13_weight_scale_inv,
+                    # layer.w2_weight_scale_inv,
+                    layer.w13_weight.transpose(1, 2),
+                    layer.w2_weight.transpose(1, 2),
+                    layer.w13_weight_scale_inv.transpose(1, 2),
+                    layer.w2_weight_scale_inv.transpose(1, 2),
                     topk_weights,
                     topk_ids,
                     self.ab_strides1,

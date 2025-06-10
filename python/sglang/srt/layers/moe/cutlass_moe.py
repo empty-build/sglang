@@ -106,34 +106,54 @@ def cutlass_fused_experts(
     """
     from sglang.srt.layers.quantization.fp8_utils import is_sm90_supported
     if is_sm90_supported(): # transpose removed
+        # assert use_fp8_blockscale, "Only support fp8 blockscale for now"
+        # assert topk_weights.shape == topk_ids.shape, "topk shape mismatch"
+        # assert w1_q.dtype == torch.float8_e4m3fn
+        # assert w2_q.dtype == torch.float8_e4m3fn
+        # assert a.shape[1] == w1_q.shape[1] or a.shape[1] == w1_q.shape[2], "Hidden size mismatch w1"
+        # # assert a.shape[1] == w1_q.shape[2], "Hidden size mismatch w1" # 1->2 hope work, clean, 這有點怪我現在沒轉為何還得改成2
+        # # assert w1_q.shape[1] == w2_q.shape[2] * 2, "Hidden size mismatch w2" # 1->2, hope work, clean
+        # assert w1_q.shape[2] == w2_q.shape[1] * 2 or w1_q.shape[1] == w2_q.shape[2] * 2, "Hidden size mismatch w2"
+        # assert w1_q.shape[0] == w2_q.shape[0], "Expert number mismatch"
+        # assert w1_q.shape[0] == w2_q.shape[0], "Weights expert number mismatch"
+        # assert w1_q.shape[0] == w1_scale.shape[0], "w1 scales expert number mismatch"
+        # assert w1_q.shape[0] == w2_scale.shape[0], "w2 scales expert number mismatch"
+        # assert a.dtype in [torch.half, torch.bfloat16], "Invalid output dtype"
+
+        # # no transpose
+        # # w13_weight shape: torch.Size([264, 512, 7168])
+        # # w2_weight shape: torch.Size([264, 7168, 256])
+        # # w13_weight_scale_inv shape: torch.Size([264, 4, 56])
+        # # w2_weight_scale_inv shape: torch.Size([264, 56, 2])
+
+        # out_dtype = a.dtype
+        # num_experts = w1_q.size(0)
+        # m = a.size(0)
+        # # origin
+        # # k = w1_q.size(1) # [E, 2N, K] -> trans -> [E, K*, 2N]
+        # # n = w2_q.size(1) # [E, K, N] -> trans -> [E, N*, K]
+        # k = w1_q.size(2) # [E, 2N, K] no trans
+        # n = w2_q.size(2) # [E, K, N] no trans
+
+        # 0529 (with yichen) = origin
         assert use_fp8_blockscale, "Only support fp8 blockscale for now"
         assert topk_weights.shape == topk_ids.shape, "topk shape mismatch"
         assert w1_q.dtype == torch.float8_e4m3fn
         assert w2_q.dtype == torch.float8_e4m3fn
-        assert a.shape[1] == w1_q.shape[1] or a.shape[1] == w1_q.shape[2], "Hidden size mismatch w1"
-        # assert a.shape[1] == w1_q.shape[2], "Hidden size mismatch w1" # 1->2 hope work, clean, 這有點怪我現在沒轉為何還得改成2
-        # assert w1_q.shape[1] == w2_q.shape[2] * 2, "Hidden size mismatch w2" # 1->2, hope work, clean
-        assert w1_q.shape[2] == w2_q.shape[1] * 2 or w1_q.shape[1] == w2_q.shape[2] * 2, "Hidden size mismatch w2"
+        assert a.shape[1] == w1_q.shape[1], "Hidden size mismatch w1"
+        assert w1_q.shape[2] == w2_q.shape[1] * 2, "Hidden size mismatch w2" #origin
         assert w1_q.shape[0] == w2_q.shape[0], "Expert number mismatch"
         assert w1_q.shape[0] == w2_q.shape[0], "Weights expert number mismatch"
         assert w1_q.shape[0] == w1_scale.shape[0], "w1 scales expert number mismatch"
         assert w1_q.shape[0] == w2_scale.shape[0], "w2 scales expert number mismatch"
         assert a.dtype in [torch.half, torch.bfloat16], "Invalid output dtype"
 
-        # no transpose
-        # w13_weight shape: torch.Size([264, 512, 7168])
-        # w2_weight shape: torch.Size([264, 7168, 256])
-        # w13_weight_scale_inv shape: torch.Size([264, 4, 56])
-        # w2_weight_scale_inv shape: torch.Size([264, 56, 2])
-
         out_dtype = a.dtype
         num_experts = w1_q.size(0)
         m = a.size(0)
-        # origin
-        # k = w1_q.size(1) # [E, 2N, K] -> trans -> [E, K*, 2N]
-        # n = w2_q.size(1) # [E, K, N] -> trans -> [E, N*, K]
-        k = w1_q.size(2) # [E, 2N, K] no trans
-        n = w2_q.size(2) # [E, K, N] no trans
+        k = w1_q.size(1)
+        n = w2_q.size(1)
+
 
     else: # origin
         assert use_fp8_blockscale, "Only support fp8 blockscale for now"
