@@ -5,14 +5,14 @@ python offline_batch_inference_vlm.py --model-path Qwen/Qwen2-VL-7B-Instruct --c
 
 import argparse
 import dataclasses
-import torch
 import time
 
+import torch
+from PIL import Image
+
 import sglang as sgl
-import pdb
 from sglang.srt.conversation import chat_templates
 from sglang.srt.server_args import ServerArgs
-from PIL import Image
 
 
 def main(
@@ -38,9 +38,8 @@ def main(
     # pdb.set_trace()
     sampling_params = {
         "temperature": 0.001,
-        "max_new_tokens":30,
+        "max_new_tokens": 30,
     }
-    
 
     output = vlm.generate(
         prompt=prompt,
@@ -53,27 +52,27 @@ def main(
     #     image_data=[uji],
     #     sampling_params=sampling_params,
     # )
-    
+
     print("===============================")
     print(f"Prompt: {prompt}")
     print(f"Generated text: {output['text']}")
     print("warmup end")
-    
+
     torch.cuda.synchronize()
-    
+
     print("======profiling start=====")
     start_time = time.time()
     run_num = 1
-    for run_idx in  range(run_num):
+    for run_idx in range(run_num):
         out_contents = vlm.generate(
             prompt=prompt,
             image_data=[uji],
             sampling_params=sampling_params,
         )
-    
+
     torch.cuda.synchronize()
     end_time = time.time()
-    during_time = (end_time - start_time) * (1000/run_num)
+    during_time = (end_time - start_time) * (1000 / run_num)
     print("prefill time for this image is {} ms \n".format(during_time))
 
     vlm.shutdown()
