@@ -26,6 +26,7 @@ from sglang.srt.distributed import (
     get_tensor_model_parallel_rank,
     get_tensor_model_parallel_world_size,
 )
+from sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
 from sglang.srt.layers.moe.ep_moe.kernels import (
     deepgemm_post_reorder_triton_kernel,
     gelu_and_mul_triton_kernel,
@@ -33,7 +34,9 @@ from sglang.srt.layers.moe.ep_moe.kernels import (
     moe_ep_deepgemm_preproess,
     post_reorder_triton_kernel,
     pre_reorder_triton_kernel,
+    pre_reorder_triton_kernel_for_cutlass_moe,
     run_moe_ep_preproess,
+    run_cutlass_moe_ep_preproess,
     silu_and_mul_masked_post_quant_fwd,
     silu_and_mul_triton_kernel,
 )
@@ -191,11 +194,16 @@ class EPMoE(torch.nn.Module):
             self.use_block_quant = False
             self.block_shape = None
             self.activation_scheme = None
+            self.use_w4afp8 = False
         elif isinstance(quant_config, W4AFp8Config):
             self.quant_method: Optional[QuantizeMethodBase] = W4AFp8MoEMethod(
                 quant_config)
             self.use_w4afp8 = True
+            self.use_fp8_w8a8 = False
             self.use_block_quant = False
+            self.fp8_dtype = torch.float8_e4m3fn
+            self.w13_weight_scale = None
+            self.w2_weight_scale = None
             self.activation_scheme = quant_config.moe_activation_scheme
         else:
             self.quant_method: Optional[QuantizeMethodBase] = Fp8EPMoEMethod(
@@ -210,6 +218,7 @@ class EPMoE(torch.nn.Module):
             )
             self.fp8_dtype = torch.float8_e4m3fn
             self.activation_scheme = quant_config.activation_scheme
+            self.use_w4afp8 = False
 
         self.quant_method.create_weights(
             layer=self,
@@ -261,8 +270,8 @@ class EPMoE(torch.nn.Module):
 
         local_num_experts = global_num_experts // ep_size
 
-        # Create a tensor of size num_experts filled with -1
-        expert_map = torch.full((global_num_experts, ), -1, dtype=torch.int32)
+        # Create a tensor of size num_experts filled with num_experts
+        expert_map = torch.full((global_num_experts, ), self.num_experts, dtype=torch.int32)
         # Create a expert map for the local experts
         if ep_rank < (ep_size - 1):
             # Each non-last rank gets local_num_experts experts.
@@ -404,24 +413,69 @@ class EPMoE(torch.nn.Module):
         )
 
         if self.use_w4afp8:
-            hidden_states = self.quant_method.apply(
-                layer=self,
-                x=hidden_states,
-                topk_weights=topk_weights,
-                topk_ids=topk_ids,
-                expert_map=self.expert_map,
-                router_logits=router_logits,
-                top_k=self.top_k,
-                renormalize=self.renormalize,
-                use_grouped_topk=self.use_grouped_topk,
-                topk_group=self.topk_group,
-                num_expert_group=self.num_expert_group,
-                custom_routing_function=self.custom_routing_function,
-                correction_bias=self.correction_bias,
-                activation=self.activation,
-                routed_scaling_factor=self.routed_scaling_factor,
+            local_topk_ids = topk_ids
+            if self.expert_map is not None:
+                "Translate info from expert_map to topk_ids"
+                local_topk_ids = torch.where(self.expert_map[topk_ids] != self.num_experts,
+                                            self.expert_map[topk_ids], self.num_experts)
+            # reorder_topk_ids 当前rank的专家都排前面，从0开始，后面的值是256，shape=(m*8,)
+            # seg_indptr就是expert_offsets，改成本地的expert offset, 从0开始, shape=(32+1,)
+            # src2dst用于存储每个 token 的原始位置与重排后新位置的映射关系, shape=(m*8,)
+            reorder_topk_ids, src2dst, seg_indptr = run_cutlass_moe_ep_preproess(
+                local_topk_ids, self.num_experts,
             )
-            return hidden_states
+
+            gateup_input = torch.empty(
+                (int(hidden_states.shape[0] * self.top_k), hidden_states.shape[1]),
+                device=hidden_states.device,
+                dtype=(
+                    self.fp8_dtype
+                    if ((self.use_fp8_w8a8 or self.use_w4afp8) and not self.use_block_quant)
+                    else hidden_states.dtype
+                ),
+            )
+            pre_reorder_triton_kernel_for_cutlass_moe[(hidden_states.shape[0],)](
+                hidden_states,
+                gateup_input,
+                src2dst,
+                local_topk_ids,
+                self.w13_input_scale,
+                self.num_experts,
+                self.top_k,
+                hidden_states.shape[1],
+                BLOCK_SIZE=512,
+            )
+            
+            # print(f"a_strides1,{self.quant_method.a_strides1}")
+            output = cutlass_w4a8_moe(
+                hidden_states,
+                self.w13_weight,
+                self.w2_weight,
+                self.w13_weight_scale_inv,
+                self.w2_weight_scale_inv,
+                topk_weights,
+                topk_ids,
+                local_topk_ids,
+                self.quant_method.a_strides1,
+                self.quant_method.b_strides1,
+                self.quant_method.c_strides1,
+                self.quant_method.a_strides2,
+                self.quant_method.b_strides2,
+                self.quant_method.c_strides2,
+                self.quant_method.s_strides13,
+                self.quant_method.s_strides2,
+                gateup_input,
+                src2dst,
+                self.start_expert_id,
+                self.end_expert_id,
+                self.quant_method.expert_offsets,
+                self.quant_method.problem_sizes1,
+                self.quant_method.problem_sizes2,
+                self.w13_input_scale,
+                self.w2_input_scale,
+                self.expert_map,
+            )
+            return output
 
         if self.grouped_gemm_runner is None:
             self.grouped_gemm_runner = GroupedGemmRunner(
@@ -438,7 +492,7 @@ class EPMoE(torch.nn.Module):
             device=hidden_states.device,
             dtype=(
                 self.fp8_dtype
-                if (self.use_fp8_w8a8 and not self.use_block_quant)
+                if ((self.use_fp8_w8a8 or self.use_w4afp8) and not self.use_block_quant)
                 else hidden_states.dtype
             ),
         )

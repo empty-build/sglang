@@ -3,8 +3,13 @@
 from typing import Optional
 import torch
 
-from sgl_kernel import cutlass_w4a8_moe_mm, get_cutlass_moe_mm_data
-
+from sglang.srt.layers.moe.ep_moe.kernels import post_reorder_triton_kernel
+from sgl_kernel import (
+    cutlass_w4a8_moe_mm,
+    get_cutlass_moe_mm_data,
+    sgl_per_tensor_quant_fp8,
+    silu_and_mul,
+)
 
 def cutlass_w4a8_moe(
     a: torch.Tensor,
@@ -14,6 +19,7 @@ def cutlass_w4a8_moe(
     w2_scale: torch.Tensor,
     topk_weights: torch.Tensor,
     topk_ids_: torch.Tensor,
+    local_topk_ids: torch.Tensor,
     a_strides1: torch.Tensor,
     b_strides1: torch.Tensor,
     c_strides1: torch.Tensor,
@@ -22,6 +28,13 @@ def cutlass_w4a8_moe(
     c_strides2: torch.Tensor,
     s_strides13: torch.Tensor,
     s_strides2: torch.Tensor,
+    rep_a_q: torch.Tensor,
+    src2dst: torch.Tensor,
+    start_expert_id: int,
+    end_expert_id: int,
+    expert_offsets: torch.Tensor,
+    problem_sizes1: torch.Tensor,
+    problem_sizes2: torch.Tensor,
     a1_scale: Optional[torch.Tensor] = None,
     a2_scale: Optional[torch.Tensor] = None,
     expert_map: Optional[torch.Tensor] = None,
@@ -71,7 +84,6 @@ def cutlass_w4a8_moe(
     Returns:
     - torch.Tensor: The fp8 output tensor after applying the MoE layer.
     """
-
     assert topk_weights.shape == topk_ids_.shape, "topk shape mismatch"
     assert w1_q.dtype == torch.int8
     assert w2_q.dtype == torch.int8
@@ -96,89 +108,132 @@ def cutlass_w4a8_moe(
         0], "A Strides 2 expert number  mismatch"
     assert b_strides2.shape[0] == w2_q.shape[
         0], "B Strides 2 expert number mismatch"
-
+    # 这里的num_experts是local expert的数量，而不是global expert的数量
     num_experts = w1_q.size(0)
     m = a.size(0)
     k = w1_q.size(2) * 2  # w1_q is transposed and packed
     n = w2_q.size(2) * 2  # w2_q is transposed and packed
 
-    local_topk_ids = topk_ids_
-    if expert_map is not None:
-        "Translate info from expert_map to topk_ids"
-        local_topk_ids = torch.where(expert_map[topk_ids_] != -1,
-                                     expert_map[topk_ids_], -1)
+    # local_topk_ids = topk_ids_
+    # if expert_map is not None:
+    #     "Translate info from expert_map to topk_ids"
+    #     local_topk_ids = torch.where(expert_map[topk_ids_] != -1,
+    #                                  expert_map[topk_ids_], -1)
     
-    topk = local_topk_ids.size(1)
+    # topk = local_topk_ids.size(1)
+    topk = topk_ids_.size(1)
+    # per_act_token = False
+    # per_act_token = a1_scale.numel() != 1 if a1_scale is not None else (
+    #     a2_scale.numel() != 1 if a2_scale is not None else False)
+    # if apply_router_weight_on_input:
+    #     assert topk == 1, \
+    #         "apply_router_weight_on_input is only implemented for topk=1"
+    #     # TODO: this only works for topK=1, will need to update for topK>1
+    #     a = a * topk_weights.to(torch.half)
 
-    per_act_token = a1_scale.numel() != 1 if a1_scale is not None else (
-        a2_scale.numel() != 1 if a2_scale is not None else False)
-    if apply_router_weight_on_input:
-        assert topk == 1, \
-            "apply_router_weight_on_input is only implemented for topk=1"
-        # TODO: this only works for topK=1, will need to update for topK>1
-        a = a * topk_weights.to(torch.half)
+    device = a.device
 
-    from vllm import _custom_ops as vllm_ops
-    a_q, a1_scale = vllm_ops.scaled_fp8_quant(
-        a, a1_scale.float(), use_per_token_if_dynamic=per_act_token)
-    device = a_q.device
+    # expert_offsets = torch.empty((num_experts + 1),
+    #                              dtype=torch.int32,
+    #                              device=device)
+    # problem_sizes1 = torch.empty((num_experts, 3),
+    #                              dtype=torch.int32,
+    #                              device=device)
+    # problem_sizes2 = torch.empty((num_experts, 3),
+    #                              dtype=torch.int32,
+    #                              device=device)
 
-    expert_offsets = torch.empty((num_experts + 1),
-                                 dtype=torch.int32,
-                                 device=device)
-    problem_sizes1 = torch.empty((num_experts, 3),
-                                 dtype=torch.int32,
-                                 device=device)
-    problem_sizes2 = torch.empty((num_experts, 3),
-                                 dtype=torch.int32,
-                                 device=device)
+    # a_map_initializer = torch.empty
+    # c2_initializer = torch.empty
+    # if expert_map is not None:
+    #     # With expert_map each Rank processes only a subset of experts. As
+    #     # a result not all of a_map and c2 tensors are filled. We fill it
+    #     # zeros for correctness.
+    #     a_map_initializer = torch.zeros
+    #     c2_initializer = torch.zeros
 
-    a_map_initializer = torch.empty
-    c2_initializer = torch.empty
-    if expert_map is not None:
-        # With expert_map each Rank processes only a subset of experts. As
-        # a result not all of a_map and c2 tensors are filled. We fill it
-        # zeros for correctness.
-        a_map_initializer = torch.zeros
-        c2_initializer = torch.zeros
-
-    a_map = a_map_initializer((local_topk_ids.numel()),
+    # a_map = a_map_initializer((local_topk_ids.numel()),
+    #                           dtype=torch.int32,
+    #                           device=device)
+    # c_map = torch.empty((local_topk_ids.numel()),
+    #                     dtype=torch.int32,
+    #                     device=device)
+    # num_experts是local的expert数量
+    # expert_offsets都是从0开始
+    # 所以对于每一个rank来说，要处理的tokens都是从0开始，紧凑排列的
+    a_map=torch.empty((local_topk_ids.numel()),
                               dtype=torch.int32,
                               device=device)
-    c_map = torch.empty((local_topk_ids.numel()),
-                        dtype=torch.int32,
-                        device=device)
-
+    c_map=torch.empty((local_topk_ids.numel()),
+                              dtype=torch.int32,
+                              device=device)         
     get_cutlass_moe_mm_data(local_topk_ids, expert_offsets, problem_sizes1,
                                 problem_sizes2, a_map, c_map, num_experts, n,
                                 k)
-    
-    rep_a_q = a_q.view(dtype=torch.uint8)[a_map].view(dtype=a_q.dtype)
+        
+    # from vllm import _custom_ops as vllm_ops
+    # a_q, a1_scale = vllm_ops.scaled_fp8_quant(
+    #     a, a1_scale.float(), use_per_token_if_dynamic=per_act_token)
+    #######
+    # a_q = torch.empty(a.shape, dtype=torch.float8_e4m3fn, device=device)
+    # sgl_per_tensor_quant_fp8(a, a_q, a1_scale, False)
+
+    # 这里通过a_map得到的rep_a_q是紧凑的，前n个都是需要被这个rank处理的token，后面的都是0号token，但是是不会被计算的
+    # rep_a_q = a_q.view(dtype=torch.uint8)[a_map].view(dtype=a_q.dtype)
+    # rep_a_q, unpermute_map = permute(a_q, topk_ids_)
 
     c1 = torch.empty((m * topk, n * 2), device=device, dtype=torch.half)
-    c2 = c2_initializer((m * topk, k), device=device, dtype=torch.half)
-
-    cutlass_w4a8_moe_mm(c1, rep_a_q, w1_q, a1_scale, w1_scale,
+    c2 = torch.zeros((m * topk, k), device=device, dtype=torch.half)
+    
+    # print("rep_a_q.shape", rep_a_q.shape)
+    # print("rep_a_q", rep_a_q)
+    # print("w1_q", w1_q)
+    # print("rep_a_q.dtype", rep_a_q.dtype)
+    cutlass_w4a8_moe_mm(c1, rep_a_q, w1_q, a1_scale.float(), w1_scale,
                             expert_offsets[:-1], problem_sizes1, a_strides1,
                             b_strides1, c_strides1, s_strides13, 128, m)
-
+    # print("c1", c1)
 
     intermediate = torch.empty((m * topk, n), device=device, dtype=torch.half)
-    torch.ops._C.silu_and_mul(intermediate, c1)
+    # torch.ops._C.silu_and_mul(intermediate, c1)
+    silu_and_mul(c1, intermediate)
+    # print("intermediate", intermediate)
 
-    intermediate_q, a2_scale = vllm_ops.scaled_fp8_quant(
-        intermediate, a2_scale.float(), use_per_token_if_dynamic=per_act_token)
+    # intermediate_q, a2_scale = vllm_ops.scaled_fp8_quant(
+        # intermediate, a2_scale.float(), use_per_token_if_dynamic=per_act_token)
+    intermediate_q = torch.empty(intermediate.shape, dtype=torch.float8_e4m3fn, device=device)
+    sgl_per_tensor_quant_fp8(intermediate, intermediate_q, a2_scale.float(), True)
+    # print("intermediate_q", intermediate_q)
     
-    cutlass_w4a8_moe_mm(c2, intermediate_q, w2_q, a2_scale, w2_scale,
+    # print("w2_q", w2_q)
+    cutlass_w4a8_moe_mm(c2, intermediate_q, w2_q, a2_scale.float(), w2_scale,
                             expert_offsets[:-1], problem_sizes2, a_strides2,
                             b_strides2, c_strides2, s_strides2, 128, m)
+    # print("c2", c2)
+    # 把c2按照c_map的顺序重新排列，得到原始a对应的计算结果，不在这个rank上计算的token的结果都是0
+    # c2 = c2[c_map].view(m, topk, k)
 
-    c2 = c2[c_map].view(m, topk, k)
+    # if not apply_router_weight_on_input:
+    #     c2 = c2 * topk_weights.view(m, topk, 1)
 
-    if not apply_router_weight_on_input:
-        c2 = c2 * topk_weights.view(m, topk, 1)
-
-    result = c2.sum(dim=1).to(torch.bfloat16)
+    # result = c2.sum(dim=1).to(torch.bfloat16)
     
-    return result
+    # return result
 
+    # return unpermute(c2, unpermute_map, topk_weights)
+
+    output = torch.empty_like(a)
+    post_reorder_triton_kernel[(m,)](
+            c2,
+            output,
+            src2dst,
+            topk_ids_,
+            topk_weights,
+            start_expert_id,
+            end_expert_id,
+            topk,
+            k,
+            BLOCK_SIZE=512,
+        )
+    # print("output", output)
+    return output

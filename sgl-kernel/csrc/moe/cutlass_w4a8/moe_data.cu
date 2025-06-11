@@ -53,6 +53,7 @@ __global__ void compute_arg_sorts(const int32_t* __restrict__ topk_ids,
                                   const int topk) {
   int const blk_expert_id = blockIdx.x;
   int const num_experts = gridDim.x;
+  // 这里的num_tokens是指当前rank处理的token总数
   int32_t const num_tokens = expert_offsets[num_experts];
 
   for (int i = threadIdx.x; i < topk_length; i += THREADS_PER_EXPERT) {
@@ -67,7 +68,11 @@ __global__ void compute_arg_sorts(const int32_t* __restrict__ topk_ids,
       output_permutation[i] = num_tokens;
     } else if (expert_id == blk_expert_id) {
       int start = atomicAdd(&atomic_buffer[expert_id], 1);
+      // input_permutation 存储的是原始 token 的索引
+      // input_permutation的前num_tokens位都是记录的需要这个rank处理的token的索引，后面的都是0，是紧凑的
       input_permutation[start] = i / topk;
+      // output_permutation 存储的是 token 在该专家处理队列中的位置
+      // output_permutation中间会有num_tokens代表对应的token没有被处理，因此需要被设置为0，它不紧凑
       output_permutation[i] = start;
     }
   }
@@ -93,11 +98,11 @@ void get_cutlass_moe_mm_data_caller(
       static_cast<const int32_t*>(problem_sizes1.data_ptr()),
       static_cast<int32_t*>(expert_offsets.data_ptr()),
       static_cast<int32_t*>(atomic_buffer.data_ptr()), num_experts);
-  compute_arg_sorts<<<num_experts, num_threads, 0, stream>>>(
-      static_cast<const int32_t*>(topk_ids.data_ptr()),
-      static_cast<const int32_t*>(expert_offsets.data_ptr()),
-      static_cast<int32_t*>(input_permutation.data_ptr()),
-      static_cast<int32_t*>(output_permutation.data_ptr()),
-      static_cast<int32_t*>(atomic_buffer.data_ptr()), topk_ids.numel(),
-      topk_ids.size(1));
+  // compute_arg_sorts<<<num_experts, num_threads, 0, stream>>>(
+  //     static_cast<const int32_t*>(topk_ids.data_ptr()),
+  //     static_cast<const int32_t*>(expert_offsets.data_ptr()),
+  //     static_cast<int32_t*>(input_permutation.data_ptr()),
+  //     static_cast<int32_t*>(output_permutation.data_ptr()),
+  //     static_cast<int32_t*>(atomic_buffer.data_ptr()), topk_ids.numel(),
+  //     topk_ids.size(1));
 }

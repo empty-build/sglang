@@ -1,5 +1,5 @@
 import torch
-import tensorrt_llm
+# import tensorrt_llm
 import pytest
 from sgl_kernel import cutlass_w4a8_moe_mm
 
@@ -10,11 +10,31 @@ def print_tensor_info(name, tensor):
     print(f"  values: {tensor.flatten()[:10]}")  # Print first 10 values
 
 
+def pack_int4_values_to_int8(int4_values_interleaved: torch.Tensor) -> torch.Tensor:
+    if int4_values_interleaved.shape[-1] % 2 != 0:
+        raise ValueError(
+            "int4_values_interleaved 的最后一个维度的大小必须是偶数。"
+        )
+
+    input_tensor_int8 = int4_values_interleaved.to(torch.int8)
+
+    # 分离低位和高位半字节的值
+    # a[..., 0::2] 取最后一个维度上索引为偶数的元素
+    # a[..., 1::2] 取最后一个维度上索引为奇数的元素
+    low_nibbles = input_tensor_int8[..., 0::2]
+    high_nibbles = input_tensor_int8[..., 1::2]
+
+    packed_tensor = (high_nibbles << 4) | (low_nibbles & 0x0F)
+    
+    return packed_tensor.to(torch.int8)
+
+
 def pack_interleave(num_experts, ref_weight, ref_scale):
     n, k = ref_weight.shape[1], ref_weight.shape[2]
-    packer = torch.ops.trtllm.pack_int8_tensor_to_packed_int4
+    # packer = torch.ops.trtllm.pack_int8_tensor_to_packed_int4
 
-    weight = packer(ref_weight.cpu()).cuda()
+    # weight = packer(ref_weight.cpu()).cuda()
+    weight = pack_int4_values_to_int8(ref_weight.cpu()).cuda()
     w_q = weight.view((num_experts, n, k // 2)).view(torch.int8)
     # w_q = w_q.contiguous().transpose(1, 2)
     w_q = w_q.contiguous()
@@ -57,7 +77,7 @@ def test_int4_fp8_grouped_gemm(batch_size):
     n = 1024  # output dimension
     # torch.manual_seed(0)
     dtype = torch.bfloat16
-    debug = True
+    debug = False
 
     print(f"\nTesting with batch_size={batch_size}")
 
@@ -73,7 +93,6 @@ def test_int4_fp8_grouped_gemm(batch_size):
         ref_w = torch.randint(
             -8, 8, (num_experts, n, k), dtype=torch.int8, device="cuda"
         )
-        # Create scales with ones
         affine_coeff = 0.005
         a_scale = torch.randn(1, dtype=torch.float32).cuda() * 0.02
         ref_w_scale = (
