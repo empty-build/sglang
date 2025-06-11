@@ -38,13 +38,13 @@ def main(
     # pdb.set_trace()
     sampling_params = {
         "temperature": 0.001,
-        "max_new_tokens":1,
+        "max_new_tokens":30,
     }
     
 
     output = vlm.generate(
         prompt=prompt,
-        image_data=[uji],
+        image_data=[hoshi],
         sampling_params=sampling_params,
     )
 
@@ -61,20 +61,20 @@ def main(
     
     torch.cuda.synchronize()
     
-    # print("======profiling start=====")
-    # start_time = time.time()
-    # run_num = 1
-    # for run_idx in  range(run_num):
-    #     out_contents = vlm.generate(
-    #         prompt=prompt,
-    #         image_data=[hoshi],
-    #         sampling_params=sampling_params,
-    #     )
+    print("======profiling start=====")
+    start_time = time.time()
+    run_num = 1
+    for run_idx in  range(run_num):
+        out_contents = vlm.generate(
+            prompt=prompt,
+            image_data=[uji],
+            sampling_params=sampling_params,
+        )
     
-    # torch.cuda.synchronize()
-    # end_time = time.time()
-    # during_time = (end_time - start_time) * (1000/run_num)
-    # print("prefill time for this image is {} ms \n".format(during_time))
+    torch.cuda.synchronize()
+    end_time = time.time()
+    during_time = (end_time - start_time) * (1000/run_num)
+    print("prefill time for this image is {} ms \n".format(during_time))
 
     vlm.shutdown()
 
