@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import time
 from functools import lru_cache
 from typing import Optional, Tuple
 
+import nvtx
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,9 +23,6 @@ from sglang.srt.layers.linear import (
 from sglang.srt.layers.quantization import QuantizationConfig
 from sglang.srt.layers.rotary_embedding import apply_rotary_pos_emb, rotate_half
 from sglang.srt.utils import add_prefix
-
-import nvtx
-import time
 
 
 class VisionAttention(nn.Module):
@@ -53,7 +52,8 @@ class VisionAttention(nn.Module):
         use_context_forward: bool = True,
         softmax_in_single_precision: bool = False,
         flatten_batch: bool = False,
-        prefix: str = "", mask_container = []
+        prefix: str = "",
+        mask_container=[],
     ):
         super().__init__()
         self.use_context_forward = use_context_forward
@@ -76,7 +76,7 @@ class VisionAttention(nn.Module):
                 flatten_batch=flatten_batch,
                 softmax_in_single_precision=softmax_in_single_precision,
             )
-        
+
         self.mask_container = mask_container
         self.use_qkv_parallel = use_qkv_parallel
         if use_qkv_parallel:
@@ -308,7 +308,9 @@ class VisionSdpaAttention(nn.Module):
             k_transposed = rearrange(k, "b h s d -> b h d s")
             attn_weights = torch.matmul(q, k_transposed) * scale
             del k, k_transposed
-            attention_mask_container[0] = (~attention_mask_container[0]) * torch.finfo(q.dtype).min
+            attention_mask_container[0] = (~attention_mask_container[0]) * torch.finfo(
+                q.dtype
+            ).min
             attn_weights = attn_weights + attention_mask_container[0]
             # del attention_mask
             # full-precision

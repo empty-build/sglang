@@ -23,13 +23,9 @@
 # limitations under the License.
 """Inference-only Qwen2-VL model compatible with HuggingFace weights."""
 import logging
+import time
 from functools import lru_cache, partial
 from typing import Iterable, List, Optional, Tuple, Type
-
-import time
-import pdb
-import nvtx
-
 
 import torch
 import torch.nn as nn
@@ -122,7 +118,8 @@ class Qwen2_5_VisionBlock(nn.Module):
         norm_layer: Type[nn.Module] = None,
         attn_implementation: Optional[str] = "sdpa",
         quant_config: Optional[QuantizationConfig] = None,
-        prefix: str = "", mask_container = []
+        prefix: str = "",
+        mask_container=[],
     ) -> None:
         super().__init__()
         if norm_layer is None:
@@ -141,7 +138,7 @@ class Qwen2_5_VisionBlock(nn.Module):
             softmax_in_single_precision = True
             use_context_forward = False
             flatten_batch = True
-        
+
         self.attn = VisionAttention(
             embed_dim=dim,
             num_heads=num_heads,
@@ -151,7 +148,8 @@ class Qwen2_5_VisionBlock(nn.Module):
             softmax_in_single_precision=softmax_in_single_precision,
             flatten_batch=flatten_batch,
             quant_config=quant_config,
-            prefix=add_prefix("attn", prefix), mask_container= mask_container
+            prefix=add_prefix("attn", prefix),
+            mask_container=mask_container,
         )
         self.mlp = Qwen2_5_VLMLP(
             dim,
@@ -257,7 +255,7 @@ class Qwen2_5_VisionTransformer(nn.Module):
             in_channels=in_channels,
             embed_dim=hidden_size,
         )
-        
+
         self.mask_container = []
         norm_layer = partial(nn.LayerNorm, eps=norm_eps)
         head_dim = hidden_size // num_heads
@@ -273,7 +271,7 @@ class Qwen2_5_VisionTransformer(nn.Module):
                     attn_implementation="sdpa",
                     quant_config=quant_config,
                     prefix=add_prefix(f"blocks.{i}", prefix),
-                    mask_container= self.mask_container
+                    mask_container=self.mask_container,
                 )
                 for i in range(depth)
             ]
@@ -435,7 +433,7 @@ class Qwen2_5_VisionTransformer(nn.Module):
         # torch.cuda.synchronize()
         # main_time_end = time.time()
         # main_during_time = (main_time_end - main_time_start)*1000
-        
+
         # print("main process {} ms".format(main_during_time))
         # adapter
         post_start_time = time.time()
