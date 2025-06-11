@@ -26,6 +26,11 @@ import logging
 from functools import lru_cache, partial
 from typing import Iterable, List, Optional, Tuple, Type
 
+import time
+import pdb
+import nvtx
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -117,7 +122,7 @@ class Qwen2_5_VisionBlock(nn.Module):
         norm_layer: Type[nn.Module] = None,
         attn_implementation: Optional[str] = "sdpa",
         quant_config: Optional[QuantizationConfig] = None,
-        prefix: str = "",
+        prefix: str = "", mask_container = []
     ) -> None:
         super().__init__()
         if norm_layer is None:
@@ -136,7 +141,7 @@ class Qwen2_5_VisionBlock(nn.Module):
             softmax_in_single_precision = True
             use_context_forward = False
             flatten_batch = True
-
+        
         self.attn = VisionAttention(
             embed_dim=dim,
             num_heads=num_heads,
@@ -146,7 +151,7 @@ class Qwen2_5_VisionBlock(nn.Module):
             softmax_in_single_precision=softmax_in_single_precision,
             flatten_batch=flatten_batch,
             quant_config=quant_config,
-            prefix=add_prefix("attn", prefix),
+            prefix=add_prefix("attn", prefix), mask_container= mask_container
         )
         self.mlp = Qwen2_5_VLMLP(
             dim,
@@ -164,6 +169,7 @@ class Qwen2_5_VisionBlock(nn.Module):
     ) -> torch.Tensor:
         hidden_states = self.norm1(x)
         hidden_states = rearrange(hidden_states, "s b ... -> b s ...")
+        # with nvtx.annotate("attn", "red"):
         attn = self.attn(
             hidden_states,
             cu_seqlens=cu_seqlens,
@@ -251,7 +257,8 @@ class Qwen2_5_VisionTransformer(nn.Module):
             in_channels=in_channels,
             embed_dim=hidden_size,
         )
-
+        
+        self.mask_container = []
         norm_layer = partial(nn.LayerNorm, eps=norm_eps)
         head_dim = hidden_size // num_heads
         self.rotary_pos_emb = Qwen2_5_VisionRotaryEmbedding(head_dim // 2)
@@ -266,6 +273,7 @@ class Qwen2_5_VisionTransformer(nn.Module):
                     attn_implementation="sdpa",
                     quant_config=quant_config,
                     prefix=add_prefix(f"blocks.{i}", prefix),
+                    mask_container= self.mask_container
                 )
                 for i in range(depth)
             ]
@@ -369,6 +377,8 @@ class Qwen2_5_VisionTransformer(nn.Module):
         grid_thw: torch.Tensor,
     ) -> torch.Tensor:
         # patchify
+        torch.cuda.synchronize()
+        pre_start_time = time.time()
         x = x.to(device=self.device, dtype=self.dtype)
         x = self.patch_embed(x)
 
@@ -407,6 +417,13 @@ class Qwen2_5_VisionTransformer(nn.Module):
 
         # transformers
         x = x.unsqueeze(1)
+        torch.cuda.synchronize()
+        pre_end_time = time.time()
+        pre_during_time = (pre_end_time - pre_start_time) * 1000
+
+        # print("pre_process {} ms".format(pre_during_time))
+
+        main_time_start = time.time()
         for layer_num, blk in enumerate(self.blocks):
             if layer_num in self.fullatt_block_indexes:
                 cu_seqlens_now = cu_seqlens
@@ -415,13 +432,20 @@ class Qwen2_5_VisionTransformer(nn.Module):
             x = blk(
                 x, cu_seqlens=cu_seqlens_now, position_embeddings=position_embeddings
             )
-
+        # torch.cuda.synchronize()
+        # main_time_end = time.time()
+        # main_during_time = (main_time_end - main_time_start)*1000
+        
+        # print("main process {} ms".format(main_during_time))
         # adapter
+        post_start_time = time.time()
         x = self.merger(x)
 
         reverse_indices = torch.argsort(window_index)
         x = x[reverse_indices, :]
-
+        # torch.cuda.synchronize()
+        post_end_time = time.time()
+        post_during_time = (post_end_time - post_start_time) * 1000
         return x
 
 
