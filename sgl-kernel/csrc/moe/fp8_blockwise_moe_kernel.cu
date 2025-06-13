@@ -487,7 +487,10 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
       // typename ScheduleConfig::EpilogueSchedule, // 250602 new
       // FusionOperation // 250602 new new
       // >::CollectiveOp; // 250602 new
-      typename ScheduleConfig::EpilogueSchedule>::CollectiveOp; // 250602 origin
+      // typename ScheduleConfig::EpilogueSchedule>::CollectiveOp; // 250602 origin
+      typename ScheduleConfig::EpilogueSchedule, // 250612 new from non-group
+      typename ScheduleConfig::StoreEpilogueCompute>::CollectiveOp; // 250612 new from non-group
+
 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
       ArchTag,
@@ -507,7 +510,8 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
 
   using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue, void>; // 250602 origin
   // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>; // 250602 new
-
+  // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, cutlass::gemm::StreamKScheduler>; // 250612 new - 1 - fail cannot compile
+  // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, cutlass::gemm::PersistentScheduler>; // 250612 new - 2 - fail cannot compile
 
   using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
   using UnderlyingProblemShape = ProblemShape::UnderlyingProblemShape;
@@ -812,16 +816,33 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
   // };
 
   // 0529 with yichen
+  // struct MmaConfig2 {
+  //   using ElementA = cutlass::float_e4m3_t;
+  //   using MmaTileShape = Shape<_128, _128, _128>;
+  //   using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
+  //   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+  //   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+  //   using ScaleConfig =
+  //       cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+  //   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+  //   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+  // };
+
+  // 0612 trying
   struct MmaConfig2 {
     using ElementA = cutlass::float_e4m3_t;
     using MmaTileShape = Shape<_128, _128, _128>;
     using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
-    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum; // origin
+    //  using KernelSchedule = cutlass::gemm::KernelTmaWarpSpecializedCooperativeFP8BlockScaledAccum; // 250612 new from non-groupq (fail)
     using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    using ScaleTileShape = Shape<_1, _128, _128>;
     using ScaleConfig =
-        cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;
+          decltype(cutlass::detail::sm90_trivial_blockwise_scale_config(ScaleTileShape{})); // 250612 new from non-group
+        // cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // origin
     using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
     using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+    using StoreEpilogueCompute = typename cutlass::epilogue::fusion::Sm90EVT<cutlass::epilogue::fusion::Sm90AccFetch>; // 250612 new from non-group
   };
   // struct MmaConfig2 {
   //   using ElementA = cutlass::float_e4m3_t;
