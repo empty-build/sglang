@@ -1,22 +1,23 @@
-FROM lmsysorg/sglang:dev
+FROM lmsysorg/sglang:v0.4.6.post2-cu124 AS build
 
 # CMake
 RUN apt-get update \
-&& apt-get install -y --no-install-recommends \
-build-essential \
-wget \
-libssl-dev \
-&& wget https://github.com/Kitware/CMake/releases/download/v3.27.4/cmake-3.27.4-linux-x86_64.sh \
-&& chmod +x cmake-3.27.4-linux-x86_64.sh \
-&& ./cmake-3.27.4-linux-x86_64.sh --skip-license --prefix=/usr/local \
-&& rm cmake-3.27.4-linux-x86_64.sh
-
-# Python
-RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
-    && ln -s /usr/bin/python3 /usr/bin/python
+        build-essential \
+        wget \
+        libssl-dev \
+        devscripts \
+        debhelper \
+        fakeroot \
+        pkg-config \
+        dkms \
+        cmake \
+        libfabric-dev
+
+ARG HTTP_PROXY
+ENV HTTP_PROXY=$HTTP_PROXY
+ENV HTTPS_PROXY=$HTTP_PROXY
+ENV NO_PROXY=localhost,127.0.0.1
 
 # GDRCopy
 WORKDIR /tmp
@@ -24,10 +25,6 @@ RUN git clone https://github.com/NVIDIA/gdrcopy.git
 WORKDIR /tmp/gdrcopy
 RUN git checkout v2.4.4
 
-RUN apt update
-RUN apt install -y nvidia-dkms-535
-RUN apt install -y build-essential devscripts debhelper fakeroot pkg-config dkms
-RUN apt install -y check libsubunit0 libsubunit-dev
 
 WORKDIR /tmp/gdrcopy/packages
 RUN CUDA=/usr/local/cuda ./build-deb-packages.sh
@@ -38,13 +35,25 @@ RUN dpkg -i gdrcopy_*.deb
 
 ENV GDRCOPY_HOME=/usr/src/gdrdrv-2.4.4/
 
+# ep statistics
+WORKDIR /sgl-workspace
+RUN wget https://github.com/user-attachments/files/20036217/attachment_ep_statistics.zip \
+    && unzip attachment_ep_statistics.zip \
+    && rm attachment_ep_statistics.zip \
+    && mv attachment_ep_statistics /sgl-workspace/eps
+
 # IBGDA dependency
 RUN ln -s /usr/lib/x86_64-linux-gnu/libmlx5.so.1 /usr/lib/x86_64-linux-gnu/libmlx5.so
-RUN apt-get install -y libfabric-dev
+# RUN apt-get install -y libfabric-dev
+
+WORKDIR /sgl-workspace
+RUN git clone https://github.com/deepseek-ai/FlashMLA.git
+WORKDIR /sgl-workspace/FlashMLA
+RUN python3 setup.py install
 
 # DeepEP
 WORKDIR /sgl-workspace
-RUN git clone https://github.com/deepseek-ai/DeepEP.git
+RUN git clone --branch h20_support https://github.com/bytedance-iaas/DeepEP.git
 
 # NVSHMEM
 WORKDIR /sgl-workspace
@@ -73,8 +82,25 @@ WORKDIR /sgl-workspace/DeepEP
 ENV NVSHMEM_DIR=/sgl-workspace/nvshmem/install
 RUN NVSHMEM_DIR=/sgl-workspace/nvshmem/install pip install .
 
-RUN set -euxo ; \
-    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+# Install mooncake
+RUN python3 -m pip install mooncake-transfer-engine
+
+# Install sglang
+WORKDIR /sgl-workspace
+RUN git clone --branch deepseek_ep_0520  --depth=1 https://github.com/bytedance-iaas/sglang.git sglang_deepep
+# COPY ../python /sgl-workspace/sglang_deepep/python
+
+WORKDIR /sgl-workspace/sglang_deepep
+RUN python3 -m pip install --upgrade pip setuptools wheel html5lib six \
+    && python3 -m pip --no-cache-dir install -e "python[all]" --find-links https://flashinfer.ai/whl/cu124/torch2.6/flashinfer-python
 
 # Set workspace
+WORKDIR /sgl-workspace
+
+
+FROM build AS release
+
+ENV HTTP_PROXY=
+ENV HTTPS_PROXY=
+
 WORKDIR /sgl-workspace

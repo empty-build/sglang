@@ -182,6 +182,9 @@ class CompletionRequest(BaseModel):
     skip_special_tokens: bool = True
     lora_path: Optional[Union[List[Optional[str]], Optional[str]]] = None
     session_params: Optional[Dict] = None
+    bootstrap_host: Optional[str] = None
+    bootstrap_port: Optional[int] = None
+    bootstrap_room: Optional[int] = None
 
     # For PD disaggregation
     bootstrap_host: Optional[str] = None
@@ -489,3 +492,27 @@ class EmbeddingResponse(BaseModel):
     model: str
     object: str = "list"
     usage: Optional[UsageInfo] = None
+
+
+class ScoringRequest(BaseModel):
+    query: Optional[Union[str, List[int]]] = (
+        None  # Query text or pre-tokenized token IDs
+    )
+    items: Optional[Union[str, List[str], List[List[int]]]] = (
+        None  # Item text(s) or pre-tokenized token IDs
+    )
+    label_token_ids: Optional[List[int]] = (
+        None  # Token IDs to compute probabilities for
+    )
+    apply_softmax: bool = False
+    item_first: bool = False
+    model: str
+
+
+class ScoringResponse(BaseModel):
+    scores: List[
+        List[float]
+    ]  # List of lists of probabilities, each in the order of label_token_ids
+    model: str
+    usage: Optional[UsageInfo] = None
+    object: str = "scoring"

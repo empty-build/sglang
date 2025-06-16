@@ -61,6 +61,7 @@ class ServerArgs:
     is_embedding: bool = False
     enable_multimodal: Optional[bool] = None
     revision: Optional[str] = None
+    impl: str = "auto"
 
     # Port for the HTTP server
     host: str = "127.0.0.1"
@@ -115,7 +116,7 @@ class ServerArgs:
     # Data parallelism
     dp_size: int = 1
     load_balance_method: str = "round_robin"
-
+    scheduler_workload_report_interval: float = 1.0
     # Expert parallelism
     ep_size: int = 1
 
@@ -164,6 +165,7 @@ class ServerArgs:
     enable_tokenizer_batch_encode: bool = False
     disable_outlines_disk_cache: bool = False
     disable_custom_all_reduce: bool = False
+    enable_mscclpp: bool = False
     disable_overlap_schedule: bool = False
     enable_mixed_chunk: bool = False
     enable_dp_attention: bool = False
@@ -178,8 +180,9 @@ class ServerArgs:
     enable_eplb: bool = False
     eplb_algorithm: str = "auto"
     eplb_rebalance_num_iterations: int = 1000
+    eplb_rebalance_layers_per_chunk: Optional[int] = None
     expert_distribution_recorder_mode: Optional[
-        Literal["stat", "per_pass", "per_token"]
+        Literal["stat", "stat_approx", "per_pass", "per_token"]
     ] = None
     expert_distribution_recorder_buffer_size: Optional[int] = None
     enable_expert_distribution_metrics: bool = False
@@ -206,7 +209,7 @@ class ServerArgs:
     flashinfer_mla_disable_ragged: bool = False
     warmups: Optional[str] = None
     moe_dense_tp_size: Optional[int] = None
-    n_share_experts_fusion: int = 0
+    disable_shared_experts_fusion: bool = False
     disable_chunked_prefix_cache: bool = False
     disable_fast_image_processor: bool = False
     mm_attention_backend: Optional[str] = None
@@ -222,6 +225,7 @@ class ServerArgs:
     disaggregation_transfer_backend: str = "mooncake"
     disaggregation_ib_device: Optional[str] = None
     pdlb_url: Optional[str] = None
+    disaggregation_with_mla: bool = True
 
     def __post_init__(self):
         # Expert parallelism
@@ -422,6 +426,12 @@ class ServerArgs:
                 "Overlap scheduler is disabled because of using "
                 "eagle speculative decoding."
             )
+            if self.enable_mixed_chunk:
+                self.enable_mixed_chunk = False
+                logger.warning(
+                    "Mixed chunked prefill is disabled because of using "
+                    "eagle speculative decoding."
+                )
 
             model_arch = get_model_arch(self)
 
@@ -444,7 +454,7 @@ class ServerArgs:
                     self.speculative_num_steps,
                     self.speculative_eagle_topk,
                     self.speculative_num_draft_tokens,
-                ) = auto_choose_speculative_params(model_arch)
+                ) = auto_choose_speculative_params(self)
 
             if self.page_size > 1 and self.speculative_eagle_topk > 1:
                 self.speculative_eagle_topk = 1
@@ -726,6 +736,18 @@ class ServerArgs:
             default=ServerArgs.page_size,
             help="The number of tokens in a page.",
         )
+        parser.add_argument(
+            "--impl",
+            type=str,
+            default=ServerArgs.impl,
+            help="Which implementation of the model to use.\n\n"
+            '* "auto" will try to use the SGLang implementation if it exists '
+            "and fall back to the Transformers implementation if no SGLang "
+            "implementation is available.\n"
+            '* "sglang" will use the SGLang model implementation.\n'
+            '* "transformers" will use the Transformers model '
+            "implementation.\n",
+        )
 
         # Other runtime options
         parser.add_argument(
@@ -928,6 +950,13 @@ class ServerArgs:
             ],
         )
 
+        parser.add_argument(
+            "--scheduler-workload-report-interval",
+            type=float,
+            default=ServerArgs.scheduler_workload_report_interval,
+            help="The interval (in seconds) to report the workload status to the scheduler. Default to 1.0 second.",
+        )
+
         # Expert parallelism
         parser.add_argument(
             "--expert-parallel-size",
@@ -992,13 +1021,13 @@ class ServerArgs:
             type=str,
             choices=[
                 "aiter",
-                "flashinfer",
-                "triton",
-                "torch_native",
-                "fa3",
-                "flashmla",
                 "cutlass_mla",
+                "fa3",
+                "flashinfer",
+                "flashmla",
                 "intel_amx",
+                "torch_native",
+                "triton",
             ],
             default=ServerArgs.attention_backend,
             help="Choose the kernels for attention layers.",
@@ -1154,6 +1183,11 @@ class ServerArgs:
             "--disable-custom-all-reduce",
             action="store_true",
             help="Disable the custom all-reduce kernel and fall back to NCCL.",
+        )
+        parser.add_argument(
+            "--enable-mscclpp",
+            action="store_true",
+            help="Enable using mscclpp for small messages for all-reduce kernel and fall back to NCCL.",
         )
         parser.add_argument(
             "--disable-overlap-schedule",
@@ -1349,6 +1383,12 @@ class ServerArgs:
             help="Number of iterations to automatically trigger a EPLB re-balance.",
         )
         parser.add_argument(
+            "--eplb-rebalance-layers-per-chunk",
+            type=int,
+            default=ServerArgs.eplb_rebalance_layers_per_chunk,
+            help="Number of layers to rebalance per forward pass.",
+        )
+        parser.add_argument(
             "--expert-distribution-recorder-mode",
             type=str,
             default=ServerArgs.expert_distribution_recorder_mode,
@@ -1371,13 +1411,10 @@ class ServerArgs:
             default=ServerArgs.deepep_config,
             help="Tuned DeepEP config suitable for your own cluster. It can be either a string with JSON content or a file path.",
         )
-
         parser.add_argument(
-            "--n-share-experts-fusion",
-            type=int,
-            default=0,
-            help="The number of shared_experts need to be replicated to fuse with normal experts in deepseek v3/r1, "
-            "set it to tp_size can get best optimized performance. Note that for architectures with SM==90, we have enabled the shared experts fusion optimization by default for DeepSeek V3/R1, with n_share_experts_fusion automatically set to the TP size.",
+            "--disable-shared-experts-fusion",
+            action="store_true",
+            help="Disable shared experts fusion optimization for deepseek v3/r1.",
         )
         parser.add_argument(
             "--disable-chunked-prefix-cache",
@@ -1462,6 +1499,12 @@ class ServerArgs:
             default=ServerArgs.mm_attention_backend,
             help="Set multimodal attention backend.",
         )
+        parser.add_argument(
+            "--disaggregation-with-mla",
+            type=bool,
+            default=ServerArgs.disaggregation_with_mla,
+            help="Enable disaggregation with MLA. Default is True.",
+        )
 
     @classmethod
     def from_cli_args(cls, args: argparse.Namespace):
@@ -1542,7 +1585,8 @@ class PortArgs:
     scheduler_input_ipc_name: str
     # The ipc filename for detokenizer to receive inputs from scheduler (zmq)
     detokenizer_ipc_name: str
-
+    # The ipc filename for scheduler to receive workload status from worker (zmq)
+    worker_workload_status_ipc_name: str
     # The port for nccl initialization (torch.dist)
     nccl_port: int
 
@@ -1566,6 +1610,7 @@ class PortArgs:
                 tokenizer_ipc_name=f"ipc://{tempfile.NamedTemporaryFile(delete=False).name}",
                 scheduler_input_ipc_name=f"ipc://{tempfile.NamedTemporaryFile(delete=False).name}",
                 detokenizer_ipc_name=f"ipc://{tempfile.NamedTemporaryFile(delete=False).name}",
+                worker_workload_status_ipc_name=f"ipc://{tempfile.NamedTemporaryFile(delete=False).name}",
                 nccl_port=port,
                 rpc_ipc_name=f"ipc://{tempfile.NamedTemporaryFile(delete=False).name}",
             )
@@ -1596,6 +1641,8 @@ class PortArgs:
                 tokenizer_ipc_name=f"tcp://{dist_init_host}:{port_base}",
                 scheduler_input_ipc_name=f"tcp://{dist_init_host}:{scheduler_input_port}",
                 detokenizer_ipc_name=f"tcp://{dist_init_host}:{port_base + 1}",
+                # we have to use a fixed port to support multi-nodes inference
+                worker_workload_status_ipc_name=f"tcp://{dist_init_host}:{port_base + 100}",
                 nccl_port=port,
                 rpc_ipc_name=f"tcp://{dist_init_host}:{port_base + 2}",
             )
@@ -1632,12 +1679,23 @@ def get_model_arch(args: ServerArgs):
     return hf_config.architectures[0]
 
 
-def auto_choose_speculative_params(arch: str):
+def auto_choose_speculative_params(self: ServerArgs):
     """
     Automatically choose the parameters for speculative decoding.
 
     You can tune them on your own models and prompts with scripts/playground/bench_speculative.py
     """
+    kwargs = {}
+
+    hf_config = get_config(
+        self.model_path,
+        trust_remote_code=self.trust_remote_code,
+        revision=self.revision,
+        model_override_args=json.loads(self.json_model_override_args),
+        **kwargs,
+    )
+    arch = hf_config.architectures[0]
+
     if arch in ["LlamaForCausalLM"]:
         # The default value for llama
         return (5, 4, 8)

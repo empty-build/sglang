@@ -42,6 +42,7 @@ from sglang.srt.conversation import (
 )
 from sglang.srt.function_call.function_call_parser import FunctionCallParser
 from sglang.srt.managers.io_struct import EmbeddingReqInput, GenerateReqInput
+from sglang.srt.observability import accumulate_stream_items, otel_provider
 from sglang.srt.openai_api.protocol import (
     BatchRequest,
     BatchResponse,
@@ -69,9 +70,15 @@ from sglang.srt.openai_api.protocol import (
     FunctionResponse,
     LogProbs,
     MultimodalEmbeddingInput,
+    ScoringRequest,
+    ScoringResponse,
     ToolCall,
     TopLogprob,
     UsageInfo,
+)
+from sglang.srt.openai_api.utils import (
+    detect_template_content_format,
+    process_content_for_template_format,
 )
 from sglang.srt.reasoning_parser import ReasoningParser
 from sglang.utils import convert_json_schema_to_str, get_exception_traceback
@@ -79,6 +86,11 @@ from sglang.utils import convert_json_schema_to_str, get_exception_traceback
 logger = logging.getLogger(__name__)
 
 chat_template_name = None
+
+# Global cache for template content format detection (one model/template per instance)
+# NOTE: A better approach would be to initialize the chat template format when the endpoint is created
+_cached_chat_template = None
+_cached_template_format = None
 
 
 class FileMetadata:
@@ -998,23 +1010,42 @@ def v1_chat_generate_request(
 
             if chat_template_name is None:
                 openai_compatible_messages = []
+                image_data = []
+                audio_data = []
+                modalities = []
+
+                # Detect template content format by analyzing the jinja template (cached globally)
+                global _cached_chat_template, _cached_template_format
+                current_template = tokenizer_manager.tokenizer.chat_template
+
+                if current_template != _cached_chat_template:
+                    # Template changed or first time - analyze it
+                    _cached_chat_template = current_template
+                    _cached_template_format = detect_template_content_format(
+                        current_template
+                    )
+                    logger.info(
+                        f"Detected chat template content format: {_cached_template_format}"
+                    )
+
+                template_content_format = _cached_template_format
 
                 for message in request.messages:
                     if message.content is None:
                         message.content = ""
-                    msg_dict = message.dict()
-                    if isinstance(msg_dict.get("content"), list):
-                        for chunk in msg_dict["content"]:
-                            if isinstance(chunk, dict) and chunk.get("type") == "text":
-                                new_msg = msg_dict.copy()
-                                new_msg["content"] = chunk["text"]
-                                new_msg = {
-                                    k: v for k, v in new_msg.items() if v is not None
-                                }
-                                openai_compatible_messages.append(new_msg)
-                    else:
-                        msg_dict = {k: v for k, v in msg_dict.items() if v is not None}
-                        openai_compatible_messages.append(msg_dict)
+                    msg_dict = message.model_dump()
+
+                    # Process content based on detected template format
+                    processed_msg = process_content_for_template_format(
+                        msg_dict,
+                        template_content_format,
+                        image_data,
+                        audio_data,
+                        modalities,
+                    )
+                    openai_compatible_messages.append(processed_msg)
+
+                # Handle assistant prefix for continue_final_message
                 if (
                     openai_compatible_messages
                     and openai_compatible_messages[-1]["role"] == "assistant"
@@ -1068,9 +1099,9 @@ def v1_chat_generate_request(
                 if is_multimodal:
                     prompt = tokenizer_manager.tokenizer.decode(prompt_ids)
                 stop = request.stop
-                image_data = None
-                audio_data = None
-                modalities = []
+                image_data = image_data if image_data else None
+                audio_data = audio_data if audio_data else None
+                modalities = modalities if modalities else []
             else:
                 conv = generate_chat_conv(request, chat_template_name)
                 # If we should continue the final assistant message, adjust the conversation.
@@ -1393,7 +1424,9 @@ def v1_chat_generate_response(
                     "id": ret[i]["meta_info"]["id"],
                     "object": "chat.completion",
                     "created": created,
-                    "model": request[i].model,
+                    "model": (
+                        request[i].model if isinstance(request, list) else request.model
+                    ),
                     "choices": choice,
                     "usage": {
                         "prompt_tokens": ret[i]["meta_info"]["prompt_tokens"],
@@ -1441,6 +1474,8 @@ async def v1_chat_completions(
     adapted_request, request = v1_chat_generate_request(
         all_requests, tokenizer_manager, request_ids=[all_requests[0].rid]
     )
+    start_time = time.time()
+
 
     if adapted_request.stream:
         parser_dict = {}
@@ -1454,6 +1489,14 @@ async def v1_chat_completions(
             prompt_tokens = {}
             completion_tokens = {}
             cached_tokens = {}
+            time_of_first_token = {}
+            usage = {}
+            complete_response = {
+                "choices": [],
+                "model": "",
+                "usage": None,
+                "error": None,
+            }
             try:
                 async for content in tokenizer_manager.generate_request(
                     adapted_request, raw_request
@@ -1519,6 +1562,7 @@ async def v1_chat_completions(
                     )
 
                     if is_first:
+                        time_of_first_token = time.time()
                         # First chunk with role
                         is_first = False
                         delta = DeltaMessage(role="assistant")
@@ -1540,6 +1584,7 @@ async def v1_chat_completions(
                             model=request.model,
                         )
                         yield f"data: {chunk.model_dump_json()}\n\n"
+                        accumulate_stream_items(chunk, complete_response)
 
                     text = content["text"]
                     delta = text[len(stream_buffer) :]
@@ -1578,6 +1623,7 @@ async def v1_chat_completions(
                                 model=request.model,
                             )
                             yield f"data: {chunk.model_dump_json()}\n\n"
+                            accumulate_stream_items(chunk, complete_response)
                         if (delta and len(delta) == 0) or not delta:
                             stream_buffers[index] = new_stream_buffer
                             is_firsts[index] = is_first
@@ -1610,6 +1656,7 @@ async def v1_chat_completions(
                                 model=request.model,
                             )
                             yield f"data: {chunk.model_dump_json()}\n\n"
+                            accumulate_stream_items(chunk, complete_response)
 
                         # 2) if we found calls, we output them as separate chunk(s)
                         for call_item in calls:
@@ -1666,6 +1713,7 @@ async def v1_chat_completions(
                                 model=request.model,
                             )
                             yield f"data: {chunk.model_dump_json()}\n\n"
+                            accumulate_stream_items(chunk, complete_response)
 
                         stream_buffers[index] = new_stream_buffer
                         is_firsts[index] = is_first
@@ -1701,6 +1749,7 @@ async def v1_chat_completions(
                             yield f"data: {chunk.model_dump_json()}\n\n"
                             stream_buffers[index] = new_stream_buffer
                             is_firsts[index] = is_first
+                            accumulate_stream_items(chunk, complete_response)
                 if finish_reason_type == "stop" and request.tool_choice != "none":
                     parser = FunctionCallParser(
                         tools=request.tools,
@@ -1750,7 +1799,21 @@ async def v1_chat_completions(
                     usage=usage,
                 )
                 yield f"data: {final_usage_chunk.model_dump_json()}\n\n"
+                start_time = time.time()
+                otel_provider.record(
+                    "sglang_chat_completion",
+                    raw_request.headers,
+                    request,
+                    complete_response,
+                    usage,
+                    start_time,
+                    time_of_first_token=time_of_first_token,
+                    stream=True,
+                )
             except ValueError as e:
+                otel_provider.recordException(
+                    "sglang_chat_completion", raw_request.headers, request, e
+                )
                 error = create_streaming_error_response(str(e))
                 yield f"data: {error}\n\n"
             yield "data: [DONE]\n\n"
@@ -1767,6 +1830,9 @@ async def v1_chat_completions(
             adapted_request, raw_request
         ).__anext__()
     except ValueError as e:
+        otel_provider.recordException(
+            "sglang_chat_completion", raw_request.headers, request, e
+        )
         return create_error_response(str(e))
     if not isinstance(ret, list):
         ret = [ret]
@@ -1778,6 +1844,16 @@ async def v1_chat_completions(
         cache_report=tokenizer_manager.server_args.enable_cache_report,
         tool_call_parser=tokenizer_manager.server_args.tool_call_parser,
         reasoning_parser=tokenizer_manager.server_args.reasoning_parser,
+    )
+    start_time = time.time()
+    otel_provider.record(
+        "sglang_chat_completion",
+        raw_request.headers,
+        request,
+        response,
+        response.usage,
+        start_time,
+        stream=False,
     )
 
     return response
@@ -1928,3 +2004,31 @@ def to_openai_style_logprobs(
         append_top_logprobs(output_top_logprobs)
 
     return ret_logprobs
+
+
+async def v1_score(tokenizer_manager, raw_request):
+    try:
+        # Parse request
+        request_data = await raw_request.json()
+        request = ScoringRequest(**request_data)
+
+        # Use tokenizer_manager's score_request method directly
+        scores = await tokenizer_manager.score_request(
+            query=request.query,
+            items=request.items,
+            label_token_ids=request.label_token_ids,
+            apply_softmax=request.apply_softmax,
+            item_first=request.item_first,
+            request=request,
+        )
+
+        # Create response with just the scores, without usage info
+        response = ScoringResponse(
+            scores=scores,
+            model=request.model,
+        )
+        return response
+
+    except Exception as e:
+        logger.error(f"Error in v1_score: {str(e)}")
+        return create_error_response(str(e))
