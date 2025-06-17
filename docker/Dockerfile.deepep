@@ -1,6 +1,9 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS base
 
+# 构建期间，使用内网的源
+RUN pip config set global.index-url https://mirrors.byted.org/pypi/simple/
+
 # 使用构建参数设置代理环境变量
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
@@ -103,7 +106,7 @@ ENV NVSHMEM_DIR=/sgl-workspace/nvshmem/install
 RUN NVSHMEM_DIR=/sgl-workspace/nvshmem/install pip install . --break-system-packages
 
 # Install mooncake
-RUN http_proxy='' python3 -m pip install mooncake-transfer-engine --break-system-packages -i https://bytedpypi.byted.org/simple
+RUN python3 -m pip install mooncake-transfer-engine --break-system-packages
 
 RUN unset HTTP_PROXY \
     && unset HTTPS_PROXY \
@@ -113,6 +116,9 @@ RUN HTTP_PROXY= \
     && HTTPS_PROXY= \
     && NO_PROXY= \
     && echo "Proxy environment variables unset."
+
+# 构建完成，恢复使用火山的源    
+RUN pip config set global.index-url https://mirrors.ivolces.com/pypi/simple/
 
 # Set workspace
 WORKDIR /sgl-workspace
