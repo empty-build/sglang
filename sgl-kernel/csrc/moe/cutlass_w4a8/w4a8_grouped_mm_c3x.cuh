@@ -139,7 +139,8 @@ struct cutlass_3x_w4a8_group_gemm {
  * @param s_strides Stride information for scale tensors
  * @param chunk_size Size of each chunk for scales (K / number of scale chunks)
  */
-template <typename TileShape, typename ClusterShape, typename KernelSchedule, typename EpilogueSchedule>
+// template <typename TileShape, typename ClusterShape, typename KernelSchedule, typename EpilogueSchedule>
+template <typename Gemm>
 void cutlass_w4a8_group_gemm_caller(
     torch::Tensor& d_tensors, torch::Tensor const& a_tensors,
     torch::Tensor const& b_tensors, torch::Tensor const& a_scales,
@@ -148,7 +149,7 @@ void cutlass_w4a8_group_gemm_caller(
     torch::Tensor const& b_strides, torch::Tensor const& d_strides,
     torch::Tensor const& s_strides, int64_t chunk_size) {
 
-  using Gemm = cutlass_3x_w4a8_group_gemm<TileShape, ClusterShape, KernelSchedule, EpilogueSchedule>;
+//   using Gemm = cutlass_3x_w4a8_group_gemm<TileShape, ClusterShape, KernelSchedule, EpilogueSchedule>;
   using Args = typename Gemm::GemmScaleOnly::Arguments;
 
   int num_experts = static_cast<int>(expert_offsets.size(0));

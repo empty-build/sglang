@@ -10,6 +10,7 @@ from sgl_kernel import (
     sgl_per_tensor_quant_fp8,
     silu_and_mul,
 )
+import os
 
 def cutlass_w4a8_moe(
     a: torch.Tensor,
@@ -189,6 +190,7 @@ def cutlass_w4a8_moe(
     # print("rep_a_q", rep_a_q)
     # print("w1_q", w1_q)
     # print("rep_a_q.dtype", rep_a_q.dtype)
+    # label = int(os.getenv("label", "0"))
     cutlass_w4a8_moe_mm(c1, rep_a_q, w1_q, a1_scale.float(), w1_scale,
                             expert_offsets[:-1], problem_sizes1, a_strides1,
                             b_strides1, c_strides1, s_strides13, 128, m)
