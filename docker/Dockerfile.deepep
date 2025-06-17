@@ -103,7 +103,7 @@ ENV NVSHMEM_DIR=/sgl-workspace/nvshmem/install
 RUN NVSHMEM_DIR=/sgl-workspace/nvshmem/install pip install . --break-system-packages
 
 # Install mooncake
-RUN python3 -m pip install mooncake-transfer-engine --break-system-packages
+RUN http_proxy='' python3 -m pip install mooncake-transfer-engine --break-system-packages -i https://bytedpypi.byted.org/simple
 
 RUN unset HTTP_PROXY \
     && unset HTTPS_PROXY \
