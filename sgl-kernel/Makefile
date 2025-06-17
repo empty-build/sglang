@@ -9,7 +9,7 @@ check-deps: ## Check and install required Python formatting dependencies
 	@command -v isort >/dev/null 2>&1 || (echo "Installing isort..." && pip install isort)
 	@command -v black >/dev/null 2>&1 || (echo "Installing black..." && pip install black)
 
-GROUPED_GEMM_URL := git+https://github.com/kousakawang/grouped_gemm.git@main
+GROUPED_GEMM_URL := git+https://github.com/bytedance-iaas/grouped_gemm@dev
 PYPI_MIRROR := -i http://pypi.mirrors.ustc.edu.cn/simple/ --trusted-host pypi.mirrors.ustc.edu.cn
 
 install-grouped-gemm: ## Install grouped_gemm from GitHub
