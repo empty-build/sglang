@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import torch
 import torch.nn.functional as F
+from grouped_gemm.ops import permute
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
@@ -12,12 +13,7 @@ from sglang.srt.layers.moe.cutlass_moe import cutlass_moe_fp8
 from sglang.srt.utils import get_bool_env_var
 
 MAX_SEQ_LEN = 32768
-USE_CUTLASS_OPT = True
-try:
-    from grouped_gemm.ops import permute
-except:
-    logging.warning(f"import permute op failed")
-    USE_CUTLASS_OPT = False
+
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (
         apply_fp8_marlin_linear,
@@ -132,7 +128,7 @@ class GlobalVar:
         self.permute_ws_inited = False
 
     def init_permute_ws(self, top_k, hidden_size):
-        if not self.permute_ws_inited and USE_CUTLASS_OPT:
+        if not self.permute_ws_inited:
             errs = [list(range(top_k)) for i in range(MAX_SEQ_LEN)]
             indexes = torch.tensor(errs, dtype=torch.int32, device="cuda")
 
@@ -1169,7 +1165,7 @@ class Fp8MoEMethod:
                 self.problem_sizes2,
                 use_fp8_blockscale=True,
             )
-        elif get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8") and USE_CUTLASS_OPT:
+        elif get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8"):
             moe_args = GlobalVar()
             n = layer.w13_weight.shape[1] / 2
             k = x.shape[1]
@@ -1216,9 +1212,7 @@ class Fp8MoEMethod:
                     else layer.w13_weight_scale
                 ),
                 w2_scale=(
-                    layer.w2_weight_scale_inv
-                    if self.block_quant
-                    else layer.w2_weight_scale
+                    layer.w2_weight_scale_inv if self.block_quant else layer.w2_weight_scale
                 ),
                 a1_scale=layer.w13_input_scale,
                 a2_scale=layer.w2_input_scale,
