@@ -14,20 +14,20 @@ from sglang.srt.utils import is_cuda
 _is_cuda = is_cuda()
 if _is_cuda:
     import sgl_kernel
+    from grouped_gemm.ops import permute, unpermute
     from sgl_kernel import (
         apply_shuffle_mul_sum,
         cutlass_fp4_group_mm,
+        cutlass_moe_mm,
         fp8_blockwise_scaled_grouped_mm,
+        get_cutlass_moe_mm_data,
         prepare_moe_input,
         scaled_fp4_experts_quant,
+        sgl_per_tensor_quant_fp8,
         shuffle_rows,
         silu_and_mul,
-        get_cutlass_moe_mm_data,
-        sgl_per_tensor_quant_fp8,
-        cutlass_moe_mm
     )
-    
-    from grouped_gemm.ops import permute, unpermute
+
 
 # TODO make the grouped gemm kernel consistent with scaled gemm kernel
 def cutlass_moe_fp8(
@@ -158,8 +158,8 @@ def cutlass_moe_fp8(
     device = a.device
     a_q = moe_ws.a_q_fp8[0:m, :]
 
-    a1_scale = moe_ws.act_scale
-    a2_scale = a1_scale
+    a1_scale = torch.empty((1), device=device, dtype=torch.float)
+    a2_scale = torch.empty((1), device=device, dtype=torch.float)
 
     expert_offsets = moe_ws.expert_offsets
     problem_sizes1 = moe_ws.problem_sizes[0]
@@ -225,6 +225,7 @@ def cutlass_moe_fp8(
     )
 
     return unpermute(c2, unpermute_map, topk_weights)
+
 
 def cutlass_fused_experts_fp8(
     a: torch.Tensor,
