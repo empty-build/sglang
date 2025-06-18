@@ -51,16 +51,19 @@ class TreeNode:
         self.key = None
         self.value = None
         self.lock_ref = 0
-        self.last_access_time = time.monotonic()
+        self.last_access_time = time.time()
 
         self.hit_count = 0
         # indicating the node is loading KV cache from host
         self.loading = False
         # store the host indices of KV cache
         self.host_value = None
+        # for block-wise cache
+        self.content_hash = None
 
         self.id = TreeNode.counter if id is None else id
         TreeNode.counter += 1
+
 
     @property
     def evicted(self):
@@ -291,7 +294,7 @@ class RadixCache(BasePrefixCache):
 
         delta = 0
         while node != self.root_node:
-            if node.lock_ref == 0:
+            if node.lock_ref == 0 and node.value is not None:
                 self.evictable_size_ -= len(node.value)
                 self.protected_size_ += len(node.value)
                 delta -= len(node.value)
@@ -305,7 +308,7 @@ class RadixCache(BasePrefixCache):
 
         delta = 0
         while node != self.root_node:
-            if node.lock_ref == 1:
+            if node.lock_ref == 1 and  node.value is not None:
                 self.evictable_size_ += len(node.value)
                 self.protected_size_ -= len(node.value)
                 delta += len(node.value)
