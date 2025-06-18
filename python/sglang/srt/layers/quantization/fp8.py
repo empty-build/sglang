@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 import torch
 import torch.nn.functional as F
-from grouped_gemm.ops import permute
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
