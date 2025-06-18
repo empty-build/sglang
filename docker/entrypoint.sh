@@ -1,20 +1,5 @@
 #!/bin/bash
 
-if [ -z "$REGION" ]; then
-  # auto detect region
-  DEFAULT_REGION=$(curl --connect-timeout 5 --max-time 10 -f -s 100.96.0.96/latest/region_id)
-  if [ $? -ne 0 ]; then
-    echo "auto detect region failed, failback use cn-beijing"
-    DEFAULT_REGION="cn-beijing"
-  else
-    echo "auto detected region: ${DEFAULT_REGION}"
-  fi
-else
-  DEFAULT_REGION=$REGION
-fi
-DEFAULT_BUCKET="iaas-public-model-$DEFAULT_REGION"
-
-
 MODEL_PATH=${MODEL_PATH:-"/data/models"}
 MODEL_NAME=${MODEL_NAME:-"DeepSeek-R1"}
 MODEL_LENGTH=${MODEL_LENGTH:-131072}
@@ -24,8 +9,8 @@ RANKS=${RANKS:-0}
 TOTAL_RANKS=${TOTAL_RANKS:-1}
 PORT=${PORT:-8080}
 CMD_ARGS=${CMD_ARGS:-""}
-BUCKET=${BUCKET:-"$DEFAULT_BUCKET"}
-REGION=${REGION:-"$DEFAULT_REGION"}
+BUCKET=${BUCKET:-""}
+REGION=${REGION:-""}
 
 echo "REGION=$REGION"
 echo "BUCKET=$BUCKET"
