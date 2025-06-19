@@ -14,7 +14,11 @@ from sglang.srt.utils import is_cuda
 _is_cuda = is_cuda()
 if _is_cuda:
     import sgl_kernel
-    from grouped_gemm.ops import permute, unpermute
+
+    try:
+        from grouped_gemm.ops import permute, unpermute
+    except:
+        logging.warning(f"import permute/unpermute op failed")
     from sgl_kernel import (
         apply_shuffle_mul_sum,
         cutlass_fp4_group_mm,
