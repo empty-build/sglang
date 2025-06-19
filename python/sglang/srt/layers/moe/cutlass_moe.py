@@ -138,27 +138,29 @@ def cutlass_moe_fp8(
     # a_q, a1_scale = scaled_fp8_quant(
     #     hidden_states, a1_scale, use_per_token_if_dynamic=per_act_token)
     device = a.device
-    a_q = moe_ws.a_q_fp8[0:m, :]
 
-    a1_scale = moe_ws.act_scale
-    a2_scale = a1_scale
-
+    # a1_scale = torch.empty((1), device= device, dtype= torch.float)
+    # a2_scale = torch.empty((1), device= device, dtype =  torch.float)
+    a1_scale = moe_ws.a1_scale
+    a2_scale = moe_ws.a2_scale
     expert_offsets = moe_ws.expert_offsets
+    # expert_offsets = torch.empty((num_experts + 1), dtype=torch.int32, device=device)
     problem_sizes1 = moe_ws.problem_sizes[0]
     problem_sizes2 = moe_ws.problem_sizes[1]
 
     intermediate = moe_ws.inter[0 : m * topk, :]
+    # intermediate = torch.empty((m * topk, n), device=device, dtype=out_dtype)
     a_map = moe_ws.permute_map[0][0 : m * topk]
     # a_map = torch.empty((m * topk), device = device, dtype = torch.int32)
     c_map = moe_ws.permute_map[1][0 : m * topk]
-
+    a_q = moe_ws.a_q_fp8[0:m, :]
     c1 = moe_ws.c1[0 : m * topk, :]
     c2 = moe_ws.c2[0 : m * topk, :]
     intemediate_q = moe_ws.inter_q[0 : m * topk, :]
-
-    # ops.get_cutlass_moe_mm_data(local_topk_ids, expert_offsets, problem_sizes1,
-    #                             problem_sizes2, a_map, c_map, num_experts, n,
-    #                             k)
+    # a_q = torch.empty((m, k), device= device, dtype = torch.float8_e4m3fn)
+    # c1 = torch.empty((m * topk, n * 2), device=device, dtype=out_dtype)
+    # c2 = torch.empty((m * topk, k), device=device, dtype=out_dtype)
+    # intemediate_q = torch.empty((m * topk, n), device = device, dtype= torch.float8_e4m3fn)
 
     sgl_per_tensor_quant_fp8(a, a_q, a1_scale, False)
     get_cutlass_moe_mm_data(

@@ -141,7 +141,8 @@ class GlobalVar:
         # print("check args m {} n {} k {}, top_k {} expert_num {} ".format(max_m, n, k, top_k, expert_num))
         self.inited = True
         device = "cuda"
-        self.act_scale = torch.empty((1), device=device, dtype=torch.float)
+        self.a1_scale = torch.empty((1), device=device, dtype=torch.float)
+        self.a2_scale = torch.empty((1), device=device, dtype=torch.float)
         self.a_q_fp8 = torch.empty((max_m, k), device=device, dtype=torch.float8_e4m3fn)
         self.expert_offsets = torch.empty(
             (expert_num + 1), dtype=torch.int32, device=device
