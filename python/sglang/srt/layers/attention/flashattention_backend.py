@@ -1224,7 +1224,11 @@ class FlashAttentionBackend(AttentionBackend):
         # This is being used by normal decode and draft decode when topk == 1
         self.decode_cuda_graph_metadata = {
             "cache_seqlens": torch.zeros(max_bs, dtype=torch.int32, device=self.device),
+            "cache_seqlens_cpu": torch.zeros(max_bs, dtype=torch.int32, device="cpu"),
             "cu_seqlens_q": torch.arange(
+                0, max_bs + 1, dtype=torch.int32, device=self.device
+            ),
+            "cu_seqlens_q_cpu": torch.arange(
                 0, max_bs + 1, dtype=torch.int32, device=self.device
             ),
             "cu_seqlens_k": torch.zeros(
@@ -1280,12 +1284,22 @@ class FlashAttentionBackend(AttentionBackend):
                 "cache_seqlens": torch.zeros(
                     max_bs, dtype=torch.int32, device=self.device
                 ),
+                "cache_seqlens_cpu": torch.zeros(
+                    max_bs, dtype=torch.int32, device="cpu"
+                ),
                 "cu_seqlens_q": torch.arange(
                     0,
                     max_bs * self.topk + 1,
                     step=self.topk,
                     dtype=torch.int32,
                     device=self.device,
+                ),
+                "cu_seqlens_q_cpu": torch.arange(
+                    0,
+                    max_bs * self.topk + 1,
+                    step=self.topk,
+                    dtype=torch.int32,
+                    device="cpu",
                 ),
                 "cu_seqlens_k": torch.zeros(
                     max_bs + 1, dtype=torch.int32, device=self.device
@@ -1307,11 +1321,23 @@ class FlashAttentionBackend(AttentionBackend):
                     device=self.device,
                     dtype=torch.int32,
                 ),
+                "cache_seqlens_cpu": torch.full(
+                    (max_bs * self.topk,),
+                    decode_length,
+                    device="cpu",
+                    dtype=torch.int32,
+                ),
                 "cu_seqlens_q": torch.arange(
                     0,
                     max_bs * self.topk + 1,
                     dtype=torch.int32,
                     device=self.device,
+                ),
+                "cu_seqlens_q_cpu": torch.arange(
+                    0,
+                    max_bs * self.topk + 1,
+                    dtype=torch.int32,
+                    device="cpu",
                 ),
                 "cu_seqlens_k": torch.arange(
                     0,
@@ -1336,12 +1362,22 @@ class FlashAttentionBackend(AttentionBackend):
                 "cache_seqlens": torch.zeros(
                     max_bs, dtype=torch.int32, device=self.device
                 ),
+                "cache_seqlens_cpu": torch.zeros(
+                    max_bs, dtype=torch.int32, device="cpu"
+                ),
                 "cu_seqlens_q": torch.arange(
                     0,
                     max_bs * self.speculative_num_draft_tokens + 1,
                     step=self.speculative_num_draft_tokens,
                     dtype=torch.int32,
                     device=self.device,
+                ),
+                "cu_seqlens_q_cpu": torch.arange(
+                    0,
+                    max_bs * self.speculative_num_draft_tokens + 1,
+                    step=self.speculative_num_draft_tokens,
+                    dtype=torch.int32,
+                    device="cpu",
                 ),
                 "cu_seqlens_k": torch.zeros(
                     max_bs + 1, dtype=torch.int32, device=self.device
@@ -1361,10 +1397,18 @@ class FlashAttentionBackend(AttentionBackend):
                 "cache_seqlens": torch.zeros(
                     max_bs, dtype=torch.int32, device=self.device
                 ),
+                "cache_seqlens_cpu": torch.zeros(
+                    max_bs, dtype=torch.int32, device="cpu"
+                ),
                 "cu_seqlens_q": torch.zeros(
                     max_bs + 1,
                     dtype=torch.int32,
                     device=self.device,
+                ),
+                "cu_seqlens_q_cpu": torch.zeros(
+                    max_bs + 1,
+                    dtype=torch.int32,
+                    device="cpu",
                 ),
                 "cu_seqlens_k": torch.zeros(
                     max_bs + 1, dtype=torch.int32, device=self.device
@@ -1385,12 +1429,22 @@ class FlashAttentionBackend(AttentionBackend):
                 "cache_seqlens": torch.zeros(
                     max_bs, dtype=torch.int32, device=self.device
                 ),
+                "cache_seqlens_cpu": torch.zeros(
+                    max_bs, dtype=torch.int32, device="cpu"
+                ),
                 "cu_seqlens_q": torch.arange(
                     0,
                     max_bs * self.speculative_num_draft_tokens + 1,
                     step=self.speculative_num_draft_tokens,
                     dtype=torch.int32,
                     device=self.device,
+                ),
+                "cu_seqlens_q_cpu": torch.arange(
+                    0,
+                    max_bs * self.speculative_num_draft_tokens + 1,
+                    step=self.speculative_num_draft_tokens,
+                    dtype=torch.int32,
+                    device="cpu",
                 ),
                 "cu_seqlens_k": torch.zeros(
                     max_bs + 1, dtype=torch.int32, device=self.device
@@ -1409,6 +1463,11 @@ class FlashAttentionBackend(AttentionBackend):
                     dtype=torch.int32,
                     device=self.device,
                 ),
+                "cache_seqlens_cpu": torch.zeros(
+                    max_bs * self.speculative_num_draft_tokens,
+                    dtype=torch.int32,
+                    device="cpu",
+                ),
                 "cu_seqlens_k": torch.zeros(
                     max_bs * self.speculative_num_draft_tokens + 1,
                     dtype=torch.int32,
@@ -1419,6 +1478,12 @@ class FlashAttentionBackend(AttentionBackend):
                     max_bs * self.speculative_num_draft_tokens + 1,
                     dtype=torch.int32,
                     device=self.device,
+                ),
+                "cu_seqlens_q_cpu": torch.arange(
+                    0,
+                    max_bs * self.speculative_num_draft_tokens + 1,
+                    dtype=torch.int32,
+                    device="cpu",
                 ),
                 "page_table": torch.zeros(
                     max_bs * self.speculative_num_draft_tokens,
