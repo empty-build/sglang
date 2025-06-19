@@ -1628,7 +1628,7 @@ class FlashAttentionBackend(AttentionBackend):
                 metadata.cache_seqlens_int32 = self.target_verify_metadata_topk_normal[
                     "cache_seqlens"
                 ][:bs]
-                metadata.cache_seqlens_int32_cpu = self.target_verify_metadata[
+                metadata.cache_seqlens_int32_cpu = self.target_verify_metadata_topk_normal[
                     "cache_seqlens_cpu"
                 ][:bs]
                 metadata.max_seq_len_q = self.speculative_num_draft_tokens
