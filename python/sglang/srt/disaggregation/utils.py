@@ -335,6 +335,7 @@ def prepare_abort(req: Req, error_message: str, status_code=None):
         req.input_token_ids_logprobs_val = []
         req.input_token_ids_logprobs_idx = []
 
+
 class FastQueue:
     def __init__(self):
         self._buf = deque()
@@ -370,3 +371,4 @@ def group_concurrent_contiguous(
     dst_groups = [g.tolist() for g in dst_groups]
 
     return src_groups, dst_groups
+
