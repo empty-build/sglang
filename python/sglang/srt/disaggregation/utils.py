@@ -359,7 +359,8 @@ def group_concurrent_contiguous(
 ) -> Tuple[List[npt.NDArray[np.int64]], List[npt.NDArray[np.int64]]]:
     """Vectorised NumPy implementation."""
     if src_indices.size == 0:
-        return [], []
+        return [], [] 
+
 
     brk = np.where((np.diff(src_indices) != 1) | (np.diff(dst_indices) != 1))[0] + 1
     src_groups = np.split(src_indices, brk)
