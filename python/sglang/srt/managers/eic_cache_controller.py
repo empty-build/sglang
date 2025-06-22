@@ -185,7 +185,7 @@ class EICCacheController(HiCacheController):
         )
         if not ret:
             logger.error(f"Failed to write to host memory {operation.node_ids}")
-            self.mem_pool_host.free(operation.content_hash)
+            self.mem_pool_host.free(operation.host_indices, operation.content_hash)
             for node_id in operation.node_ids:
                 if node_id != 0:
                     self.ack_write_queue.put((node_id, False))
@@ -328,3 +328,14 @@ class EICCacheController(HiCacheController):
             )
         )
         return device_indices
+    def evict_host(self, host_indices: torch.Tensor, content_hash: Optional[List[int]], backup_only: bool = True) -> int:
+        if not backup_only:
+            raise ValueError("Other eviction policies are not supported yet.")
+
+        if self.mem_pool_host.is_backup(host_indices):
+            self.mem_pool_host.free(host_indices, content_hash)
+            return len(host_indices)
+        else:
+            raise ValueError(
+                f"Inconsistent states: {self.mem_pool_host.get_state(host_indices)}"
+            )

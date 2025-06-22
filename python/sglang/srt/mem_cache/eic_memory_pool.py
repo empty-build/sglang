@@ -151,11 +151,16 @@ class PrisKVClient:
 
     def exists_batch(self, keys: List[str]) -> List[bool]:
         logger.debug(f"Pris exists {len(keys)}")
-        status, exists = self.client.mexist(keys)
-        if status != 0:
-            logger.error(f"Pris mexist {len(keys)} failed, status {status}")
-            return [False] * len(keys)
-        return [length > 0 for length in exists]
+        
+        ret = []
+        for key in keys:
+            r = self.client.exist(key)
+            if r:
+                ret.append(True)
+            else:
+                break
+        logger.debug(f"Pris exists ret {len(ret)}")
+        return ret
 
     def get(self, keys: List[str]) -> Optional[torch.Tensor]:
         logger.debug(f"Pris get {keys}")
@@ -228,21 +233,25 @@ class PrisKVClient:
                 self.kv_cache_mem_pool.mr_mem
             ))
 
-        # Get data
-        status, lengths = self.client.mget(keys, sgls)
-        if status != 0:
-            if status == 1:  # Assuming 1 is partial failure, similar to EIC's PARTIAL_FAILED
-                for i, length in enumerate(lengths):
-                    if length > 0:
-                        logger.debug(f"Pris get data {keys[i]} success")
-                    else:
-                        logger.error(f"Pris get data {keys[i]} failed, length {length}")
-                        success_mask[i] = False
+        ret = []
+        for key,sgl in zip(keys, sgls):
+            length= 0
+            # 0 is ok, > 0  is not ok
+            status = self.client.get(key, sgl, length)
+            if status == 0:
+                ret.append(True)
             else:
-                logger.error(f"Pris mget {len(keys)} keys failed, status {status}")
-                return None, []
+                break
+        while len(ret) < len(keys):
+            ret.append(False)
+        success_mask = ret
+        
         get_data_end_time = time.perf_counter()
         get_data_execution_time = (get_data_end_time - get_data_start_time) * 1e6
+        logger.info("Pris batch_get detail info:\n"
+             f"- total key nums: {len(keys)}\n"
+             f"- success key nums: {len(ret)}")
+        logger.debug(f"- success key list: {keys}")
         logger.debug(f"Pris get {count} keys data cost %.2f us", get_data_execution_time)
 
         # Ensure the output tensor is on the target device
@@ -387,11 +396,11 @@ class EICBaseTokenToKVPoolHost:
     def _encode_key_shared(self, content_hashs):
         return [f"{content_hash}@{self.deploy_key}" for content_hash in content_hashs]
 
-    def get_keys(self, indices):
+    def get_keys(self, indices, content_hash):
         if self.page_size == 1:
             return self._encode_key_exclusive(indices)
         else:
-            return self._encode_key_shared(indices)
+            return self._encode_key_shared(content_hash)
 
     def get_flat_data(self, indices) -> Tuple[Optional[torch.Tensor], List[bool]]:
         logger.debug(f"Get flat data indices {indices}")
@@ -590,10 +599,11 @@ class EICBaseTokenToKVPoolHost:
         return len(self.free_slots)
 
     @synchronized()
-    def free(self, indices: torch.Tensor) -> int:
+    def free(self, indices: torch.Tensor, content_hash) -> int:
         result = (self.mem_state[indices] == MemoryStateInt.BACKUP).all()
         logger.debug(f"check mem state: {result}, (indices: {indices})")
-        keys = self.get_keys(indices)
+        keys = self.get_keys(indices, content_hash)
+        logger.info(f"free keys[0]: {keys[0]}")
         self.pris_client.delete(keys)
         self.mem_state[indices] = MemoryStateInt.IDLE
         self.free_slots = torch.concat([self.free_slots, indices])

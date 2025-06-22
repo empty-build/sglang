@@ -237,8 +237,10 @@ class EICHiRadixCache(RadixCache):
                     )
                     != MemoryStateInt.IDLE
                 ):
+                    logger.info(f"try to free memory ongoing_write_through {ack_id} 's  memory, size of content_hash is {len(self.ongoing_write_through[ack_id].content_hash)}, size of host_value is {len(self.ongoing_write_through[ack_id].host_value)}")
                     self.cache_controller.mem_pool_host.free(
-                        self.ongoing_write_through[ack_id].host_value if self.page_size == 1  else self.ongoing_write_through[ack_id].content_hash
+                        self.ongoing_write_through[ack_id].host_value,
+                        self.ongoing_write_through[ack_id].content_hash
                     )
                 self.ongoing_write_through[ack_id].host_value = None
             if not write_back:
@@ -363,7 +365,8 @@ class EICHiRadixCache(RadixCache):
             return self._evict_regular(node)
         state = self.cache_controller.mem_pool_host.get_state(node.host_value)
         if state != MemoryStateInt.SYNCED:
-            self.cache_controller.mem_pool_host.free(node.host_value if self.page_size == 1 else node.content_hash)
+            logger.info(f"try to free memory unsynced memory, size of content_hash is {len(node.content_hash)}, size of host_value is {len(node.host_value)}")
+            self.cache_controller.mem_pool_host.free(node.host_value , node.content_hash)
             logger.error(f"unexpected unsynced host value {node.host_value} {state}")
             return self._evict_regular(node)
         num_evicted = self.cache_controller.evict_device(node.value, node.host_value)
@@ -393,7 +396,7 @@ class EICHiRadixCache(RadixCache):
                 continue
             assert x.lock_ref == 0 and x.host_value is not None
 
-            assert self.cache_controller.evict_host(x.host_value) > 0
+            assert self.cache_controller.evict_host(x.host_value, x.content_hash) > 0
             for k, v in x.parent.children.items():
                 if v == x:
                     break
