@@ -238,7 +238,7 @@ class EICHiRadixCache(RadixCache):
                     != MemoryStateInt.IDLE
                 ):
                     self.cache_controller.mem_pool_host.free(
-                        self.ongoing_write_through[ack_id].host_value
+                        self.ongoing_write_through[ack_id].host_value if self.page_size == 1  else self.ongoing_write_through[ack_id].content_hash
                     )
                 self.ongoing_write_through[ack_id].host_value = None
             if not write_back:
@@ -363,7 +363,7 @@ class EICHiRadixCache(RadixCache):
             return self._evict_regular(node)
         state = self.cache_controller.mem_pool_host.get_state(node.host_value)
         if state != MemoryStateInt.SYNCED:
-            self.cache_controller.mem_pool_host.free(node.host_value)
+            self.cache_controller.mem_pool_host.free(node.host_value if self.page_size == 1 else node.content_hash)
             logger.error(f"unexpected unsynced host value {node.host_value} {state}")
             return self._evict_regular(node)
         num_evicted = self.cache_controller.evict_device(node.value, node.host_value)

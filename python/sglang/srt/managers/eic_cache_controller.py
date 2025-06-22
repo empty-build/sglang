@@ -185,7 +185,7 @@ class EICCacheController(HiCacheController):
         )
         if not ret:
             logger.error(f"Failed to write to host memory {operation.node_ids}")
-            self.mem_pool_host.free(operation.host_indices)
+            self.mem_pool_host.free(operation.content_hash)
             for node_id in operation.node_ids:
                 if node_id != 0:
                     self.ack_write_queue.put((node_id, False))

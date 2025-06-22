@@ -307,7 +307,7 @@ class PrisKVClient:
         from concurrent.futures import ThreadPoolExecutor
         
         def _del_single(key):
-            logger.debug(f"Pris del single{key}")
+            logger.debug(f"Pris del single {key}")
             return self.client.delete(key)
             
         with ThreadPoolExecutor() as executor:
@@ -386,6 +386,12 @@ class EICBaseTokenToKVPoolHost:
 
     def _encode_key_shared(self, content_hashs):
         return [f"{content_hash}@{self.deploy_key}" for content_hash in content_hashs]
+
+    def get_keys(self, indices):
+        if self.page_size == 1:
+            return self._encode_key_exclusive(indices)
+        else:
+            return self._encode_key_shared(indices)
 
     def get_flat_data(self, indices) -> Tuple[Optional[torch.Tensor], List[bool]]:
         logger.debug(f"Get flat data indices {indices}")
@@ -587,7 +593,7 @@ class EICBaseTokenToKVPoolHost:
     def free(self, indices: torch.Tensor) -> int:
         result = (self.mem_state[indices] == MemoryStateInt.BACKUP).all()
         logger.debug(f"check mem state: {result}, (indices: {indices})")
-        keys = self._encode_key_exclusive(indices)
+        keys = self.get_keys(indices)
         self.pris_client.delete(keys)
         self.mem_state[indices] = MemoryStateInt.IDLE
         self.free_slots = torch.concat([self.free_slots, indices])
