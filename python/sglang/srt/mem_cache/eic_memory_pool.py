@@ -265,7 +265,7 @@ class PrisKVClient:
             objs = items
 
         sgls = []
-        for i, key in enumerate(keys):
+        for i, _ in enumerate(keys):
             temp = objs[i].reshape(obj_inputs[i].shape).contiguous()
             temp.copy_(obj_inputs[i])
             sgls.append(pris.SGL(
@@ -274,23 +274,51 @@ class PrisKVClient:
                 self.kv_cache_write_mem_pool.mr_mem
             ))
 
-        # Set data
-        status = self.client.mset(keys, sgls)
-        logger.debug("Pris mset操作详情:\n"
-             f"- 总键数量: {len(keys)}\n"
-             f"- 状态码: {status}\n"
-             f"- 完整键列表: {keys}")
+        # 多线程set实现
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def _set_single(key, sgl):
+            logger.debug(f"Pris set {key}")
+            return self.client.set(key, sgl)
+            
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(_set_single, keys, sgls))
+
+        success_count = sum(1 for result in results if result == 0)
+        status = success_count == len(results)
+
+        # # Set data
+        # status = self.client.mset(keys, sgls)
+        logger.debug("Pris mset info:\n"
+             f"- total keys: {len(keys)}\n"
+             f"- summary results: {status}\n"
+             f"- keys info: {keys}\n"
+             f"- status info: {results} \n"
+             f"- success count: {success_count}")
         elapsed_us = (time.perf_counter() - start_time) * 1e6
         logger.info(f"Pris mset | keys={len(keys)} | shapes={self.kv_cache_shape} | status={status} | time={elapsed_us:.2f}µs")
-        if status != 0:
+        if not status:
             logger.error(f"Pris mset {len(keys)} failed, status {status}")
             return False
         return True
     
     def delete(self,  keys: List[str]) -> bool:
-        status = self.client.mdel(keys)
-        if status != 0:
-            logger.error(f"Pris mdel {len(keys)} failed, status {status}")
+          # 多线程del实现
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def _del_single(key):
+            logger.debug(f"Pris del single{key}")
+            return self.client.delete(key)
+            
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(_del_single, keys))
+
+        success_count = sum(1 for result in results if result == 0)
+        status = success_count == len(results)
+        logger.info(f"Pris mdel {len(keys)} keys,  successfully {success_count}")
+        if not status:
+            logger.error(f"Pris mdel {len(keys)} failed, status {status}\n"
+            f"- status info: {results}")
             return False
         logger.info(f"Pris mdel {len(keys)} keys successfully, status {status}")
         return True
