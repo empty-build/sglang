@@ -309,7 +309,7 @@ class CudaGraphRunner:
                 if self.require_mlp_tp_gather:
                     self.gathered_buffer = torch.zeros(
                         (
-                            self.max_bs * self.dp_size * self.num_tokens_per_bs,
+                            self.max_num_token,
                             self.model_runner.model_config.hidden_size,
                         ),
                         dtype=self.model_runner.dtype,
@@ -674,7 +674,7 @@ class CudaGraphRunner:
             self.num_token_non_padded.copy_(forward_batch.num_token_non_padded)
         if self.enable_two_batch_overlap:
             self.tbo_plugin.replay_prepare(
-                forward_mode=forward_batch.forward_mode,
+                forward_mode=self.capture_forward_mode,
                 bs=bs,
                 num_token_non_padded=len(forward_batch.input_ids),
             )
@@ -686,7 +686,7 @@ class CudaGraphRunner:
             self.seq_lens[:bs],
             forward_batch.seq_lens_sum + (bs - raw_bs) * self.seq_len_fill_value,
             self.encoder_lens[:bs] if self.is_encoder_decoder else None,
-            forward_batch.forward_mode,
+            self.capture_forward_mode,
             forward_batch.spec_info,
             seq_lens_cpu=self.seq_lens_cpu[:bs],
         )

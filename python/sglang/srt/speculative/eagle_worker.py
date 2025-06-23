@@ -322,13 +322,10 @@ class EAGLEWorker(TpModelWorker):
             logits_output, verify_output, model_worker_batch, can_run_cuda_graph = (
                 self.verify(batch, spec_info)
             )
-            need_forward, can_run_draft_extend_cuda_graph = (
-                self.check_forward_draft_extend_after_decode(batch)
-            )
-            if need_forward:
+            if self.check_forward_draft_extend_after_decode(batch):
                 with self.draft_tp_context(self.draft_model_runner.tp_group):
                     self.forward_draft_extend_after_decode(
-                        batch, can_run_draft_extend_cuda_graph
+                        batch, 
                     )
             return (
                 logits_output,
@@ -344,7 +341,7 @@ class EAGLEWorker(TpModelWorker):
             and batch.spec_info.verified_id.shape[0] > 0
         )
         if not self.server_args.enable_dp_attention:
-            return local_need_forward, True
+            return local_need_forward, 
 
         global_need_forward = torch.tensor(
             [
@@ -360,7 +357,7 @@ class EAGLEWorker(TpModelWorker):
         can_run_draft_extend_cuda_graph = (
             global_need_forward_cnt == get_tensor_model_parallel_world_size()
         )
-        return need_forward, can_run_draft_extend_cuda_graph
+        return need_forward, 
 
     def forward_target_extend(
         self, batch: ScheduleBatch
@@ -497,6 +494,7 @@ class EAGLEWorker(TpModelWorker):
     def _draft_preprocess_idle(self, batch: ScheduleBatch):
         batch.spec_info = EagleDraftInput.create_idle_input(
             device=self.device,
+            dtype=self.model_config.dtype,
             hidden_size=self.model_config.hidden_size,
             topk=self.topk,
             capture_hidden_mode=CaptureHiddenMode.LAST,
@@ -815,9 +813,7 @@ class EAGLEWorker(TpModelWorker):
         assert forward_batch.spec_info is batch.spec_info
         self.capture_for_decode(logits_output, forward_batch.spec_info)
 
-    def forward_draft_extend_after_decode(
-        self, batch: ScheduleBatch, can_run_draft_extend_cuda_graph: bool
-    ):
+    def forward_draft_extend_after_decode(self, batch: ScheduleBatch):
         # Backup fields that will be modified in-place
         seq_lens_backup = batch.seq_lens.clone()
         req_pool_indices_backup = batch.req_pool_indices
@@ -835,9 +831,15 @@ class EAGLEWorker(TpModelWorker):
             else:
                 batch = batch.copy()
                 batch.prepare_for_idle()
+                hidden_size = (
+                    self.model_config.hidden_size * 3
+                    if self.speculative_algorithm.is_eagle3()
+                    else self.model_config.hidden_size
+                )
                 batch.spec_info = EagleDraftInput.create_idle_input(
                     device=self.device,
-                    hidden_size=self.model_config.hidden_size,
+                    dtype=self.model_config.dtype,
+                    hidden_size=hidden_size,
                     topk=self.topk,
                     capture_hidden_mode=CaptureHiddenMode.LAST,
                 )
@@ -856,8 +858,7 @@ class EAGLEWorker(TpModelWorker):
 
         # Run
         can_cuda_graph = (
-            can_run_draft_extend_cuda_graph
-            and self.cuda_graph_runner_for_draft_extend
+            self.cuda_graph_runner_for_draft_extend
             and self.cuda_graph_runner_for_draft_extend.can_run(forward_batch)
         )
         if can_cuda_graph:
