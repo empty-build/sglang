@@ -152,7 +152,7 @@ def test_int4_fp8_grouped_gemm(batch_size):
         c_strides,
         s_strides,
         128,
-        m,
+        8,
     )
     c = c.to(dtype)
     # c = c.T

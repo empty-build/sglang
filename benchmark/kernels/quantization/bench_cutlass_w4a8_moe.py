@@ -23,7 +23,7 @@ from sgl_kernel import (
     cutlass_w4a8_moe_mm,
     get_cutlass_moe_mm_data,
     sgl_per_tensor_quant_fp8,
-    silu_and_mul
+    silu_and_mul,
 )
 
 def pack_int4_values_to_int8(int4_values_interleaved: torch.Tensor) -> torch.Tensor:
@@ -38,7 +38,7 @@ def pack_int4_values_to_int8(int4_values_interleaved: torch.Tensor) -> torch.Ten
     high_nibbles = input_tensor_int8[..., 1::2]
 
     packed_tensor = (high_nibbles << 4) | (low_nibbles & 0x0F)
-    
+
     return packed_tensor.to(torch.int8)
 
 
@@ -267,19 +267,19 @@ def ep_moe(
         dtype=hidden_states.dtype,
     )
 
-    # gateup_output = grouped_gemm_triton(
-    #     a=gateup_input,
-    #     b=w1,
-    #     c=gateup_output,
-    #     batch_size=num_experts_per_partition,
-    #     weight_column_major=True,
-    #     seg_indptr=seg_indptr_cur_rank,
-    #     weight_indices=weight_indices_cur_rank,
-    #     use_fp8_w8a8=use_fp8_w8a8,
-    #     scale_a=w1_input_scale,
-    #     scale_b=w1_scale_inv,
-    #     block_shape=block_shape,
-    # )
+    gateup_output = grouped_gemm_triton(
+        a=gateup_input,
+        b=w1,
+        c=gateup_output,
+        batch_size=num_experts_per_partition,
+        weight_column_major=True,
+        seg_indptr=seg_indptr_cur_rank,
+        weight_indices=weight_indices_cur_rank,
+        use_fp8_w8a8=use_fp8_w8a8,
+        scale_a=w1_input_scale,
+        scale_b=w1_scale_inv,
+        block_shape=block_shape,
+    )
     if cal_time:
         end_first_gemm = time.time()
         first_gemm_duration = (end_first_gemm - end_pre_reorder) * 1000
@@ -334,19 +334,19 @@ def ep_moe(
         dtype=hidden_states.dtype,
     )
 
-    # down_output = grouped_gemm_triton(
-    #     a=down_input,
-    #     b=w2,
-    #     c=down_output,
-    #     batch_size=num_experts_per_partition,
-    #     weight_column_major=True,
-    #     seg_indptr=seg_indptr_cur_rank,
-    #     weight_indices=weight_indices_cur_rank,
-    #     use_fp8_w8a8=use_fp8_w8a8,
-    #     scale_a=w2_input_scale,
-    #     scale_b=w2_scale_inv,
-    #     block_shape=block_shape,
-    # )
+    down_output = grouped_gemm_triton(
+        a=down_input,
+        b=w2,
+        c=down_output,
+        batch_size=num_experts_per_partition,
+        weight_column_major=True,
+        seg_indptr=seg_indptr_cur_rank,
+        weight_indices=weight_indices_cur_rank,
+        use_fp8_w8a8=use_fp8_w8a8,
+        scale_a=w2_input_scale,
+        scale_b=w2_scale_inv,
+        block_shape=block_shape,
+    )
     if cal_time:
         end_second_gemm = time.time()
         second_gemm_duration = (end_second_gemm - end_silu_and_mul) * 1000
@@ -439,9 +439,6 @@ def cutlass_moe(
     reorder_topk_ids, src2dst, seg_indptr = run_cutlass_moe_ep_preproess(
         local_topk_ids, end_expert_id - start_expert_id + 1,
     )
-    # reorder_topk_ids, src2dst = run_cutlass_moe_ep_preproess(
-    #     local_topk_ids, E
-    # )
     if cal_time:
         end_preprocess = time.time()
         preprocess_duration = (end_preprocess - start_time) * 1000
@@ -483,9 +480,9 @@ def cutlass_moe(
     
     c1 = torch.empty((m * topk, n * 2), device=device, dtype=torch.half)
     c2 = torch.zeros((m * topk, k), device=device, dtype=torch.half)
-    # cutlass_w4a8_moe_mm(c1, gateup_input, w1_q, a1_scale.float(), w1_scale,
-    #                         expert_offsets[:-1], problem_sizes1, a_strides1,
-    #                         b_strides1, c_strides1, s_strides13, 128, m)
+    cutlass_w4a8_moe_mm(c1, gateup_input, w1_q, a1_scale.float(), w1_scale,
+                            expert_offsets[:-1], problem_sizes1, a_strides1,
+                            b_strides1, c_strides1, s_strides13, 128, topk)
     if cal_time:
         end_first_gemm = time.time()
         first_gemm_duration = (end_first_gemm - end_get_cutlass_moe_mm_data) * 1000
@@ -496,13 +493,8 @@ def cutlass_moe(
 
     intermediate = torch.empty((m * topk, n), device=device, dtype=torch.half)
     silu_and_mul(c1, intermediate)
-    # torch.ops._C.silu_and_mul(intermediate, c1)
-
-    # from vllm import _custom_ops as vllm_ops
-    # intermediate_q, a2_scale = vllm_ops.scaled_fp8_quant(
-    #     intermediate, a2_scale.float(), use_per_token_if_dynamic=per_act_token)
-    intermediate_q = torch.empty_like(intermediate)
-    sgl_per_tensor_quant_fp8(intermediate, intermediate_q, a2_scale.float(), False)
+    intermediate_q = torch.empty(intermediate.shape, dtype=torch.float8_e4m3fn, device=device)
+    sgl_per_tensor_quant_fp8(intermediate, intermediate_q, a2_scale.float(), True)
 
     if cal_time:
         end_silu_and_mul_and_scale = time.time()
@@ -512,9 +504,9 @@ def cutlass_moe(
         if cutlass_time_map is not None:
             cutlass_time_map["silu_and_mul_and_scale"].append(silu_and_mul_and_scale_duration)
 
-    # cutlass_w4a8_moe_mm(c2, intermediate_q, w2_q, a2_scale, w2_scale,
-    #                         expert_offsets[:-1], problem_sizes2, a_strides2,
-    #                         b_strides2, c_strides2, s_strides2, 128, m)
+    cutlass_w4a8_moe_mm(c2, intermediate_q, w2_q, a2_scale.float(), w2_scale,
+                            expert_offsets[:-1], problem_sizes2, a_strides2,
+                            b_strides2, c_strides2, s_strides2, 128, topk)
     if cal_time:
         end_second_gemm = time.time()
         second_gemm_duration = (end_second_gemm - end_silu_and_mul_and_scale) * 1000
@@ -573,7 +565,8 @@ def cutlass_moe(
 def benchmark(batch_size, provider):
     print(f"==========={provider}============")
     M, N, K = batch_size, 2048, 7168
-    E = 256
+    # E = 256
+    E = 32
     local_e = 32
 
     dtype = torch.bfloat16
@@ -611,6 +604,7 @@ def benchmark(batch_size, provider):
     }
     quantiles = [0.5, 0.2, 0.8]
     ms, min_ms, max_ms = 0,0,0
+    cal_time = False
     if provider == "cutlass_w4a8":
         (
             w1,
@@ -695,19 +689,20 @@ def benchmark(batch_size, provider):
                 a1_scale,
                 a2_scale,
                 expert_map,
-                cal_time = True,
+                cal_time = cal_time,
                 cutlass_time_map = cutlass_time_map,
                 print_time = False,
             ),
             quantiles=quantiles,
         )
-        for key, timings in cutlass_time_map.items():
-            print(f"{key}: len {len(timings)}")            
-            if timings:  # Check if the list is not empty
-                avg_duration = sum(timings) / len(timings)
-                print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
-            else:
-                print(f"  {key}: No data collected")
+        if cal_time:
+            for key, timings in cutlass_time_map.items():
+                print(f"{key}: len {len(timings)}")            
+                if timings:  # Check if the list is not empty
+                    avg_duration = sum(timings) / len(timings)
+                    print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
+                else:
+                    print(f"  {key}: No data collected")
 
     if provider == "triton_ep_moe":
         (
@@ -760,19 +755,20 @@ def benchmark(batch_size, provider):
                 w1_scale_inv=w_scale_1,
                 w2_scale_inv=w_scale_2,
                 block_shape=[block_n, block_k],
-                cal_time=True,
+                cal_time=cal_time,
                 triton_time_map=triton_time_map,
                 print_time=False,
             ),
             quantiles=quantiles,
         )
-        for key, timings in triton_time_map.items():
-            print(f"{key}: len {len(timings)}")
-            if timings:  # Check if the list is not empty
-                avg_duration = sum(timings) / len(timings)
-                print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
-            else:
-                print(f"  {key}: No data collected")
+        if cal_time:
+            for key, timings in triton_time_map.items():
+                print(f"{key}: len {len(timings)}")
+                if timings:  # Check if the list is not empty
+                    avg_duration = sum(timings) / len(timings)
+                    print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
+                else:
+                    print(f"  {key}: No data collected")
     return ms, min_ms, max_ms
 
 

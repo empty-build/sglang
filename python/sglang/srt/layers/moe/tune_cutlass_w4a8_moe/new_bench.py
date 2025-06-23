@@ -184,29 +184,10 @@ def bench_run(results: list[benchmark.Measurement], model: str,
             local_topk_ids = topk_ids_
             local_topk_ids = torch.where(expert_map[topk_ids_] != E,
                                             expert_map[topk_ids_], E)
-            gateup_input = torch.empty(
-                ((a.shape[0] * 8), a.shape[1]),
-                device=device,
-                dtype=torch.float8_e4m3fn,
-            )
-            reorder_topk_ids, src2dst, seg_indptr = run_cutlass_moe_ep_preproess(
-                local_topk_ids, end_expert_id - start_expert_id + 1,
-            )
-            # reorder_topk_ids, src2dst = run_cutlass_moe_ep_preproess(
-            #     local_topk_ids, E
-            # )
-            pre_reorder_triton_kernel_for_cutlass_moe[(a.shape[0],)](
-                a,
-                gateup_input,
-                src2dst,
-                local_topk_ids,
-                a1_scale,
-                E,
-                8,
-                a.shape[1],
-                BLOCK_SIZE=512,
-            )
             cutlass_w4a8_moe(
+                start_expert_id,
+                end_expert_id,
+                E,
                 a,
                 w1_q,
                 w2_q,
@@ -223,17 +204,11 @@ def bench_run(results: list[benchmark.Measurement], model: str,
                 c_strides2,
                 s_strides13,
                 s_strides2,
-                gateup_input,
-                src2dst,
-                # seg_indptr,
-                start_expert_id,
-                end_expert_id,
                 expert_offsets,
                 problem_sizes1,
                 problem_sizes2,
                 a1_scale,
                 a2_scale,
-                expert_map,
             )
         
         torch.cuda.synchronize()   

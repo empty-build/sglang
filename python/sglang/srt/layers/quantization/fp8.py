@@ -7,7 +7,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
-from zmq import has
 
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (

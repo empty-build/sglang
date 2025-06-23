@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import List, Optional
 
 import torch
@@ -145,68 +144,36 @@ def compute_seg_indptr_triton_kernel(reorder_topk_ids, seg_indptr, num_toks):
 
 
 def run_moe_ep_preproess(topk_ids: torch.Tensor, num_experts: int):
-    # 假设topk_id是[1,0,2,0]，reorder_topk_ids是按专家顺序排序后的专家ID列表[0,0,1,2]，reorder_ids是排序后的值在原始topk_ids中的索引[1,3,0,2]
-    # ep_process_start = time.time()
     reorder_topk_ids, reorder_ids = torch.sort(topk_ids.view(-1), stable=True)
-    # end_reorder = time.time()
-    # reorder_duration = (end_reorder - ep_process_start) * 1000
-    # print(f"reorder duration: {reorder_duration:.3f} ms")
 
     seg_indptr = torch.zeros(num_experts + 1, device=topk_ids.device, dtype=torch.int64)
     src2dst = torch.empty(topk_ids.numel(), device=topk_ids.device, dtype=torch.int32)
 
-    # seg_indptr就是expert_offsets，但是是所有expert的，从global expert 0 -> global expert 256
     compute_seg_indptr_triton_kernel[(num_experts,)](
         reorder_topk_ids, seg_indptr, topk_ids.numel()
     )
-    # end_seg_indptr = time.time()
-    # seg_indptr_duration = (end_seg_indptr - end_reorder) * 1000
-    # print(f"seg indptr duration: {seg_indptr_duration:.3f} ms")
 
     BLOCK_SIZE = 512
     grid = (triton.cdiv(topk_ids.numel(), BLOCK_SIZE),)
-    # src2dst用于存储每个 token 的原始位置与重排后新位置的映射关系
     compute_src2dst_triton_kernel[grid](
         reorder_ids, src2dst, topk_ids.numel(), BLOCK_SIZE
     )
-    # end_compute_src2dst = time.time()
-    # compute_src2dst_duration = (end_compute_src2dst - end_seg_indptr) * 1000
-    # print(f"compute src2dst duration: {compute_src2dst_duration:.3f} ms")
 
-    # print(f"run_moe_ep_preproess duration: {(time.time() - ep_process_start) * 1000:.3f} ms")
     return reorder_topk_ids, src2dst, seg_indptr
 
 
 def run_cutlass_moe_ep_preproess(local_topk_ids: torch.Tensor, local_num_experts: int):
-    # 假设topk_id是[1,0,2,0]，reorder_topk_ids是按专家顺序排序后的专家ID列表[0,0,1,2]，reorder_ids是排序后的值在原始topk_ids中的索引[1,3,0,2]
-    # 不在这个rank的专家id已经设置为了num_experts
-    # ep_process_start = time.time()
     reorder_topk_ids, reorder_ids = torch.sort(local_topk_ids.view(-1), stable=True)
-    # end_reorder = time.time()
-    # reorder_duration = (end_reorder - ep_process_start) * 1000
-    # print(f"reorder duration: {reorder_duration:.3f} ms")
 
     seg_indptr = torch.zeros(local_num_experts + 1, device=local_topk_ids.device, dtype=torch.int64)
     src2dst = torch.empty(local_topk_ids.numel(), device=local_topk_ids.device, dtype=torch.int32)
-    # seg_indptr就是expert_offsets，改成本地的expert offset, 从0开始
-    # compute_seg_indptr_triton_kernel[(local_num_experts,)](
-    #     reorder_topk_ids, seg_indptr, local_topk_ids.numel()
-    # )
-    # end_seg_indptr = time.time()
-    # seg_indptr_duration = (end_seg_indptr - end_reorder) * 1000
-    # print(f"seg indptr duration: {seg_indptr_duration:.3f} ms")
 
     BLOCK_SIZE = 512
     grid = (triton.cdiv(local_topk_ids.numel(), BLOCK_SIZE),)
-    # src2dst用于存储每个 token 的原始位置与重排后新位置的映射关系
     compute_src2dst_triton_kernel[grid](
         reorder_ids, src2dst, local_topk_ids.numel(), BLOCK_SIZE
     )
-    # end_compute_src2dst = time.time()
-    # compute_src2dst_duration = (end_compute_src2dst - end_seg_indptr) * 1000
-    # print(f"compute src2dst duration: {compute_src2dst_duration:.3f} ms")
 
-    # print(f"run_cutlass_moe_ep_preproess duration: {(time.time() - ep_process_start) * 1000:.3f} ms")
     return reorder_topk_ids, src2dst, seg_indptr
 
 
@@ -888,7 +855,6 @@ def fill_gateup_input_triton_kernel(
         expert_id = tl.load(topk_ids_ptr + idx)
         if expert_id >= start_expert_id and expert_id <= end_expert_id:
             dst_idx = tl.load(src2dst_ptr + idx)
-            # 将全局的目标索引调整为相对于当前专家块的局部索引
             dst_idx = dst_idx - start_expert_id * m_max
             dst_ptr = gateup_input_ptr + dst_idx * hidden_size
             for start_offset in tl.range(0, hidden_size, BLOCK_SIZE):
@@ -932,7 +898,6 @@ def moe_ep_deepgemm_preproess(
     )
 
     grid = lambda meta: (triton.cdiv(topk_ids.numel(), meta["BLOCK_SIZE"]),)
-    # masked_m用于存储每个专家分配到的 token 数量。
     compute_masked_m_triton_kernel[(num_experts,)](
         seg_indptr, masked_m, num_experts, reorder_topk_ids.numel()
     )
@@ -940,14 +905,12 @@ def moe_ep_deepgemm_preproess(
     # m_max = exp2_upper(torch.max(masked_m).item())
     m_max = exp2_upper(hidden_states.size(0))
     expected_m = (topk_ids.numel() + num_experts - 1) // num_experts
-    # 预分配gateup_input的空间，大小为(local_expert_num, m_max, k),m_max代表每个专家分配到的 token 数量的最大值
     gateup_input = torch.empty(
         (int(end_expert_id - start_expert_id + 1), m_max, hidden_states.size(1)),
         device=hidden_states.device,
         dtype=output_dtype,
     )
 
-    # src2dst用于存储每个 token 的原始位置与重排后新位置的映射关系；但是注意原始的token数组大小是m*topk，重排后的token数组大小是m_max*topk
     deepgemm_compute_src2dst_triton_kernel[grid](
         topk_ids,
         reorder_ids,
@@ -974,7 +937,6 @@ def moe_ep_deepgemm_preproess(
             dtype=scale.dtype,
         )
 
-    # 将原始的输入数据（hidden_states）及其对应的缩放因子（ scale ，如果使用的话）根据路由决策（ topk_ids_ptr ）和预先计算好的目标位置映射（ src2dst_ptr ），填充到专家网络的输入缓冲区(gateup_input_ptr 和 gateup_input_scale_ptr ）中
     fill_gateup_input_triton_kernel[(hidden_states.shape[0],)](
         hidden_states,
         scale,
