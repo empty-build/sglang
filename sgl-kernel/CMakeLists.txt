@@ -42,14 +42,20 @@ clear_cuda_arches(CMAKE_FLAG)
 include(FetchContent)
 
 # cutlass
-set(repo-cutlass_SOURCE_DIR "/sgl-workspace/cutlass_Hopper_moe_w4a8_v2")
+# set(repo-cutlass_SOURCE_DIR "/sgl-workspace/cutlass_Hopper_moe_w4a8_v2")
+FetchContent_Declare(
+    repo-cutlass
+    GIT_REPOSITORY https://github.com/NVIDIA/cutlass
+    GIT_TAG        e94e888df3551224738bfa505787b515eae8352f
+    GIT_SHALLOW    OFF
+)
 # FetchContent_Declare(
 #     repo-cutlass
 #     GIT_REPOSITORY https://github.com/NVIDIA/cutlass
-#     GIT_TAG        5e497243f7ad13a2aa842143f9b10bbb23d98292
+#     GIT_TAG        f115c3f85467d5d9619119d1dbeb9c03c3d73864
 #     GIT_SHALLOW    OFF
 # )
-# FetchContent_Populate(repo-cutlass)
+FetchContent_Populate(repo-cutlass)
 # DeepGEMM
 FetchContent_Declare(
     repo-deepgemm
@@ -73,6 +79,12 @@ FetchContent_Declare(
     GIT_TAG        bf1e4ce51fc85370b9489976e8ccbe72eb71fefe
     GIT_SHALLOW    OFF
 )
+# FetchContent_Declare(
+#     repo-flash-attention
+#     GIT_REPOSITORY https://github.com/sgl-project/sgl-attn
+#     GIT_TAG        sgl-kernel
+#     GIT_SHALLOW    OFF
+# )
 FetchContent_Populate(repo-flash-attention)
 
 # ccache option
