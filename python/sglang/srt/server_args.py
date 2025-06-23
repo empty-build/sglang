@@ -184,7 +184,7 @@ class ServerArgs:
     expert_distribution_recorder_mode: Optional[
         Literal["stat", "stat_approx", "per_pass", "per_token"]
     ] = None
-    enable_eic_cache: bool = False
+    enable_offload_cache: bool = False
     expert_distribution_recorder_buffer_size: Optional[int] = None
     enable_expert_distribution_metrics: bool = False
     deepep_config: Optional[str] = None
@@ -505,7 +505,7 @@ class ServerArgs:
             "1" if self.disable_outlines_disk_cache else "0"
         )
 
-        if self.enable_eic_cache and not self.enable_hierarchical_cache:
+        if self.enable_offload_cache and not self.enable_hierarchical_cache:
             self.enable_hierarchical_cache = True
 
     @staticmethod
@@ -1259,9 +1259,9 @@ class ServerArgs:
         )
 
         parser.add_argument(
-            "--enable-eic-cache",
+            "--enable-offload-cache",
             action="store_true",
-            help="Enable EIC cache",
+            help="Enable Offload cache",
         )
 
         parser.add_argument(

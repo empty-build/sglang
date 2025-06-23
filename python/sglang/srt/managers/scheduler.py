@@ -127,7 +127,7 @@ from sglang.srt.managers.tp_worker import TpModelWorker
 from sglang.srt.managers.tp_worker_overlap_thread import TpModelWorkerClient
 from sglang.srt.managers.utils import validate_input_length
 from sglang.srt.mem_cache.chunk_cache import ChunkCache
-from sglang.srt.mem_cache.eic_hiradix_cache import EICHiRadixCacheBuilder
+from sglang.srt.mem_cache.offload_hiradix_cache import OffloadHiRadixCacheBuilder
 from sglang.srt.mem_cache.hiradix_cache import HiRadixCache
 from sglang.srt.mem_cache.radix_cache import RadixCache
 from sglang.srt.metrics.collector import SchedulerMetricsCollector, SchedulerStats
@@ -217,8 +217,8 @@ class Scheduler(
         self.gpu_id = gpu_id
         self.enable_hierarchical_cache = server_args.enable_hierarchical_cache
         self.page_size = server_args.page_size
-        self.enable_eic_cache = (
-            server_args.enable_eic_cache if self.enable_hierarchical_cache else False
+        self.enable_offload_cache = (
+            server_args.enable_offload_cache if self.enable_hierarchical_cache else False
         )
         self.dp_size = server_args.dp_size
         self.attn_tp_rank, self.attn_tp_size, self.attn_dp_rank = (
@@ -539,8 +539,8 @@ class Scheduler(
                     if server_args.enable_dp_attention
                     else self.tp_cpu_group
                 )
-                if self.enable_eic_cache:
-                    self.tree_cache = EICHiRadixCacheBuilder.build(
+                if self.enable_offload_cache:
+                    self.tree_cache = OffloadHiRadixCacheBuilder.build(
                         req_to_token_pool=self.req_to_token_pool,
                         token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
                         tp_cache_group=tp_cache_group,
@@ -1481,7 +1481,7 @@ class Scheduler(
                 req,
                 self.chunked_req,
                 self.enable_hierarchical_cache,
-                self.enable_eic_cache,
+                self.enable_offload_cache,
             )
 
             if res != AddReqResult.CONTINUE:

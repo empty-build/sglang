@@ -6,13 +6,13 @@ from typing import List, Optional
 
 import torch
 
-from sglang.srt.managers.eic_cache_controller import (
-    EICCacheController,
+from sglang.srt.managers.offload_cache_controller import (
+    OffloadCacheController,
     get_content_hash,
 )
-from sglang.srt.mem_cache.eic_memory_pool import (
-    EICMHATokenToKVPoolHost,
-    EICMLATokenToKVPoolHost,
+from sglang.srt.mem_cache.offload_memory_pool import (
+    OffloadMHATokenToKVPoolHost,
+    OffloadMLATokenToKVPoolHost,
 )
 from sglang.srt.mem_cache.memory_pool import (
     MemoryStateInt,
@@ -28,7 +28,7 @@ from sglang.srt.server_args import ServerArgs
 logger = logging.getLogger(__name__)
 
 
-class EICHiRadixCacheBuilder:
+class OffloadHiRadixCacheBuilder:
     @staticmethod
     def build(
         req_to_token_pool: ReqToTokenPool,
@@ -41,7 +41,7 @@ class EICHiRadixCacheBuilder:
         server_args: ServerArgs,
     ):
         if page_size <= 1:
-            return EICHiRadixCache(
+            return OffloadHiRadixCache(
                 req_to_token_pool,
                 token_to_kv_pool_allocator,
                 tp_cache_group,
@@ -52,7 +52,7 @@ class EICHiRadixCacheBuilder:
                 server_args,
             )
         else:
-            return EICPagedHiRadixCache(
+            return OffloadPagedHiRadixCache(
                 req_to_token_pool,
                 token_to_kv_pool_allocator,
                 tp_cache_group,
@@ -64,7 +64,7 @@ class EICHiRadixCacheBuilder:
             )
 
 
-class EICHiRadixCache(RadixCache):
+class OffloadHiRadixCache(RadixCache):
 
     def __init__(
         self,
@@ -82,7 +82,7 @@ class EICHiRadixCache(RadixCache):
         self.rank = self.tp_group.rank()
         self.kv_cache = token_to_kv_pool_allocator.get_kvcache()
         if isinstance(self.kv_cache, MHATokenToKVPool):
-            self.token_to_kv_pool_host = EICMHATokenToKVPoolHost(
+            self.token_to_kv_pool_host = OffloadMHATokenToKVPoolHost(
                 self.kv_cache,
                 hicache_ratio,
                 hicache_size,
@@ -92,7 +92,7 @@ class EICHiRadixCache(RadixCache):
                 extra_info=self.get_extra_info(server_args),
             )
         elif isinstance(self.kv_cache, MLATokenToKVPool):
-            self.token_to_kv_pool_host = EICMLATokenToKVPoolHost(
+            self.token_to_kv_pool_host = OffloadMLATokenToKVPoolHost(
                 self.kv_cache,
                 hicache_ratio,
                 hicache_size,
@@ -105,7 +105,7 @@ class EICHiRadixCache(RadixCache):
             raise ValueError(f"HiRadixCache only supports MHA and MLA yet")
 
         self.load_cache_event = threading.Event()
-        self.cache_controller = EICCacheController(
+        self.cache_controller = OffloadCacheController(
             token_to_kv_pool_allocator,
             self.token_to_kv_pool_host,
             page_size,
@@ -293,7 +293,7 @@ class EICHiRadixCache(RadixCache):
                 f"queue size {queue_size.item()}"
             )
 
-    # TODO: is not correct for eic, but neednt to be fixed rightnow
+    # TODO: is not correct for offload, but neednt to be fixed rightnow
     def evictable_size(self):
         return self.evictable_size_
 
@@ -679,7 +679,7 @@ def _need_calculate_hash(node: TreeNode, page_size: int):
     )
 
 
-class EICPagedHiRadixCache(EICHiRadixCache):
+class OffloadPagedHiRadixCache(OffloadHiRadixCache):
     def __init__(
         self,
         req_to_token_pool: ReqToTokenPool,
@@ -753,54 +753,54 @@ class EICPagedHiRadixCache(EICHiRadixCache):
             cache_prefix_len += len(temp_node.key)
             temp_node = temp_node.parent
 
-        # if the cache prefix is too long, or the remaining key is too short, we can skip loading from eic
+        # if the cache prefix is too long, or the remaining key is too short, we can skip loading from offload
         if (
             len(key) - cache_prefix_len
         ) < self.load_remote_threshold or cache_prefix_len / len(key) > 0.5:
             return last_node
 
         logger.debug(
-            f"few cache in radix, try load from eic, cache len {cache_prefix_len}, total len {len(key)}"
+            f"few cache in radix, try load from offload, cache len {cache_prefix_len}, total len {len(key)}"
         )
         need_compute_key = key[cache_prefix_len:]
-        eic_hash, eic_key = self.cache_controller.find_longest_prefix_in_eic(
+        offload_hash, offload_key = self.cache_controller.find_longest_prefix_in_offload(
             need_compute_key
         )
         if self.tp_size > 1:
-            eic_hash_len_tensor = torch.tensor(
-                [len(eic_hash)], dtype=torch.int64, device="cpu"
+            offload_hash_len_tensor = torch.tensor(
+                [len(offload_hash)], dtype=torch.int64, device="cpu"
             )
             torch.distributed.all_reduce(
-                eic_hash_len_tensor,
+                offload_hash_len_tensor,
                 op=torch.distributed.ReduceOp.MIN,
                 group=self.tp_group,
             )
-            eic_hash_len = eic_hash_len_tensor.item()
-            eic_hash = eic_hash[:eic_hash_len]
-            eic_key = eic_key[: eic_hash_len * self.page_size]
-        if len(eic_key) / len(need_compute_key) < 0.3:
+            offload_hash_len = offload_hash_len_tensor.item()
+            offload_hash = offload_hash[:offload_hash_len]
+            offload_key = offload_key[: offload_hash_len * self.page_size]
+        if len(offload_key) / len(need_compute_key) < 0.3:
             logger.debug(
-                f"eic key is too short, skip loading from eic, eic cache len {len(eic_key)}, need compute key len {len(need_compute_key)}"
+                f"offload key is too short, skip loading from offload, offload cache len {len(offload_key)}, need compute key len {len(need_compute_key)}"
             )
             return last_node
         load_node = TreeNode()
-        load_node.key = eic_key
-        load_node.content_hash = eic_hash
-        host_indices = self.cache_controller.host_allocate(len(eic_key))
+        load_node.key = offload_key
+        load_node.content_hash = offload_hash
+        host_indices = self.cache_controller.host_allocate(len(offload_key))
         if host_indices is None:
-            self.evict_host(len(eic_key))
-            host_indices = self.cache_controller.host_allocate(len(eic_key))
+            self.evict_host(len(offload_key))
+            host_indices = self.cache_controller.host_allocate(len(offload_key))
             if host_indices is None:
                 return last_node
         load_node.host_value = host_indices
         self.cache_controller.mem_pool_host.update_backup(host_indices)
         assert (
-            last_node.children.get(self.get_child_key_fn(eic_key)) is None
-        ), f"eic key {eic_key} already exists in radix cache"
+            last_node.children.get(self.get_child_key_fn(offload_key)) is None
+        ), f"offload key {offload_key} already exists in radix cache"
         logger.debug(
-            f"load token from eic: {len(eic_key)}, node {load_node.id}, parent {last_node.id}"
+            f"load token from offload: {len(offload_key)}, node {load_node.id}, parent {last_node.id}"
         )
-        last_node.children[self.get_child_key_fn(eic_key)] = load_node
+        last_node.children[self.get_child_key_fn(offload_key)] = load_node
         load_node.parent = last_node
         return load_node
 
@@ -822,7 +822,7 @@ class EICPagedHiRadixCache(EICHiRadixCache):
         else:
             value = empty_value
 
-        # try to load from eic
+        # try to load from offload
         last_node = self.match_prefix_extend(key, last_node)
 
         last_node_global = last_node

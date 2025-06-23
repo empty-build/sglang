@@ -22,7 +22,7 @@ from sglang.srt.mem_cache.memory_pool import (
 logger = logging.getLogger(__name__)
 G_TensorPoolSize = 2048
 
-REMOTE_EIC_YAML_ENV_VAR = "REMOTE_EIC_YAML"
+REMOTE_OFFLOAD_YAML_ENV_VAR = "REMOTE_OFFLOAD_YAML"
 
 # GPU direct RDMA for KV set
 G_EnableKVSetGPUDirect = False
@@ -98,7 +98,7 @@ class PrisKVClient:
 
     def __init__(self, endpoint: str, kv_cache_dtype, kv_cache_shape, device="cpu"):
         global G_EnableKVSetGPUDirect, G_EnableKVGetGPUDirect, G_TensorPoolSize
-        config_file = os.environ.get(REMOTE_EIC_YAML_ENV_VAR, "/sgl-workspace/config/remote-eic.yaml")
+        config_file = os.environ.get(REMOTE_OFFLOAD_YAML_ENV_VAR, "/sgl-workspace/config/remote-offload.yaml")
         if not os.path.exists(config_file):
             logger.error(f"Config file {config_file} does not exist")
             exit(1)
@@ -111,13 +111,13 @@ class PrisKVClient:
         raddr, rport = address_part.split("-")
 
         G_EnableKVSetGPUDirect = config.get("enable_kvset_gpu_direct", False)
-        logger.info(f"eic enable_kvset_gpu_direct: {G_EnableKVSetGPUDirect}")
+        logger.info(f"offload enable_kvset_gpu_direct: {G_EnableKVSetGPUDirect}")
 
         G_EnableKVGetGPUDirect = config.get("enable_kvget_gpu_direct", False)
-        logger.info(f"eic enable_kvget_gpu_direct: {G_EnableKVGetGPUDirect}")
+        logger.info(f"offload enable_kvget_gpu_direct: {G_EnableKVGetGPUDirect}")
 
         G_TensorPoolSize = config.get("tensor_pool_size", 2048)
-        logger.info(f"eic tensor_pool_size: {G_TensorPoolSize}")
+        logger.info(f"offload tensor_pool_size: {G_TensorPoolSize}")
 
         password = config.get("pris_password", "")
 
@@ -334,7 +334,7 @@ class PrisKVClient:
 
 
 
-class EICBaseTokenToKVPoolHost:
+class OffloadBaseTokenToKVPoolHost:
     def __init__(
         self,
         device_pool: KVCache,
@@ -356,7 +356,7 @@ class EICBaseTokenToKVPoolHost:
         else:
             self.size = int(device_pool.size * host_to_device_ratio)
         self.size = self.size - (self.size % self.page_size)
-        logger.info(f"EICBaseTokenToKVPoolHost init,{self.size=},{host_size=},{self.size_per_token=}")
+        logger.info(f"OffloadBaseTokenToKVPoolHost init,{self.size=},{host_size=},{self.size_per_token=}")
         # Initialize memory states and tracking structures
         self.mem_state = torch.zeros(
             (self.size,), dtype=torch.uint8, device=self.device
@@ -611,7 +611,7 @@ class EICBaseTokenToKVPoolHost:
         return len(indices)
 
 
-class EICMHATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
+class OffloadMHATokenToKVPoolHost(OffloadBaseTokenToKVPoolHost):
     def __init__(
         self,
         device_pool: MHATokenToKVPool,
@@ -651,7 +651,7 @@ class EICMHATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
 
 
 
-class EICMLATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
+class OffloadMLATokenToKVPoolHost(OffloadBaseTokenToKVPoolHost):
     def __init__(
         self,
         device_pool: MLATokenToKVPool,

@@ -39,7 +39,7 @@ def get_content_hash(
     return result
 
 
-class EICCacheOperation(CacheOperation):
+class OffloadCacheOperation(CacheOperation):
     def __init__(
         self,
         host_indices: torch.Tensor,
@@ -57,7 +57,7 @@ class EICCacheOperation(CacheOperation):
         )
 
 
-class EICCacheController(HiCacheController):
+class OffloadCacheController(HiCacheController):
     def __init__(
         self,
         token_to_kv_pool_allocator: TokenToKVPoolAllocator,
@@ -137,7 +137,7 @@ class EICCacheController(HiCacheController):
         for th in self.load_thread_pool:
             th.start()
 
-    def write_token_wise(self, operation: EICCacheOperation):
+    def write_token_wise(self, operation: OffloadCacheOperation):
         """
         Write the KV cache to host memory.
         """
@@ -155,7 +155,7 @@ class EICCacheController(HiCacheController):
             if node_id != 0:
                 self.ack_write_queue.put((node_id, True))
 
-    def load_token_wise(self, operation: EICCacheOperation):
+    def load_token_wise(self, operation: OffloadCacheOperation):
         """
         Load the KV cache from host memory to device memory.
         """
@@ -172,7 +172,7 @@ class EICCacheController(HiCacheController):
             if node_id != 0:
                 self.ack_load_queue.put((node_id, True))
 
-    def write_page_wise(self, operation: EICCacheOperation):
+    def write_page_wise(self, operation: OffloadCacheOperation):
         """
         Write the KV cache to host memory.
         """
@@ -195,7 +195,7 @@ class EICCacheController(HiCacheController):
             if node_id != 0:
                 self.ack_write_queue.put((node_id, True))
 
-    def load_page_wise(self, operation: EICCacheOperation):
+    def load_page_wise(self, operation: OffloadCacheOperation):
         """
         Load the KV cache from host memory to device memory.
         """
@@ -215,7 +215,7 @@ class EICCacheController(HiCacheController):
             if node_id != 0:
                 self.ack_load_queue.put((node_id, True))
 
-    def write_to_eic(self, operation: EICCacheOperation):
+    def write_to_offload(self, operation: OffloadCacheOperation):
         """
         Write the KV cache to host memory.
         """
@@ -224,7 +224,7 @@ class EICCacheController(HiCacheController):
         else:
             self.write_page_wise(operation)
 
-    def load_from_eic(self, operation: EICCacheOperation):
+    def load_from_offload(self, operation: OffloadCacheOperation):
         """
         Load the KV cache from host memory to device memory.
         """
@@ -244,7 +244,7 @@ class EICCacheController(HiCacheController):
                 operation = self.write_queue.get(block=True, timeout=1)
                 if self.write_policy == "write_through":
                     torch.cuda.synchronize()
-                self.write_to_eic(operation)
+                self.write_to_offload(operation)
             except Empty:
                 continue
             except Exception as e:
@@ -263,7 +263,7 @@ class EICCacheController(HiCacheController):
             # self.load_cache_event.clear()
             try:
                 operation = self.load_queue.get(block=True, timeout=1)
-                self.load_from_eic(operation)
+                self.load_from_offload(operation)
             except Empty:
                 continue
             except Exception as e:
@@ -275,9 +275,9 @@ class EICCacheController(HiCacheController):
         """
         return self.mem_pool_host.alloc(size)
 
-    def find_longest_prefix_in_eic(self, prompt):
+    def find_longest_prefix_in_offload(self, prompt):
         """
-        Find the longest prefix in the EIC cache.
+        Find the longest prefix in the Offload cache.
         """
         if len(prompt) == 0:
             return [], []
@@ -300,7 +300,7 @@ class EICCacheController(HiCacheController):
             return None
         self.mem_pool_host.protect_write(host_indices)
         self.write_queue.put(
-            EICCacheOperation(
+            OffloadCacheOperation(
                 host_indices, device_indices, node_id, content_hash, priority
             )
         )
@@ -323,7 +323,7 @@ class EICCacheController(HiCacheController):
         # to ensure the device indices are ready before accessed by another CUDA stream
         torch.cuda.current_stream().synchronize()
         self.load_queue.put(
-            EICCacheOperation(
+            OffloadCacheOperation(
                 host_indices, device_indices, node_id, content_hash, priority
             )
         )

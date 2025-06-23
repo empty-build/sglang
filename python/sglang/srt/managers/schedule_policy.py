@@ -449,7 +449,7 @@ class PrefillAdder:
         req: Req,
         has_chunked_req: bool,
         enable_hierarchical_cache: bool = False,
-        enable_eic_cache: bool = False,
+        enable_offload_cache: bool = False,
     ):
         if req.sampling_params.ignore_eos and getattr(self.tree_cache, "disable", True):
             return self.add_one_req_ignore_eos(req, has_chunked_req)
@@ -482,7 +482,7 @@ class PrefillAdder:
                 req.last_node, req.prefix_indices = self.tree_cache.init_load_back(
                     req.last_node_global, req.prefix_indices
                 )
-                if enable_eic_cache and self.tree_cache.tp_size > 1:
+                if enable_offload_cache and self.tree_cache.tp_size > 1:
                     prefix_len_tensor = torch.tensor(
                         [len(req.prefix_indices)], device="cpu"
                     )
@@ -499,7 +499,7 @@ class PrefillAdder:
                 logger.debug(
                     f"req {req.rid} init load back, last node:{req.last_node.id}, prefix len:{len(req.prefix_indices)}"
                 )
-                if enable_eic_cache:
+                if enable_offload_cache:
                     loading_check_start_ts = time.perf_counter()
                     while not self.tree_cache.loading_complete(req.last_node):
                         time.sleep(0.01)
@@ -513,11 +513,11 @@ class PrefillAdder:
                             group=self.tree_cache.tp_group,
                         )
                         if load_flag_tensor.item() > 0:
-                            logger.error("eic load back failed")
+                            logger.error("offload load back failed")
                             load_sucess = False
                     else:
                         if load_flag > 0:
-                            logger.error("eic load back failed")
+                            logger.error("offload load back failed")
                             load_sucess = False
                     if not load_sucess:
                         last_gpu_node = req.last_node
@@ -533,7 +533,7 @@ class PrefillAdder:
                         f"batch_prefill loading check time {loading_check_end_ts - loading_check_start_ts}"
                     )
                 logger.debug(
-                    f"after eic sync, req {req.rid} last node:{req.last_node.id}, prefix len:{len(req.prefix_indices)}"
+                    f"after offload sync, req {req.rid} last node:{req.last_node.id}, prefix len:{len(req.prefix_indices)}"
                 )
                 req.extend_input_len = len(req.fill_ids) - len(req.prefix_indices)
                 input_tokens = (
