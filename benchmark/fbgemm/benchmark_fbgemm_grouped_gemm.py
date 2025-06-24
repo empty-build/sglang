@@ -7,6 +7,7 @@ from fbgemm_grouped_gemm import grouped_gemm as fbgemm_grouped_gemm
 from fbgemm_grouped_gemm import (
     grouped_gemm_fp8_rowwise as fbgemm_grouped_gemm_fp8_rowwise,
 )
+from sgl_kernel import cutlass_moe_mm
 from transformers import AutoConfig
 
 from sglang.srt.layers.moe.ep_moe.kernels import (
@@ -68,7 +69,7 @@ def create_test_data(batch_size, num_groups, hidden_size, intermediate_size):
         (num_groups,), tokens_per_group, dtype=torch.int64, device="cuda"
     )
 
-    x = torch.randn(batch_size, hidden_size, dtype=torch.bfloat16, device="cuda")
+    x = torch.randn(batch_size * 8, hidden_size, dtype=torch.bfloat16, device="cuda")
 
     base_weights = torch.randn(
         num_groups, intermediate_size, hidden_size, dtype=torch.bfloat16, device="cuda"
@@ -78,10 +79,10 @@ def create_test_data(batch_size, num_groups, hidden_size, intermediate_size):
     w_sglang = base_weights
 
     c_fbgemm = torch.empty(
-        batch_size, intermediate_size, dtype=torch.bfloat16, device="cuda"
+        batch_size * 8, intermediate_size, dtype=torch.bfloat16, device="cuda"
     )
     c_sglang = torch.empty(
-        batch_size, intermediate_size, dtype=torch.bfloat16, device="cuda"
+        batch_size * 8, intermediate_size, dtype=torch.bfloat16, device="cuda"
     )
 
     seg_indptr = torch.zeros(num_groups + 1, dtype=torch.int64, device="cuda")
@@ -105,30 +106,92 @@ def create_test_data(batch_size, num_groups, hidden_size, intermediate_size):
 def create_fp8_test_data(batch_size, num_groups, hidden_size, intermediate_size):
     torch.manual_seed(42)
 
-    tokens_per_group = batch_size // num_groups
+    tokens_per_group = batch_size * 8 // num_groups
+    if tokens_per_group < 1:
+        raise RuntimeError("skip this config test")
+    else:
+        print("tokens_per_group: ", tokens_per_group)
+
     m_sizes = torch.full(
         (num_groups,), tokens_per_group, dtype=torch.int64, device="cuda"
     )
 
-    x_fp16 = torch.randn(batch_size, hidden_size, dtype=torch.float16, device="cuda")
+    x_fp16 = torch.randn(
+        batch_size * 8, hidden_size, dtype=torch.float16, device="cuda"
+    )
     w_fp16 = torch.randn(
         num_groups * intermediate_size, hidden_size, dtype=torch.float16, device="cuda"
     )
 
+    w_fp16_cutlass = torch.randn(
+        num_groups, hidden_size, intermediate_size, dtype=torch.float16, device="cuda"
+    )
+    w_fp8_cutlass = w_fp16_cutlass.to(torch.float8_e4m3fn)
+
     x_fp8 = x_fp16.to(torch.float8_e4m3fn)
     w_fp8 = w_fp16.to(torch.float8_e4m3fn)
 
-    x_scale = torch.randn(batch_size, dtype=torch.float32, device="cuda").abs() + 1e-4
+    x_scale = (
+        torch.randn(batch_size * 8, dtype=torch.float32, device="cuda").abs() + 1e-4
+    )
     w_scale = torch.randn(num_groups, dtype=torch.float32, device="cuda").abs() + 1e-4
+    w_cutlass_scale = torch.empty(
+        (num_groups, 1, 1), device="cuda", dtype=torch.float32
+    )
 
-    return x_fp8, w_fp8, m_sizes, x_scale, w_scale
+    x_cutlass_scale = torch.randn(1, dtype=torch.float32, device="cuda")
+
+    output_cutlass = torch.empty(
+        batch_size * 8, intermediate_size, dtype=torch.bfloat16, device="cuda"
+    )
+
+    ab_stride1 = torch.full(
+        (num_groups,), hidden_size, device="cuda", dtype=torch.int64
+    )
+    c_stride1 = torch.full(
+        (num_groups,), intermediate_size, device="cuda", dtype=torch.int64
+    )
+
+    problem_sizes = torch.empty((num_groups, 3), dtype=torch.int32, device="cpu")
+    for i in range(num_groups):
+        problem_sizes[i][0] = tokens_per_group
+        problem_sizes[i][1] = hidden_size
+        problem_sizes[i][2] = intermediate_size
+
+    problem_sizes = problem_sizes.cuda()
+
+    expert_offsets = torch.empty((num_groups), dtype=torch.int32, device="cpu")
+
+    # check one more position
+    expert_offsets[0] = 0
+    for i in range(1, num_groups):
+        expert_offsets[i] = tokens_per_group * i
+    expert_offsets = expert_offsets.cuda()
+
+    return (
+        x_fp8,
+        w_fp8,
+        m_sizes,
+        x_scale,
+        w_scale,
+        (
+            w_fp8_cutlass,
+            w_cutlass_scale,
+            x_cutlass_scale,
+            output_cutlass,
+            ab_stride1,
+            c_stride1,
+            problem_sizes,
+            expert_offsets,
+        ),
+    )
 
 
 def get_benchmark_config(use_fp8_w8a8=False):
     if use_fp8_w8a8:
         return {
             "line_vals": ["fbgemm_grouped_gemm_fp8", "sglang_grouped_gemm"],
-            "line_names": ["FBGEMM Grouped GEMM FP8", "SGLang Grouped GEMM FP8"],
+            "line_names": ["FBGEMM Grouped GEMM FP8", "cutlass Grouped GEMM FP8"],
             "styles": [("blue", "-"), ("red", "-")],
         }
     else:
@@ -146,7 +209,7 @@ def run_benchmark(
 
     benchmark_config = triton.testing.Benchmark(
         x_names=["batch_size"],
-        x_vals=[1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096],
+        x_vals=[128, 256, 512, 1024, 8192],
         line_arg="provider",
         line_vals=config["line_vals"],
         line_names=config["line_names"],
@@ -170,7 +233,7 @@ def run_benchmark(
                 test_data = create_fp8_test_data(
                     batch_size, num_groups, hidden_size, intermediate_size
                 )
-                x_fp8, w_fp8, m_sizes, x_scale, w_scale = test_data
+                x_fp8, w_fp8, m_sizes, x_scale, w_scale, _ = test_data
 
                 def run_func():
                     return fbgemm_grouped_gemm_fp8_rowwise(
@@ -204,17 +267,52 @@ def run_benchmark(
 
             else:
 
-                def run_func():
-                    return sglang_grouped_gemm(
-                        x,
-                        w_sglang,
-                        c_sglang,
-                        num_groups,
-                        weight_column_major=True,
-                        seg_indptr=seg_indptr,
-                        weight_indices=weight_indices,
-                        c_dtype=c_sglang.dtype,
+                print("provider is: ", provider)
+
+                try:
+                    test_data = create_fp8_test_data(
+                        batch_size, num_groups, hidden_size, intermediate_size
                     )
+
+                    x_fp8, w_fp8, m_sizes, x_scale, w_scale, cutlass_args = test_data
+                    (
+                        cutlass_w,
+                        cutlass_w_scale,
+                        x_cutlass_scale,
+                        output,
+                        s1,
+                        s2,
+                        p_sizes,
+                        ep_offsets,
+                    ) = cutlass_args
+
+                    def run_func():
+                        # return sglang_grouped_gemm(
+                        #     x,
+                        #     w_sglang,
+                        #     c_sglang,
+                        #     num_groups,
+                        #     weight_column_major=True,
+                        #     seg_indptr=seg_indptr,
+                        #     weight_indices=weight_indices,
+                        #     c_dtype=c_sglang.dtype,
+                        # )
+                        return cutlass_moe_mm(
+                            output,
+                            x_fp8,
+                            cutlass_w,
+                            x_cutlass_scale,
+                            cutlass_w_scale,
+                            ep_offsets,
+                            p_sizes,
+                            s1,
+                            s1,
+                            s2,
+                        )
+
+                except Exception as e:
+                    print(f"FP8 not supported, skipping: {e}")
+                    return float("inf"), float("inf"), float("inf")
 
         for _ in range(10):
             try:
@@ -335,9 +433,9 @@ def main():
         print(f"Failed to get model config: {e}")
         print("Using default configuration...")
         model_config = {
-            "num_groups": 8,
+            "num_groups": 128,
             "hidden_size": 4096,
-            "intermediate_size": 14336,
+            "intermediate_size": 768,
             "dtype": torch.bfloat16,
         }
 

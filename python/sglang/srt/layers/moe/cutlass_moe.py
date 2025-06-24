@@ -163,7 +163,7 @@ def cutlass_moe_fp8(
     a_q = moe_ws.a_q_fp8[0:m, :]
 
     a1_scale = moe_ws.a1_scale
-    a2_scale = moe_ws.a2_scale
+    # a2_scale = moe_ws.a2_scale
 
     expert_offsets = moe_ws.expert_offsets
     problem_sizes1 = moe_ws.problem_sizes[0]
@@ -196,13 +196,13 @@ def cutlass_moe_fp8(
     )
 
     rep_a_q, unpermute_map = permute(a_q, topk_ids_)
-    rep_a1_scales = a1_scale  # a1_scale[a_map] if per_act_token else a1_scale
+    # rep_a1_scales = a1_scale  # a1_scale[a_map] if per_act_token else a1_scale
 
     cutlass_moe_mm(
         c1,
         rep_a_q,
         w1_q,
-        rep_a1_scales,
+        a1_scale,
         w1_scale,
         expert_offsets[:-1],
         problem_sizes1,
@@ -213,13 +213,13 @@ def cutlass_moe_fp8(
 
     silu_and_mul(c1, intermediate)
 
-    sgl_per_tensor_quant_fp8(intermediate, intemediate_q, a2_scale, False)
+    sgl_per_tensor_quant_fp8(intermediate, intemediate_q, a1_scale, False)
 
     cutlass_moe_mm(
         c2,
         intemediate_q,
         w2_q,
-        a2_scale,
+        a1_scale,
         w2_scale,
         expert_offsets[:-1],
         problem_sizes2,

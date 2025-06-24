@@ -670,6 +670,9 @@ def grouped_gemm_triton(
     use_per_token_if_dynamic: bool = True,
 ):
     assert weight_column_major == True  # TODO: more
+    # print("call groupedgemm trition")
+    if use_fp8_w8a8:
+        print("use fp8")
     if use_fp8_w8a8 and block_shape is None:
         assert scale_a is not None and scale_b is not None
 
@@ -693,7 +696,7 @@ def grouped_gemm_triton(
         "BLOCK_SIZE_N": 128,
         "BLOCK_SIZE_K": 128,
         "num_warps": 4,
-        "num_stages": 3
+        "num_stages": 3,
     }
 
     m_num_tiles_indptr = torch.zeros(batch_size + 1, device=a.device, dtype=torch.int64)
