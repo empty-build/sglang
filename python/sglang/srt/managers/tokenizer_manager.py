@@ -1166,6 +1166,7 @@ class TokenizerManager:
 
         while True:
             recv_obj = await self.recv_from_detokenizer.recv_pyobj()
+            # logger.debug(f"[hanhan] tokenizer manager recv_obj: {recv_obj.rids}")
             self._result_dispatcher(recv_obj)
             self.last_receive_tstamp = time.time()
 
@@ -1226,7 +1227,7 @@ class TokenizerManager:
                     state.last_output_offset = len(state.output_ids)
                 else:
                     state.output_ids.extend(recv_obj.output_ids[i])
-                    output_token_ids = state.output_ids
+                    output_token_ids = state.output_ids.copy()
 
                 out_dict = {
                     "output_ids": output_token_ids,

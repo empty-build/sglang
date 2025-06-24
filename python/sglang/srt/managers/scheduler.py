@@ -262,6 +262,14 @@ class Scheduler(
                 context, zmq.PUSH, port_args.tokenizer_ipc_name, False
             )
 
+            if server_args.load_balance_method == "shortest_queue":
+                self.send_to_dp_controller = get_zmq_socket(
+                    context, zmq.PUSH, port_args.worker_workload_status_ipc_name, False
+                )
+
+                self.report_thread = threading.Thread(target=self._report_workload_status_thread)
+                self.report_thread.start()
+
             if server_args.skip_tokenizer_init:
                 # Directly send to the TokenizerManager
                 self.send_to_detokenizer = get_zmq_socket(
@@ -402,7 +410,7 @@ class Scheduler(
         if self.device == "cpu":
             self.current_stream.synchronize = lambda: None  # No-op for CPU
         self.forward_sleep_time = None
-
+        
         # Init session info
         self.sessions: Dict[str, Session] = {}
 
@@ -1374,7 +1382,14 @@ class Scheduler(
             )
             raise ValueError(msg)
 
-        if len(self.req_to_token_pool.free_slots) != self.req_to_token_pool.size:
+        if self.disaggregation_mode == DisaggregationMode.DECODE:
+            req_total_size = (
+                self.req_to_token_pool.size + self.req_to_token_pool.pre_alloc_size
+            )
+        else:
+            req_total_size = self.req_to_token_pool.size
+
+        if len(self.req_to_token_pool.free_slots) != req_total_size:
             msg = (
                 "req_to_token_pool memory leak detected!"
                 f"available_size={len(self.req_to_token_pool.free_slots)}, "
@@ -1813,11 +1828,6 @@ class Scheduler(
             can_cuda_graph = 1
         else:
             can_cuda_graph = 0
-
-        if not spec_algorithm.is_none():
-            # TODO(sang): Support cuda graph when idle batch is there.
-            if local_batch is None or local_batch.forward_mode.is_idle():
-                can_cuda_graph = 0
 
         is_extend_in_batch = (
             local_batch.forward_mode.is_extend() if local_batch else False

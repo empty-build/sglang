@@ -39,14 +39,6 @@ find_package(Torch REQUIRED)
 # clean Torch Flag
 clear_cuda_arches(CMAKE_FLAG)
 
-if("${CUDA_VERSION}" VERSION_EQUAL "12.8")
-  set(DeepGEMM_REPO "https://github.com/sgl-project/DeepGEMM")
-  set(DeepGEMM_TAG "blackwell")
-else()
-  set(DeepGEMM_REPO "https://github.com/deepseek-ai/DeepGEMM")
-  set(DeepGEMM_TAG "8dfa3298274bfe6b242f6f8a3e6f3eff2707dd9f")
-endif()
-
 include(FetchContent)
 
 # cutlass
@@ -57,7 +49,16 @@ FetchContent_Declare(
     GIT_SHALLOW    OFF
 )
 FetchContent_Populate(repo-cutlass)
+
 # DeepGEMM
+if("${CUDA_VERSION}" VERSION_EQUAL "12.8")
+  set(DeepGEMM_REPO "https://github.com/sgl-project/DeepGEMM")
+  set(DeepGEMM_TAG "blackwell")
+else()
+  set(DeepGEMM_REPO "https://github.com/deepseek-ai/DeepGEMM")
+  set(DeepGEMM_TAG "8dfa3298274bfe6b242f6f8a3e6f3eff2707dd9f")
+endif()
+
 FetchContent_Declare(
     repo-deepgemm
     GIT_REPOSITORY ${DeepGEMM_REPO}
@@ -106,7 +107,6 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(ENABLE_BELOW_SM90 OFF)
     message(STATUS "For aarch64, disable gencode below SM90 by default")
 endif()
-
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
@@ -207,6 +207,12 @@ if ("${CUDA_VERSION}" VERSION_GREATER_EQUAL "12.8" OR SGL_KERNEL_ENABLE_FP4)
     )
 endif()
 
+# Jack: if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER 12.0 AND SCALED_MM_ARCHS)
+# Jack: This doesn't help. TODO: Fix
+list(APPEND SGL_KERNEL_CUDA_FLAGS "-DENABLE_SCALED_MM_SM90=1")
+list(APPEND SGL_KERNEL_CUDA_FLAGS "-DENABLE_CUTLASS_MOE_SM90=1")
+# TODO: use SGL_KERNEL_ENABLE_SM90A in CMakeLists.txt e.g., make build -DSGL_KERNEL_ENABLE_SM90A. And check SGL_KERNEL_ENABLE_SM90A in scaled_mm_enty.cu
+
 string(REPLACE "-D__CUDA_NO_HALF_OPERATORS__"       "" CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 string(REPLACE "-D__CUDA_NO_HALF_CONVERSIONS__"     "" CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 string(REPLACE "-D__CUDA_NO_BFLOAT16_CONVERSIONS__" "" CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
@@ -247,9 +253,13 @@ set(SOURCES
     "csrc/moe/ep_moe_reorder_kernel.cu"
     "csrc/moe/ep_moe_silu_and_mul_kernel.cu"
     "csrc/speculative/eagle_utils.cu"
-    "csrc/speculative/speculative_sampling.cu"
     "csrc/speculative/packbit.cu"
+    "csrc/speculative/speculative_sampling.cu"
     "csrc/grammar/apply_token_bitmask_inplace_cuda.cu"
+    "csrc/kvcacheio/transfer.cu"
+    "csrc/quantization/cutlass_w8a8/scaled_mm_entry.cu"
+    "csrc/quantization/cutlass_w8a8/moe/moe_data.cu"
+    "csrc/quantization/cutlass_w8a8/moe/grouped_mm_c3x.cu"
     "csrc/common_extension.cc"
     "${repo-flashinfer_SOURCE_DIR}/csrc/norm.cu"
     "${repo-flashinfer_SOURCE_DIR}/csrc/renorm.cu"
