@@ -1,5 +1,5 @@
 ARG CUDA_VERSION=12.6.1
-FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+FROM iaas-gpu-cn-beijing.cr.volces.com/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
 
 ARG BUILD_TYPE=all
 ARG DEEPEP_COMMIT=b6ce310bb0b75079682d09bc2ebc063a074fbd58
