@@ -1018,6 +1018,7 @@ class Fp8MoEMethod:
         ):
             from sglang.srt.layers.moe.cutlass_moe import cutlass_fused_experts
             if is_sm90_supported():
+                # print("Jack cutlass CUTLASS_MOE works")
                 # Ref: SM100 original
                 # layer.w13_weight.transpose(1, 2),
                 # layer.w2_weight.transpose(1, 2),
@@ -1146,6 +1147,7 @@ class Fp8MoEMethod:
                     use_fp8_blockscale=True,
                 )
 
+        # print("Jack Triton CUTLASS_MOE doesnt set")
         # Expert fusion with FP8 quantization
         return fused_experts(
             x,

@@ -27,6 +27,8 @@
 #include "cutlass_moe_helper.cu"
 #include "utils.h"
 
+#include "cutlass/util/reference/device/tensor_fill.h"
+
 using namespace cute;
 
 /* Jack debugging */
@@ -372,7 +374,8 @@ void print_tensor_full_debug(const std::string& name, const at::Tensor& t, int m
 // }
 
 /* Jack porting */
-#if 0
+#if 1 // all
+#if 0 // wrong way
 /// Fills a tensor with random values with a uniform random distribution.
 template <typename Element>
 void BlockFillRandomUniform(
@@ -393,7 +396,7 @@ void BlockFillRandomUniform(
 
   BlockForEach<Element, RandomFunc>(ptr, capacity, params, /*grid_size*/0, /*block_size*/0, stream);
 }
-
+#endif
 
 template <class Element, class ScopeMin = std::nullopt_t, class ScopeMax = std::nullopt_t>
 bool initialize_block(
@@ -422,13 +425,183 @@ bool initialize_block(
   if constexpr (!std::is_same_v<ScopeMin, std::nullopt_t>) {
     _scope_min = scope_min;
   }
-  // cutlass::reference::device::BlockFillRandomUniform( // This I cannot help!!!!!
-  BlockFillRandomUniform(
+
+  // BlockFillRandomUniform( // wrong way
+  /* Solv: include #include "cutlass/util/reference/device/tensor_fill.h" */
+  cutlass::reference::device::BlockFillRandomUniform(
     block.get(), block.size(), seed, (Element) _scope_max, (Element) _scope_min, 0);
 
   return true;
 }
+
+#if 0 // wrong way
+namespace detail {
+
+/// Computes a random uniform distribution
+template <typename Element>                ///< Element type 
+struct RandomUniformFunc {
+
+  using FloatType = typename std::conditional<
+    (sizeof(Element) > 4),
+    double,
+    float>::type;
+
+  using IntType = typename std::conditional<
+    (sizeof(Element) > 4),
+    int64_t,
+    int>::type;
+
+  /// Parameters structure
+  struct Params {
+
+    //
+    // Data members
+    //
+
+    uint64_t seed;
+    FloatType range;
+    FloatType max;
+    int int_scale;
+    double pnan;
+    FloatType float_scale_up;
+    FloatType float_scale_down;
+    int exclude_zero;           ///< If non-negative, excludes zeros
+
+    /// Default ctor
+    CUTLASS_HOST_DEVICE
+    Params() { }
+
+    //
+    // Methods
+    //
+
+    /// Construction of Gaussian RNG functor.
+    Params(
+      uint64_t seed_ = 0, 
+      Element max_ = 1,
+      Element min = 0,
+      int int_scale_ = -1,
+      double pnan_ = 0,
+      int exclude_zero_ = -1
+    ):
+      seed(seed_), 
+      range(static_cast<FloatType>(max_) - static_cast<FloatType>(min)), 
+      max(static_cast<FloatType>(max_)),
+      int_scale(int_scale_),
+      pnan(pnan_),
+      exclude_zero(exclude_zero_) {
+      
+      float_scale_up = FloatType(IntType(1) << int_scale); // scale up to clamp low order bits
+      float_scale_down = FloatType(1) / FloatType(IntType(1) << int_scale);
+
+      // Handle cases where min = 0 or max = 0 for excluding zeros
+      if (exclude_zero >= 0) {
+        range = (min == Element(0)) ? range - FloatType(1): range;
+        max = (max_ == Element(0)) ? max - FloatType(1): max; 
+      }
+    }
+  };
+
+  //
+  // Data members
+  //
+
+  /// Parameters object
+  Params params;
+
+  /// RNG state object
+  curandState_t rng_state;
+
+  //
+  // Methods
+  //
+
+  /// Device-side initialization of RNG
+  CUTLASS_DEVICE
+  RandomUniformFunc(Params const &params): params(params) {
+
+    uint64_t gtid = threadIdx.x + blockIdx.x * blockDim.x;
+
+    curand_init(params.seed, gtid, 0, &rng_state);
+  }
+
+  /// Compute random value and update RNG state
+  CUTLASS_DEVICE
+  Element operator()() {
+
+    // Draw random float in [0.0, 1.0] to determine if element should be NaN.
+    if constexpr (std::numeric_limits<Element>::has_quiet_NaN) {
+      if (params.pnan > 0 && (curand_uniform(&rng_state) < (params.pnan))) {
+        return Element(NAN);
+      }
+    }
+
+    FloatType rnd = random_uniform_float<FloatType>(&rng_state);
+    rnd = params.max - params.range * rnd;
+
+    // Random values are cast to integer after scaling by a power of two to facilitate error
+    // testing
+    Element result;
+
+    if (params.int_scale >= 0) {
+      rnd = FloatType(std::llround(rnd * params.float_scale_up));
+      result = Element(rnd * params.float_scale_down);
+    }
+    else {
+      result = Element(rnd);
+    }
+
+    if (params.exclude_zero >=0 && result == Element(0.0)) {
+      if (rnd > FloatType(0)) {
+        rnd = std::min(params.max, rnd + FloatType(1));
+      } else {
+        rnd = std::max((params.max - params.range), rnd - FloatType(1));
+      }
+      result = Element(rnd);
+    }
+
+    return result;
+  }
+};
+
+} // namespace detail
 #endif
+
+#endif
+
+/* exp68 (yichen recommened) */
+using ElementBlockScale   = float;
+
+cutlass::DeviceAllocation<ElementBlockScale> blockscale_block_A;
+cutlass::DeviceAllocation<ElementBlockScale> blockscale_block_B;
+
+std::vector<int64_t> offset_blockscale_A;
+std::vector<int64_t> offset_blockscale_B;
+
+// 全局不能用 typename, 函數內有模板才行
+// std::vector<typename ScheduleConfig::LayoutSFA> layout_SFA_host;
+// std::vector<typename ScheduleConfig::LayoutSFB> layout_SFB_host;
+
+// cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFA> layout_SFA;
+// cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFB> layout_SFB;
+
+constexpr int ScaleGranularityM = 1;
+constexpr int ScaleGranularityN = 128;
+constexpr int ScaleGranularityK = 128;
+using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<ScaleGranularityM, ScaleGranularityN, ScaleGranularityK>;
+using LayoutSFA     = decltype(ScaleConfig::deduce_layoutSFA());    // Layout type for SFA matrix operand
+using LayoutSFB     = decltype(ScaleConfig::deduce_layoutSFB());    // Layout type for SFB matrix operand
+
+std::vector<LayoutSFA> layout_SFA_host;
+std::vector<LayoutSFB> layout_SFB_host;
+
+cutlass::DeviceAllocation<LayoutSFA> layout_SFA;
+cutlass::DeviceAllocation<LayoutSFB> layout_SFB;
+
+using ElementAccumulator = float;
+cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_A;
+cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_B;
+
 
 // using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
 template <typename OutType, typename ScheduleConfig, typename LayoutD>
@@ -457,7 +630,6 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
   // or
   // sm90_fp8_blockwise_group_mm_dispatch_shape<cutlass::half_t>(
   using ElementD = ElementC;
-  using ElementAccumulator = float;
   using LayoutA = cutlass::layout::RowMajor;
   using LayoutB = cutlass::layout::ColumnMajor;
   using LayoutC = LayoutD;
@@ -487,9 +659,9 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
       // typename ScheduleConfig::EpilogueSchedule, // 250602 new
       // FusionOperation // 250602 new new
       // >::CollectiveOp; // 250602 new
-      // typename ScheduleConfig::EpilogueSchedule>::CollectiveOp; // 250602 origin
-      typename ScheduleConfig::EpilogueSchedule, // 250612 new from non-group
-      typename ScheduleConfig::StoreEpilogueCompute>::CollectiveOp; // 250612 new from non-group
+      typename ScheduleConfig::EpilogueSchedule>::CollectiveOp; // 250602 origin
+      // typename ScheduleConfig::EpilogueSchedule, // 250612 new from non-group
+      // typename ScheduleConfig::StoreEpilogueCompute>::CollectiveOp; // 250612 new from non-group
 
 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
@@ -508,8 +680,8 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
           sizeof(typename CollectiveEpilogue::SharedStorage))>,
       typename ScheduleConfig::KernelSchedule>::CollectiveOp;
 
-  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue, void>; // 250602 origin
-  // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>; // 250602 new
+  // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue, void>; // 250602 origin
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, CollectiveEpilogue>; // 250602 new
   // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, cutlass::gemm::StreamKScheduler>; // 250612 new - 1 - fail cannot compile
   // using GemmKernel = cutlass::gemm::kernel::GemmUniversal<ProblemShape, CollectiveMainloop, cutlass::gemm::PersistentScheduler>; // 250612 new - 2 - fail cannot compile
 
@@ -531,84 +703,82 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
   /* Jack: TODO example68, test it with no cuda graph */
   /* Jack: TODO example68, test it with no cuda graph */
   // int groups = num_experts; int options.groups = num_experts;
-  std::vector<typename ScheduleConfig::LayoutSFA> layout_SFA_host;
-  std::vector<typename ScheduleConfig::LayoutSFB> layout_SFB_host;
-  cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_A;
-  cutlass::DeviceAllocation<const ElementAccumulator *> ptr_blockscale_B;
-
-  cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFA> layout_SFA;
-  cutlass::DeviceAllocation<typename ScheduleConfig::LayoutSFB> layout_SFB;
 
   auto problem_sizes_cpu = problem_sizes.to(torch::kCPU);
   auto* problem_sizes_cpu_ptr = problem_sizes_cpu.data_ptr<int32_t>();
 
-  // /* Jack: 0602 */
-  // using ElementBlockScale   = float;
-  // cutlass::DeviceAllocation<ElementBlockScale> blockscale_block_A;
-  // cutlass::DeviceAllocation<ElementBlockScale> blockscale_block_B;
-  // std::vector<int64_t> offset_blockscale_A;
-  // std::vector<int64_t> offset_blockscale_B;
+  
 
-  // /* Jack: 0602 alloc-1 */
-  // int64_t total_elements_blockscale_A = 0;
-  // int64_t total_elements_blockscale_B = 0;
-  // offset_blockscale_A.clear();
-  // offset_blockscale_B.clear();
 
-  /* yichen new */
-  // for (int32_t i = 0; i < num_experts; ++i) {
-  //     // auto problem = problem_sizes_cpu_ptr[i];
-  //     // int32_t M = get<0>(problem);
-  //     // int32_t N = get<1>(problem);
-  //     // int32_t K = get<2>(problem);
-  //     int32_t M = problem_sizes_cpu_ptr[(i * 3) + 0];
-  //     int32_t N = problem_sizes_cpu_ptr[(i * 3) + 1];
-  //     int32_t K = problem_sizes_cpu_ptr[(i * 3) + 2];
+  /* exp68 (yichen recommened) */
+  ////////////////////////////////////////////
+  // /* Jack: 0602 alloc()-1 */
+  ////////////////////////////////////////////
+  int64_t total_elements_blockscale_A = 0;
+  int64_t total_elements_blockscale_B = 0;
+  offset_blockscale_A.clear();
+  offset_blockscale_B.clear();
 
-  //     auto group_layout_SFA = ScheduleConfig::ScaleConfig::tile_atom_to_shape_SFA(make_shape(M, N, K, 1));
-  //     auto group_layout_SFB = ScheduleConfig::ScaleConfig::tile_atom_to_shape_SFB(make_shape(M, N, K, 1));
+  for (int32_t i = 0; i < num_experts; ++i) {
+      // auto problem = problem_sizes_cpu_ptr[i];
+      // int32_t M = get<0>(problem);
+      // int32_t N = get<1>(problem);
+      // int32_t K = get<2>(problem);
+      int32_t M = problem_sizes_cpu_ptr[(i * 3) + 0];
+      int32_t N = problem_sizes_cpu_ptr[(i * 3) + 1];
+      int32_t K = problem_sizes_cpu_ptr[(i * 3) + 2];
 
-  //     layout_SFA_host.push_back(group_layout_SFA);
-  //     layout_SFB_host.push_back(group_layout_SFB);
+      auto group_layout_SFA = ScheduleConfig::ScaleConfig::tile_atom_to_shape_SFA(make_shape(M, N, K, 1));
+      auto group_layout_SFB = ScheduleConfig::ScaleConfig::tile_atom_to_shape_SFB(make_shape(M, N, K, 1));
 
-  //     // /* Jack: 0602 alloc-2 */
-  //     // offset_blockscale_A.push_back(total_elements_blockscale_A);
-  //     // offset_blockscale_B.push_back(total_elements_blockscale_B);
-      
-  //     // int64_t elements_blockscale_A = size(filter_zeros(group_layout_SFA)); // 
-  //     // int64_t elements_blockscale_B = size(filter_zeros(group_layout_SFB)); // 
-  //     // total_elements_blockscale_A += elements_blockscale_A;
-  //     // total_elements_blockscale_B += elements_blockscale_B;
-  // }
+      offset_blockscale_A.push_back(total_elements_blockscale_A);
+      offset_blockscale_B.push_back(total_elements_blockscale_B);
 
-  // layout_SFA.reset(num_experts);
-  // layout_SFA.copy_from_host(layout_SFA_host.data());
-  // layout_SFB.reset(num_experts);
-  // layout_SFB.copy_from_host(layout_SFB_host.data());
-   /* yichen end */
 
+      int64_t elements_blockscale_A = size(filter_zeros(group_layout_SFA)); // 
+      int64_t elements_blockscale_B = size(filter_zeros(group_layout_SFB)); //
+ 
+      total_elements_blockscale_A += elements_blockscale_A;
+      total_elements_blockscale_B += elements_blockscale_B;
+
+      layout_SFA_host.push_back(group_layout_SFA);
+      layout_SFB_host.push_back(group_layout_SFB);
+  }
   // /* Jack: 0602 alloc-3 */
-  // blockscale_block_A.reset(total_elements_blockscale_A);
-  // blockscale_block_B.reset(total_elements_blockscale_B);
+  blockscale_block_A.reset(total_elements_blockscale_A);
+  blockscale_block_B.reset(total_elements_blockscale_B);
 
-  // /* Jack: 0602 init */
-  // uint64_t seed = 2023;
-  // std::vector<ElementBlockScale *> ptr_blockscale_A_host(num_experts);
-  // std::vector<ElementBlockScale *> ptr_blockscale_B_host(num_experts);
-  // for (int i = 0; i < num_experts; i++) {
-  //   ptr_blockscale_A_host.at(i) = blockscale_block_A.get() + offset_blockscale_A.at(i);
-  //   ptr_blockscale_B_host.at(i) = blockscale_block_B.get() + offset_blockscale_B.at(i);
 
-  // }
-  // ptr_blockscale_A.reset(num_experts);
-  // ptr_blockscale_A.copy_from_host(ptr_blockscale_A_host.data());
+  ////////////////////////////////////////////
+  // /* Jack: 0602 initialize()-1 */
+  ////////////////////////////////////////////
+  // save to gpu
+  layout_SFA.reset(num_experts);
+  layout_SFA.copy_from_host(layout_SFA_host.data()); // final one, use it
+  layout_SFB.reset(num_experts);
+  layout_SFB.copy_from_host(layout_SFB_host.data()); // final one, use it
 
-  // ptr_blockscale_B.reset(num_experts);
-  // ptr_blockscale_B.copy_from_host(ptr_blockscale_B_host.data());
+  // further process it
+  std::vector<ElementBlockScale *> ptr_blockscale_A_host(num_experts);
+  std::vector<ElementBlockScale *> ptr_blockscale_B_host(num_experts);
+  for (int i = 0; i < num_experts; i++) {
+    ptr_blockscale_A_host.at(i) = blockscale_block_A.get() + offset_blockscale_A.at(i);
+    ptr_blockscale_B_host.at(i) = blockscale_block_B.get() + offset_blockscale_B.at(i);
+  }
+  // save to gpu
+  ptr_blockscale_A.reset(num_experts);
+  ptr_blockscale_A.copy_from_host(ptr_blockscale_A_host.data()); // final one, use it
 
-  // initialize_block(blockscale_block_A, seed + 2025, -1, 1);
-  // initialize_block(blockscale_block_B, seed + 2026, -1, 1);
+  ptr_blockscale_B.reset(num_experts);
+  ptr_blockscale_B.copy_from_host(ptr_blockscale_B_host.data()); // final one, use it
 
+  uint64_t seed = 2023;
+  initialize_block(blockscale_block_A, seed + 2025, -1, 1);
+  initialize_block(blockscale_block_B, seed + 2026, -1, 1);
+  /* exp68 (yichen recommened) end after here use it */
+
+
+#if 0 // origin
   typename GemmKernel::MainloopArguments mainloop_args{
     static_cast<const ElementA**>(a_ptrs.data_ptr()),
     static_cast<StrideA*>(stride_a.data_ptr()),
@@ -616,12 +786,27 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
     static_cast<StrideB*>(stride_b.data_ptr()),
     static_cast<const ElementAccumulator**>(a_scales_ptrs.data_ptr()),
     reinterpret_cast<typename ScheduleConfig::LayoutSFA*>(layout_sfa.data_ptr()), // original
-    // layout_SFA.get(), // yichen
+    // layout_SFA.get(), // exp68 (yichen recommened)
     static_cast<const ElementAccumulator**>(b_scales_ptrs.data_ptr()),
     reinterpret_cast<typename ScheduleConfig::LayoutSFB*>(layout_sfb.data_ptr())}; // original
-    // layout_SFB.get() // yichen
-    // }; // yichen
-
+    // layout_SFB.get() // exp68 (yichen recommened)
+    // }; // exp68 (yichen recommened)
+#else  // exp68
+  typename GemmKernel::MainloopArguments mainloop_args{
+    static_cast<const ElementA**>(a_ptrs.data_ptr()),
+    static_cast<StrideA*>(stride_a.data_ptr()),
+    static_cast<const ElementB**>(b_ptrs.data_ptr()),
+    static_cast<StrideB*>(stride_b.data_ptr()),
+    // static_cast<const ElementAccumulator**>(a_scales_ptrs.data_ptr()), // origin ->
+    ptr_blockscale_A.get(), // exp68 (yichen recommened)
+    // reinterpret_cast<typename ScheduleConfig::LayoutSFA*>(layout_sfa.data_ptr()), // original ->
+    layout_SFA.get(), // exp68 (yichen recommened)
+    // static_cast<const ElementAccumulator**>(b_scales_ptrs.data_ptr()), // origin ->
+    ptr_blockscale_B.get(), // exp68 (yichen recommened)
+    // reinterpret_cast<typename ScheduleConfig::LayoutSFB*>(layout_sfb.data_ptr())}; // original ->
+    layout_SFB.get() // exp68 (yichen recommened)
+    }; // exp68 (yichen recommened)
+#endif
   /* Jack debug */
   // print_device_allocation(layout_SFA.get(), 20, "layout_SFA");
   // print_device_allocation(layout_SFB.get(), 20, "layout_SFB");
@@ -828,6 +1013,19 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
   //   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
   // };
 
+
+  // try origin config1 again cuz colum major
+  struct MmaConfig1 {
+    using ElementA = cutlass::float_e4m3_t;
+    using MmaTileShape = Shape<_128, _32, _128>;
+    using ClusterShape = Shape<_1, _1, _1>;  // Layout type for SFB matrix operand
+    using KernelSchedule    = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;
+    using EpilogueSchedule  = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
+    using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128>; // origin compile fail
+    // using ScaleConfig   = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // new cuz compile fail
+    using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+    using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+  };
   // 0612 trying
   struct MmaConfig2 {
     using ElementA = cutlass::float_e4m3_t;
@@ -838,11 +1036,11 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
     using ScaleTileShape = Shape<_1, _128, _128>;
     using ScaleConfig =
-          decltype(cutlass::detail::sm90_trivial_blockwise_scale_config(ScaleTileShape{})); // 250612 new from non-group
-        // cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // origin
+          // decltype(cutlass::detail::sm90_trivial_blockwise_scale_config(ScaleTileShape{})); // 250612 new from non-group
+        cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>; // origin
     using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
     using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
-    using StoreEpilogueCompute = typename cutlass::epilogue::fusion::Sm90EVT<cutlass::epilogue::fusion::Sm90AccFetch>; // 250612 new from non-group
+    // using StoreEpilogueCompute = typename cutlass::epilogue::fusion::Sm90EVT<cutlass::epilogue::fusion::Sm90AccFetch>; // 250612 new from non-group
   };
   // struct MmaConfig2 {
   //   using ElementA = cutlass::float_e4m3_t;
@@ -1110,8 +1308,8 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
   //     workspace);
   // output = output_t.t();
 
-  //   // 0529 with yichen origin config2
-    run_get_group_gemm_starts<MmaConfig2::LayoutSFA, MmaConfig2::LayoutSFB, MmaConfig2::ScaleConfig>(
+  // 0529 with yichen origin config2
+  run_get_group_gemm_starts<MmaConfig2::LayoutSFA, MmaConfig2::LayoutSFB, MmaConfig2::ScaleConfig>(
       expert_offsets,
       a_ptrs,
       b_ptrs,
@@ -1127,6 +1325,21 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
       layout_sfb,
       problem_sizes,
       problem_sizes_transpose);
+
+  launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig2, cutlass::layout::RowMajor>(
+      out_ptrs,
+      a_ptrs,
+      b_ptrs,
+      a_scales_ptrs,
+      b_scales_ptrs,
+      stride_a,
+      stride_b,
+      stride_c,
+      layout_sfa,
+      layout_sfb,
+      problem_sizes,
+      expert_offsets,
+      workspace);
 
   // 250610 TODO print after get(create) tensors
   // std::cout << "============start 250610 ==============" << std::endl;
@@ -1185,21 +1398,6 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
   // print_tensor_full_debug("stride_b", stride_b);
   // print_tensor_full_debug("stride_c", stride_c);
   // std::cout << "============done==============" << std::endl;
-
-  launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig2, cutlass::layout::RowMajor>(
-      out_ptrs,
-      a_ptrs,
-      b_ptrs,
-      a_scales_ptrs,
-      b_scales_ptrs,
-      stride_a,
-      stride_b,
-      stride_c,
-      layout_sfa,
-      layout_sfb,
-      problem_sizes,
-      expert_offsets,
-      workspace);
 
   // // } else {
   //   // // printf("Jack entered config2\n");
