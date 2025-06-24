@@ -64,6 +64,7 @@ from sgl_kernel.marlin import (
 )
 from sgl_kernel.moe import (
     apply_shuffle_mul_sum,
+    balance_topk_ids,
     cutlass_fp4_group_mm,
     ep_moe_post_reorder,
     ep_moe_pre_reorder,
