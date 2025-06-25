@@ -5,6 +5,11 @@ import einops
 import torch
 from torch.nn import Module
 
+from sglang.srt.layers.quantization.w4afp8 import (
+    W4AFp8Config,
+    W4AFp8MoEMethod,
+)
+
 from sglang.srt.custom_op import CustomOp
 from sglang.srt.distributed import (
     get_tensor_model_parallel_rank,
@@ -12,6 +17,7 @@ from sglang.srt.distributed import (
 )
 from sglang.srt.eplb.expert_location import get_global_expert_location_metadata
 from sglang.srt.eplb.expert_location_dispatch import ExpertLocationDispatchInfo
+from sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
 from sglang.srt.layers.moe.ep_moe.kernels import (
     ep_gather,
     ep_scatter,
@@ -23,6 +29,7 @@ from sglang.srt.layers.moe.ep_moe.kernels import (
     pre_reorder_triton_kernel_for_cutlass_moe,
     run_cutlass_moe_ep_preproess,
     run_moe_ep_preproess,
+    run_cutlass_moe_ep_preproess,
     silu_and_mul_masked_post_quant_fwd,
     silu_and_mul_triton_kernel,
     tma_align_input_scale,
@@ -293,27 +300,25 @@ class EPMoE(torch.nn.Module):
         ep_rank = self.tp_rank
         global_num_experts = self.num_experts
 
+        
         assert ep_size > 0
         if ep_size == 1:
             return (global_num_experts, None)
 
         local_num_experts = global_num_experts // ep_size
 
-        expert_map = torch.full(
-            (global_num_experts,), self.num_experts, dtype=torch.int32
-        )
+        expert_map = torch.full((global_num_experts, ), self.num_experts, dtype=torch.int32)
         if ep_rank < (ep_size - 1):
-            expert_map[
-                ep_rank * local_num_experts : (ep_rank + 1) * local_num_experts
-            ] = torch.arange(0, local_num_experts, dtype=torch.int32)
+            expert_map[ep_rank * local_num_experts:
+                            (ep_rank + 1) * local_num_experts] = \
+                torch.arange(0, local_num_experts, dtype=torch.int32)
         else:
-            local_num_experts = global_num_experts - ep_rank * local_num_experts
+            local_num_experts = (global_num_experts - ep_rank * local_num_experts)
 
-            expert_map[-local_num_experts:] = torch.arange(
-                0, local_num_experts, dtype=torch.int32
-            )
+            expert_map[-local_num_experts:] = \
+                torch.arange(0, local_num_experts, dtype=torch.int32)
         return (local_num_experts, expert_map)
-
+    
     def forward(self, hidden_states: torch.Tensor, router_logits: torch.Tensor):
         if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8:
             return self.forward_deepgemm(hidden_states, router_logits)
@@ -505,11 +510,8 @@ class EPMoE(torch.nn.Module):
             local_topk_ids = topk_ids
             if self.expert_map is not None:
                 "Translate info from expert_map to topk_ids"
-                local_topk_ids = torch.where(
-                    self.expert_map[topk_ids] != self.num_experts,
-                    self.expert_map[topk_ids],
-                    self.num_experts,
-                )
+                local_topk_ids = torch.where(self.expert_map[topk_ids] != self.num_experts,
+                                            self.expert_map[topk_ids], self.num_experts)
 
             output = cutlass_w4a8_moe(
                 self.start_expert_id,
@@ -886,9 +888,9 @@ class EPMoE(torch.nn.Module):
                     param_data[expert_id] = loaded_weight
             elif self.use_w4afp8:
                 if shard_id == "w1":
-                    param_data[expert_id][: self.intermediate_size, :] = loaded_weight
+                    param_data[expert_id][:self.intermediate_size, :] = loaded_weight
                 elif shard_id == "w3":
-                    param_data[expert_id][self.intermediate_size :, :] = loaded_weight
+                    param_data[expert_id][self.intermediate_size:, :] = loaded_weight
                 else:
                     param_data[expert_id] = loaded_weight
             # If we are in merged column case (gate_up_proj)

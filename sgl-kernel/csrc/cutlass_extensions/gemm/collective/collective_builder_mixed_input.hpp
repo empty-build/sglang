@@ -13,40 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+ #pragma once
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-#include "cutlass/gemm/collective/collective_builder.hpp"
-#include "cutlass_extensions/gemm/collective/collective_mma_array_mixed_input.hpp"
-
-namespace cutlass::gemm::collective {
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <
-    class ArchTag,
-    class OpClass,
-    class ElementA,
-    class GmemLayoutA,
-    int AlignmentA,
-    class ElementB,
-    class GmemLayoutB,
-    int AlignmentB,
-    class ElementAccumulator,
-    class TileShape_MNK,
-    class ClusterShape_MNK,
-    class StageCountType,
-    class KernelScheduleType,
-    class Enable = void>
-struct CollectiveBuilderMixedInput {
-  static_assert(sizeof(ElementA) == 0, "Could not build a collective for given parameters.");
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-}  // namespace cutlass::gemm::collective
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "cutlass_extensions/gemm/collective/builders/sm90_gmma_builder_mixed_input.inl"
-/////////////////////////////////////////////////////////////////////////////////////////////////
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ #include "cutlass/gemm/collective/collective_builder.hpp"
+ #include "cutlass_extensions/gemm/collective/collective_mma_array_mixed_input.hpp"
+ 
+ namespace cutlass::gemm::collective
+ {
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ template <class ArchTag, class OpClass, class ElementA, class GmemLayoutA, int AlignmentA, class ElementB,
+     class GmemLayoutB, int AlignmentB, class ElementAccumulator, class TileShape_MNK, class ClusterShape_MNK,
+     class StageCountType, class KernelScheduleType, class Enable = void>
+ struct CollectiveBuilderMixedInput
+ {
+     static_assert(sizeof(ElementA) == 0, "Could not build a collective for given parameters.");
+ };
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ } // namespace cutlass::gemm::collective
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ #include "cutlass_extensions/gemm/collective/builders/sm90_gmma_builder_mixed_input.inl"
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 

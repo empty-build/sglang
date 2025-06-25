@@ -112,6 +112,7 @@ def cutlass_w4a8_moe(
 
     if apply_router_weight_on_input:
         assert topk == 1, "apply_router_weight_on_input is only implemented for topk=1"
+        # TODO: this only works for topK=1, will need to update for topK>1
 
     device = a.device
 
@@ -138,8 +139,8 @@ def cutlass_w4a8_moe(
         BLOCK_SIZE=512,
     )
 
-    # NOTE: a_map and c_map are not used in the get_cutlass_w4a8_moe_mm_data kernel,
-    # they are kept to allow for a quick switch of the permutation logic
+    # NOTE: a_map and c_map are not used in the get_cutlass_w4a8_moe_mm_data kernel, 
+    # they are kept to allow for a quick switch of the permutation logic 
     # from the current triton kernel implementation to the cutlass-based one if needed.
     a_map = torch.empty((local_topk_ids.numel()), dtype=torch.int32, device=device)
     c_map = torch.empty((local_topk_ids.numel()), dtype=torch.int32, device=device)

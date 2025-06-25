@@ -1,3 +1,5 @@
+# Adapted from https://github.com/vllm-project/vllm/blob/v0.6.4.post1/vllm/model_executor/layers/quantization/fp8.py
+
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -5,14 +7,22 @@ import torch
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
-from sglang.srt.layers.linear import LinearBase, UnquantizedLinearMethod
+from sglang.srt.layers.linear import (
+    LinearBase,
+    UnquantizedLinearMethod,
+)
 from sglang.srt.layers.quantization.base_config import (
     QuantizationConfig,
     QuantizeMethodBase,
 )
+from sglang.srt.layers.quantization.utils import (
+    is_layer_skipped,
+)
+from sglang.srt.utils import (
+    set_weight_attrs,
+)
 from sglang.srt.layers.quantization.fp8 import Fp8LinearMethod
-from sglang.srt.layers.quantization.utils import is_layer_skipped
-from sglang.srt.utils import set_weight_attrs
+
 
 ACTIVATION_SCHEMES = ["static", "dynamic"]
 
@@ -55,7 +65,7 @@ class W4AFp8Config(QuantizationConfig):
 
     @classmethod
     def get_min_capability(cls) -> int:
-        return 90
+        return 80
 
     @classmethod
     def get_config_filenames(cls) -> List[str]:
@@ -70,16 +80,15 @@ class W4AFp8Config(QuantizationConfig):
         moe_activation_scheme = "static"
         weight_block_size = [128, 128]
         return cls(
-            is_checkpoint_fp8_serialized=is_checkpoint_fp8_serialized,
-            is_checkpoint_w4afp8_serialized=is_checkpoint_w4afp8_serialized,
-            linear_activation_scheme=linear_activation_scheme,
-            moe_activation_scheme=moe_activation_scheme,
-            weight_block_size=weight_block_size,
+            is_checkpoint_fp8_serialized = is_checkpoint_fp8_serialized,
+            is_checkpoint_w4afp8_serialized = is_checkpoint_w4afp8_serialized,
+            linear_activation_scheme = linear_activation_scheme,
+            moe_activation_scheme = moe_activation_scheme,
+            weight_block_size = weight_block_size,
         )
 
-    def get_quant_method(
-        self, layer: torch.nn.Module, prefix: str
-    ) -> Optional["QuantizeMethodBase"]:
+    def get_quant_method(self, layer: torch.nn.Module,
+                         prefix: str) -> Optional["QuantizeMethodBase"]:
         from sglang.srt.layers.moe.fused_moe_triton import FusedMoE
 
         if isinstance(layer, LinearBase):
@@ -105,9 +114,10 @@ class W4AFp8MoEMethod:
         num_experts_per_partition: int,
         hidden_size: int,
         intermediate_size: int,
-        params_dtype: torch.dtype,
+        params_dtype: torch.dtype, # param_dtype = torch.bfloat16
         **extra_weight_attrs,
     ):
+        from sglang.srt.layers.moe.fused_moe_triton.layer import FusedMoeWeightScaleSupported
         assert "weight_loader" in extra_weight_attrs
 
         # Fused gate_up_proj (column parallel)
@@ -152,7 +162,8 @@ class W4AFp8MoEMethod:
             torch.zeros(
                 num_experts_per_partition,
                 hidden_size,
-                intermediate_size // self.quant_config.group_size,
+                intermediate_size //
+                self.quant_config.group_size,
                 dtype=torch.float32,
             ),
             requires_grad=False,
@@ -161,61 +172,51 @@ class W4AFp8MoEMethod:
         set_weight_attrs(w2_weight_scale, extra_weight_attrs)
 
         # Input scales
-        w13_input_scale = torch.nn.Parameter(
-            torch.ones((num_experts_per_partition, 2), dtype=torch.bfloat16),
-            requires_grad=False,
-        )
+        w13_input_scale = torch.nn.Parameter(torch.ones((num_experts_per_partition, 2),
+                                                        dtype=torch.bfloat16),
+                                             requires_grad=False)
         layer.register_parameter("w13_input_scale", w13_input_scale)
         set_weight_attrs(w13_input_scale, extra_weight_attrs)
 
-        w2_input_scale = torch.nn.Parameter(
-            torch.ones(num_experts_per_partition, dtype=torch.bfloat16),
-            requires_grad=False,
-        )
+        w2_input_scale = torch.nn.Parameter(torch.ones(num_experts_per_partition,
+                                                       dtype=torch.bfloat16),
+                                            requires_grad=False)
         layer.register_parameter("w2_input_scale", w2_input_scale)
         set_weight_attrs(w2_input_scale, extra_weight_attrs)
 
         # Pre-populate the strides
         device = layer.w13_weight.device
 
-        self.a_strides1 = torch.full(
-            (num_experts_per_partition, 3),
-            hidden_size,
-            device=device,
-            dtype=torch.int64,
-        )
-        self.c_strides1 = torch.full(
-            (num_experts_per_partition, 3),
-            2 * intermediate_size,
-            device=device,
-            dtype=torch.int64,
-        )
-        self.a_strides2 = torch.full(
-            (num_experts_per_partition, 3),
-            intermediate_size,
-            device=device,
-            dtype=torch.int64,
-        )
-        self.c_strides2 = torch.full(
-            (num_experts_per_partition, 3),
-            hidden_size,
-            device=device,
-            dtype=torch.int64,
-        )
+        self.a_strides1 = torch.full((num_experts_per_partition, 3),
+                                      hidden_size,
+                                      device=device,
+                                      dtype=torch.int64)
+        self.c_strides1 = torch.full((num_experts_per_partition, 3),
+                                     2 * intermediate_size,
+                                     device=device,
+                                     dtype=torch.int64)
+        self.a_strides2 = torch.full((num_experts_per_partition, 3),
+                                      intermediate_size,
+                                      device=device,
+                                      dtype=torch.int64)
+        self.c_strides2 = torch.full((num_experts_per_partition, 3),
+                                     hidden_size,
+                                     device=device,
+                                     dtype=torch.int64)
         self.b_strides1 = self.a_strides1
         self.s_strides13 = self.c_strides1
         self.b_strides2 = self.a_strides2
         self.s_strides2 = self.c_strides2
 
-        self.expert_offsets = torch.empty(
-            (num_experts_per_partition + 1), dtype=torch.int32, device=device
-        )
-        self.problem_sizes1 = torch.empty(
-            (num_experts_per_partition, 3), dtype=torch.int32, device=device
-        )
-        self.problem_sizes2 = torch.empty(
-            (num_experts_per_partition, 3), dtype=torch.int32, device=device
-        )
+        self.expert_offsets = torch.empty((num_experts_per_partition + 1),
+                                 dtype=torch.int32,
+                                 device=device)
+        self.problem_sizes1 = torch.empty((num_experts_per_partition, 3),
+                                 dtype=torch.int32,
+                                 device=device)
+        self.problem_sizes2 = torch.empty((num_experts_per_partition, 3),
+                                 dtype=torch.int32,
+                                 device=device)
 
         return
 
@@ -223,15 +224,13 @@ class W4AFp8MoEMethod:
         """Interleave scales in groups of 4 similar to TRT-LLM implementation."""
         s_shape = scales.shape
         # Reshape to separate groups of 4
-        scales_interleaved = scales.reshape(
-            s_shape[0], s_shape[1], (s_shape[2] // 4), 4
-        )
+        scales_interleaved = scales.reshape(s_shape[0], s_shape[1],
+                                            (s_shape[2] // 4), 4)
         # Permute dimensions to interleave
         scales_interleaved = scales_interleaved.permute(0, 2, 1, 3)
         # Reshape back to original dimensions but with interleaved values
         scales_interleaved = scales_interleaved.reshape(
-            s_shape[0], s_shape[2] // 4, s_shape[1] * 4
-        )
+            s_shape[0], s_shape[2] // 4, s_shape[1] * 4)
         return scales_interleaved.contiguous()
 
     def process_weights_after_loading(self, layer: Module) -> None:
@@ -241,24 +240,28 @@ class W4AFp8MoEMethod:
         # Interleave w13_weight_scale (gate_up_proj)
         w13_weight_scale = layer.w13_weight_scale_inv.to(dtype)
         w13_weight_scale = self._interleave_scales(w13_weight_scale)
-        layer.w13_weight_scale_inv = Parameter(w13_weight_scale, requires_grad=False)
+        layer.w13_weight_scale_inv = Parameter(w13_weight_scale,
+                                               requires_grad=False)
 
         # Interleave w2_weight_scale (down_proj)
         w2_weight_scale = layer.w2_weight_scale_inv.to(dtype)
         w2_weight_scale = self._interleave_scales(w2_weight_scale)
-        layer.w2_weight_scale_inv = Parameter(w2_weight_scale, requires_grad=False)
+        layer.w2_weight_scale_inv = Parameter(w2_weight_scale,
+                                              requires_grad=False)
 
         # Process input scales
         w13_input_scale_max = layer.w13_input_scale.max().to(dtype).item()
         new_w13_input_scale = torch.tensor(
-            [w13_input_scale_max],
+            [w13_input_scale_max],  # Pass as a list to create a 1-D tensor with one element
             dtype=dtype,
-            device=device,
+            device=device
         )
         layer.w13_input_scale = Parameter(new_w13_input_scale, requires_grad=False)
 
         w2_input_scale_max = layer.w2_input_scale.max().to(dtype).item()
         new_w2_input_scale = torch.tensor(
-            [w2_input_scale_max], dtype=dtype, device=device
+            [w2_input_scale_max],
+            dtype=dtype,
+            device=device
         )
         layer.w2_input_scale = Parameter(new_w2_input_scale, requires_grad=False)

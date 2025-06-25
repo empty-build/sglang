@@ -13,41 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+ #pragma once
 
-#include "cutlass/detail/dependent_false.hpp"
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace cutlass::gemm::collective {
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-template <
-    class DispatchPolicy,
-    class TileShape,
-    class ElementA,
-    class StrideA,
-    class ElementB,
-    class StrideB,
-    class TiledMma,
-    class GmemTiledCopyA,
-    class SmemLayoutAtomA,
-    class SmemCopyAtomA,
-    class TransformA,
-    class GmemTiledCopyB,
-    class SmemLayoutAtomB,
-    class SmemCopyAtomB,
-    class TransformB>
-struct CollectiveMmaArrayMixedInput {
-  static_assert(cutlass::detail::dependent_false<ElementA>, "Could not find a mainloop specialization.");
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-}  // namespace cutlass::gemm::collective
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "cutlass_extensions/gemm/collective/sm90_mma_array_tma_gmma_rs_warpspecialized_mixed_input_.hpp"
-/////////////////////////////////////////////////////////////////////////////////////////////////
+ #include "cutlass/detail/dependent_false.hpp"
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ namespace cutlass::gemm::collective
+ {
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ template <class DispatchPolicy, class TileShape, class ElementA, class StrideA, class ElementB, class StrideB,
+     class TiledMma, class GmemTiledCopyA, class SmemLayoutAtomA, class SmemCopyAtomA, class TransformA,
+     class GmemTiledCopyB, class SmemLayoutAtomB, class SmemCopyAtomB, class TransformB>
+ struct CollectiveMmaArrayMixedInput
+ {
+     static_assert(cutlass::detail::dependent_false<ElementA>, "Could not find a mainloop specialization.");
+ };
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ } // namespace cutlass::gemm::collective
+ 
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+ #include "cutlass_extensions/gemm/collective/sm90_mma_array_tma_gmma_rs_warpspecialized_mixed_input_.hpp"
+ /////////////////////////////////////////////////////////////////////////////////////////////////
+ 
