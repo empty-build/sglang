@@ -62,6 +62,9 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT [ "/entrypoint.sh" ]
 
+# 设置 workdir
+WORKDIR /sgl-workspace
+
 # 将源统一还原成火山的源
 RUN pip config set global.index-url https://mirrors.ivolces.com/pypi/simple/
 RUN rm -rf /var/lib/apt/lists/* && \
