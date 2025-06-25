@@ -1327,6 +1327,7 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
       problem_sizes_transpose);
 
   launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig2, cutlass::layout::RowMajor>(
+  // launch_sm90_fp8_blockwise_scaled_group_mm<OutType, MmaConfig2, cutlass::layout::ColumnMajor>( // illegal mem
       out_ptrs,
       a_ptrs,
       b_ptrs,
