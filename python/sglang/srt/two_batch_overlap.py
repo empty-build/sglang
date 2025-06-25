@@ -33,6 +33,7 @@ def get_token_num_per_seq(
     spec_info: Optional[Union[EagleDraftInput, EagleVerifyInput]] = None,
 ):
     if forward_mode.is_target_verify():
+        assert spec_info is not None
         return spec_info.draft_token_num
     elif forward_mode.is_decode():
         return 1
@@ -43,6 +44,7 @@ def get_token_num_per_seq(
         return None
 
 
+        
 # TODO: may smartly disable TBO when batch size is too small b/c it will slow down
 def compute_split_seq_index(
     forward_mode: "ForwardMode",
@@ -81,6 +83,99 @@ def _split_array_by_half_sum(arr: Sequence[int]) -> int:
 
     return best_index
 
+def split_spec_info(
+    spec_info: Optional[Union[EagleDraftInput, EagleVerifyInput]],
+    bs: int,
+    start_seq_index: int,
+    end_seq_index: int,
+    start_token_index: int,
+    end_token_index: int,
+):
+    if spec_info is None:
+        return None
+    if spec_info.draft_token is not None:
+        draft_token = spec_info.draft_token[start_token_index:end_token_index]
+    else:
+        draft_token = None
+    if spec_info.custom_mask is not None and spec_info.draft_token is not None:
+        if start_seq_index == 0:
+            custom_mask_start = 0
+        else:
+            custom_mask_start = 0
+            for i in range(min(start_seq_index, spec_info.seq_lens_cpu.shape[0])):
+                custom_mask_start += (
+                    spec_info.seq_lens_cpu[i] + spec_info.draft_token_num
+                ) * spec_info.draft_token_num
+        if end_seq_index == 0:
+            custom_mask_end = 0
+        elif end_seq_index == spec_info.seq_lens_cpu.shape[0]:
+            custom_mask_end = spec_info.custom_mask.shape[0]
+        else:
+            custom_mask_end = 0
+            for i in range(min(end_seq_index, spec_info.seq_lens_cpu.shape[0])):
+                custom_mask_end += (
+                    spec_info.seq_lens_cpu[i] + spec_info.draft_token_num
+                ) * spec_info.draft_token_num
+
+        logger.info(
+            f"seq_lens_cpu={spec_info.seq_lens_cpu}, start_seq_index={start_seq_index}, end_seq_index={end_seq_index}, custom_mask_start={custom_mask_start}, custom_mask_end={custom_mask_end}, spec_info.custom_mask_shape={spec_info.custom_mask.shape}"
+        )
+        custom_mask = spec_info.custom_mask[custom_mask_start:custom_mask_end]
+        # custom_mask = torch.full(
+        #     (spec_info.custom_mask.shape[0],),
+        #     True,
+        #     device=spec_info.custom_mask.device,
+        # )
+        # if custom_mask_end > custom_mask_start:
+        #     custom_mask[: (custom_mask_end - custom_mask_start)].copy_(
+        #         spec_info.custom_mask[custom_mask_start:custom_mask_end]
+        #     )
+    else:
+        custom_mask = spec_info.custom_mask
+    if spec_info.positions is not None:
+        positions = spec_info.positions[start_token_index:end_token_index]
+    else:
+        positions = None
+    if spec_info.retrive_index is not None:
+        retrive_index = spec_info.retrive_index[start_seq_index:end_seq_index]
+    else:
+        retrive_index = None
+    if spec_info.retrive_next_token is not None:
+        retrive_next_token = spec_info.retrive_next_token[start_seq_index:end_seq_index]
+    else:
+        retrive_next_token = None
+    if spec_info.retrive_next_sibling is not None:
+        retrive_next_sibling = spec_info.retrive_next_sibling[
+            start_seq_index:end_seq_index
+        ]
+    else:
+        retrive_next_sibling = None
+    if spec_info.retrive_cum_len is not None:
+        retrive_cum_len = spec_info.retrive_cum_len[start_seq_index:end_seq_index]
+    else:
+        retrive_cum_len = None
+
+    if spec_info.seq_lens_cpu is not None:
+        seq_lens_cpu = spec_info.seq_lens_cpu[start_seq_index:end_seq_index]
+    else:
+        seq_lens_cpu = None
+    if seq_lens_cpu is not None:
+        seq_lens_sum = sum(seq_lens_cpu)
+    else:
+        seq_lens_sum = 0
+    output_spec_info = replace(
+        spec_info,
+        custom_mask=custom_mask,
+        draft_token=draft_token,
+        positions=positions,
+        retrive_index=retrive_index,
+        retrive_next_token=retrive_next_token,
+        retrive_next_sibling=retrive_next_sibling,
+        retrive_cum_len=retrive_cum_len,
+        seq_lens_cpu=seq_lens_cpu,
+        seq_lens_sum=seq_lens_sum,
+    )
+    return output_spec_info
 
 def _compute_mask_offset(seq_index: int, spec_info: Optional[EagleVerifyInput]) -> int:
     if seq_index == 0:
@@ -178,6 +273,8 @@ def compute_split_token_index(
         return sum(extend_seq_lens[:split_seq_index])
     elif forward_mode.is_target_verify() or forward_mode.is_decode():
         assert token_num_per_seq is not None
+        if token_num_per_seq == 0:
+            return 0
         return split_seq_index * token_num_per_seq
     elif forward_mode.is_idle():
         assert split_seq_index == 0
@@ -482,12 +579,14 @@ class TboForwardBatchPreparer:
         spec_info = getattr(batch, "spec_info")
         output_spec_info = split_spec_info(
             spec_info=spec_info,
+            bs=batch.batch_size,
             start_token_index=start_token_index,
             end_token_index=end_token_index,
             start_seq_index=start_seq_index,
             end_seq_index=end_seq_index,
         )
         output_dict["spec_info"] = output_spec_info
+        
         for key in [
             "forward_mode",
             "is_extend_in_batch",
@@ -502,6 +601,7 @@ class TboForwardBatchPreparer:
             "mrope_positions",  # only used by qwen2-vl, thus not care
         ]:
             output_dict[key] = getattr(batch, key)
+
         if not batch.forward_mode.is_target_verify():
             assert (
                 _compute_extend_num_tokens(batch.input_ids, batch.forward_mode)

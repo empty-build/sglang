@@ -210,6 +210,7 @@ def _init_forward_metadata_cuda_graph_split(
     if spec_info is not None:
         output_spec_info = two_batch_overlap.split_spec_info(
             spec_info=spec_info,
+            bs=bs,
             start_seq_index=seq_slice.start if seq_slice.start is not None else 0,
             end_seq_index=seq_slice.stop if seq_slice.stop is not None else bs,
             start_token_index=(
@@ -223,7 +224,6 @@ def _init_forward_metadata_cuda_graph_split(
                 else bs * token_num_per_seq
             ),
         )
-
     else:
         output_spec_info = None
     ans = dict(
