@@ -1492,7 +1492,7 @@ class Scheduler(
         if self.server_args.enable_dp_attention or self.server_args.enable_sp_layernorm:
             if self.server_args.load_balance_method == "minimum_tokens":
                 self.handle_dp_balance_data(ret)
-            ret, _ = self.prepare_dp_attn_batch(ret)
+            ret, _ = self.prepare_mlp_sync_batch(ret)
 
         return ret
 
