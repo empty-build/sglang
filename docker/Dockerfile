@@ -63,7 +63,9 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5li
 
 # Build and install NVSHMEM + DeepEP
 RUN wget https://developer.download.nvidia.com/compute/redist/nvshmem/3.2.5/source/nvshmem_src_3.2.5-1.txz \
- && git clone --branch h20_support https://github.com/bytedance-iaas/DeepEP.git \
+ && git clone https://github.com/deepseek-ai/DeepEP.git \
+ && cd DeepEP \
+ && git checkout 004d6f9b666add104ff48ffed3dd61c2cca94488 \
  && tar -xf nvshmem_src_3.2.5-1.txz && mv nvshmem_src nvshmem \
  && cd nvshmem \
  && git apply /sgl-workspace/DeepEP/third-party/nvshmem.patch \
@@ -85,7 +87,7 @@ RUN wget https://developer.download.nvidia.com/compute/redist/nvshmem/3.2.5/sour
 # Python tools
 RUN python3 -m pip install --no-cache-dir \
     datamodel_code_generator \
-    mooncake_transfer_engine==0.3.4.post1 \
+    mooncake_transfer_engine==0.3.4.post2 \
     pre-commit \
     pytest \
     black \
