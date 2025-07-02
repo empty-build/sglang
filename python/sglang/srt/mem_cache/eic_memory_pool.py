@@ -9,6 +9,7 @@ import eic
 import torch
 import yaml
 
+from sglang.srt.layers.dp_attention import get_attention_tp_rank, get_attention_tp_size
 from sglang.srt.mem_cache.memory_pool import KVCache, MHATokenToKVPool, MLATokenToKVPool
 from sglang.srt.mem_cache.memory_pool_host import (
     MemoryStateInt,
@@ -628,11 +629,11 @@ class EICBaseTokenToKVPoolHost:
 
     def _get_deploy_info(self):
         model_path = self.extra_info.get("model_path", "fake_model_path")
-        world_size = self.extra_info.get("world_size", 1)
-        rank = self.extra_info.get("tp_rank", 0)
+        attention_tp_size = get_attention_tp_size()
+        attention_tp_rank = get_attention_tp_rank()
         page_size = self.page_size
         framework = self.extra_info.get("framework", "sglang")
-        deploy_key = f"{model_path}_{world_size}_{rank}_{page_size}@{framework}"
+        deploy_key = f"{model_path}_{attention_tp_size}_{attention_tp_rank}_{page_size}@{framework}"
         return deploy_key
 
     def _encode_key_shared(self, content_hashs):
@@ -717,7 +718,7 @@ class EICBaseTokenToKVPoolHost:
         return res
 
     def get_page_data(self, content_hashs):
-        logger.debug(f"get_flat_data content_hashs {content_hashs}")
+        logger.debug(f"get_page_data content_hashs {content_hashs}")
         keys = self._encode_key_shared(content_hashs)
         bs = TensorPoolSize
         ret = []
@@ -727,7 +728,7 @@ class EICBaseTokenToKVPoolHost:
             key = keys[i : i + bs]
             objs, success_mask = self.eic_client.batch_get(key)
             if objs is None:
-                logger.error(f"get_flat_data keys {key} failed, eic_client return none")
+                logger.error(f"get_page_data keys {key} failed, eic_client return none")
                 return None, []
             copy_objs = objs.clone()
             ret.extend([copy_objs[i] for i in range(copy_objs.shape[0])])
@@ -735,7 +736,7 @@ class EICBaseTokenToKVPoolHost:
 
         if len(ret) == 0:
             logger.error(
-                f"get_flat_data keys size {len(keys)} failed, eic_client return none, ret {ret}"
+                f"get_page_data keys size {len(keys)} failed, eic_client return none, ret {ret}"
             )
             return None, []
 
@@ -743,12 +744,13 @@ class EICBaseTokenToKVPoolHost:
         return flat_data, masks
 
     def assign_page_data(self, content_hashes, flat_data):
-        logger.debug(f"assign_flat_data hashes {content_hashes}")
+        logger.debug(f"assign_page_data hashes {content_hashes}")
         start_time = time.perf_counter()
 
         keys = self._encode_key_shared(content_hashes)
         flat_data = flat_data.contiguous()
         values = torch.split(flat_data, self.page_size, dim=self.split_dim)
+
         bs = TensorPoolSize
         split_time = time.perf_counter()
 
@@ -761,14 +763,14 @@ class EICBaseTokenToKVPoolHost:
                 ret = self.eic_client.set(key, value)
             if not ret:
                 logger.error(
-                    f"assign_flat_data keys {key} failed, eic_client return none"
+                    f"assign_page_data keys {key} failed, eic_client return none"
                 )
                 return False
 
         cost_time = time.perf_counter() - split_time
         if cost_time > 1:
             logger.warning(
-                f"finish assign flat data, total keys {len(keys)}, split time {split_time - start_time}, transfer time {cost_time}"
+                f"finish assign page data, total keys {len(keys)}, split time {split_time - start_time}, transfer time {cost_time}"
             )
         return True
 
@@ -935,6 +937,35 @@ class EICMLATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
             None, self.dtype, self.kvcache_shape, device_pool.device
         )
         self.split_dim = 1
+
+    def _get_deploy_info(self):
+        model_path = self.extra_info.get("model_path", "fake_model_path")
+        page_size = self.page_size
+        framework = self.extra_info.get("framework", "sglang")
+        deploy_key = f"{model_path}_{page_size}@{framework}"
+        return deploy_key
+
+    def _filter_kv_cache(self, keys: List[str], obj_inputs: torch.Tensor):
+        attention_tp_size = get_attention_tp_size()
+        attention_tp_rank = get_attention_tp_rank()
+
+        keys_len = len(keys)
+        mean_len = keys_len // attention_tp_size
+        remainder = keys_len % attention_tp_size
+        tp_keys_len = mean_len + (1 if attention_tp_rank < remainder else 0)
+        start = attention_tp_rank * mean_len + min(attention_tp_rank, remainder)
+        end = start + tp_keys_len
+        logger.debug(f"start: {start}, end: {end}, tp_keys_len: {tp_keys_len}")
+
+        return keys[start:end], obj_inputs.narrow(
+            dim=self.split_dim,
+            start=start * self.page_size,
+            length=tp_keys_len * self.page_size,
+        )
+
+    def assign_page_data(self, content_hashes, flat_data):
+        content_hashes, flat_data = self._filter_kv_cache(content_hashes, flat_data)
+        return super().assign_page_data(content_hashes, flat_data)
 
     def get_size_per_token(self):
         self.kv_lora_rank = self.device_pool.kv_lora_rank
