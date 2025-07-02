@@ -2,7 +2,6 @@ ARG CUDA_VERSION=12.6.1
 FROM iaas-gpu-cn-beijing.cr.volces.com/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
 
 # 编译之前，将源统一设置成内网的
-RUN pip config set global.index-url https://bytedpypi.byted.org/simple
 RUN sed -i 's/archive.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
     sed -i 's/security.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list
 
@@ -39,6 +38,9 @@ RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
  && ln -sf /usr/bin/python3 /usr/bin/python \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get clean
+
+# 设置pip源为内网
+RUN python3 -m pip config set global.index-url https://bytedpypi.byted.org/simple
 
 # GDRCopy installation
 RUN mkdir -p /tmp/gdrcopy && cd /tmp \
