@@ -161,7 +161,9 @@ class ServerArgs:
     enable_flashinfer_allreduce_fusion: bool = False
     deepep_mode: Optional[Literal["auto", "normal", "low_latency"]] = "auto"
     ep_num_redundant_experts: int = 0
-    ep_dispatch_algorithm: Optional[Literal["static", "dynamic", "fake", "balance"]] = None
+    ep_dispatch_algorithm: Optional[Literal["static", "dynamic", "fake", "balance"]] = (
+        None
+    )
     init_expert_location: str = "trivial"
     enable_eplb: bool = False
     eplb_algorithm: str = "auto"
@@ -214,6 +216,8 @@ class ServerArgs:
     allow_auto_truncate: bool = False
     enable_custom_logit_processor: bool = False
     enable_hierarchical_cache: bool = False
+    enable_eic_cache: bool = False
+    disable_eic_shared: bool = False
     hicache_ratio: float = 2.0
     hicache_size: int = 0
     hicache_write_policy: str = "write_through_selective"
@@ -448,7 +452,7 @@ class ServerArgs:
             logger.info(
                 "EPLB is enabled or init_expert_location is provided. ep_dispatch_algorithm is configured."
             )
-            
+
         if self.ep_dispatch_algorithm == "balance":
             assert (
                 not self.enable_eplb
@@ -570,6 +574,9 @@ class ServerArgs:
 
         if self.custom_weight_loader is None:
             self.custom_weight_loader = []
+
+        if self.enable_eic_cache and not self.enable_hierarchical_cache:
+            self.enable_hierarchical_cache = True
 
     def validate_disagg_tp_size(self, prefill_tp: int, decode_tp: int):
         larger_tp = max(decode_tp, prefill_tp)
@@ -1616,6 +1623,18 @@ class ServerArgs:
             "--debug-tensor-dump-prefill-only",
             action="store_true",
             help="Only dump the tensors for prefill requests (i.e. batch size > 1).",
+        )
+
+        parser.add_argument(
+            "--enable-eic-cache",
+            action="store_true",
+            help="Enable EIC cache",
+        )
+
+        parser.add_argument(
+            "--disable-eic-shared",
+            action="store_true",
+            help="Disable EIC shared cache, which is used to share the cache between multiple servers.",
         )
 
         # Disaggregation
