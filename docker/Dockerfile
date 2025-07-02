@@ -1,6 +1,12 @@
 ARG CUDA_VERSION=12.6.1
 FROM iaas-gpu-cn-beijing.cr.volces.com/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
 
+# 编译之前，将源统一设置成内网的
+RUN pip config set global.index-url https://bytedpypi.byted.org/simple
+RUN sed -i 's/archive.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list
+
+
 ARG BUILD_TYPE=all
 ARG DEEPEP_COMMIT=b6ce310bb0b75079682d09bc2ebc063a074fbd58
 ARG CMAKE_BUILD_PARALLEL_LEVEL=2
@@ -328,3 +334,9 @@ RUN set -euxo ; \
 
 # Set workspace directory
 WORKDIR /sgl-workspace/sglang
+
+# 将源统一还原成火山的源
+RUN pip config set global.index-url https://mirrors.ivolces.com/pypi/simple/
+RUN rm -rf /var/lib/apt/lists/* && \
+    sed -i 's/byted.org/ivolces.com/g' /etc/apt/sources.list.d/* && \
+    sed -i 's/byted.org/ivolces.com/g' /etc/apt/sources.list
