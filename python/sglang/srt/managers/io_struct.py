@@ -979,6 +979,7 @@ class ParseFunctionCallReq:
         None  # Specify the parser type, e.g. 'llama3', 'qwen25', or 'mistral'. If not specified, tries all.
     )
 
+
 @dataclass
 class WorkerPayloadStatus:
     running_reqs: int
@@ -989,6 +990,7 @@ class WorkerPayloadStatus:
 class DPWorkerPayloadStatus:
     dp_rank: int
     status: WorkerPayloadStatus
+
 
 @dataclass
 class SeparateReasoningReqInput:
@@ -1010,5 +1012,21 @@ class RpcReqInput:
 
 @dataclass
 class RpcReqOutput:
+    success: bool
+    message: str
+
+
+@dataclass
+class EnableEICReqInput:
+    pass
+
+
+@dataclass
+class DisableEICReqInput:
+    pass
+
+
+@dataclass
+class EICSwitchOutput:
     success: bool
     message: str
