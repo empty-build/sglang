@@ -280,7 +280,9 @@ def sglang_per_token_group_quant_fp8(
 ):
     assert (
         x.shape[-1] % group_size == 0
-    ), "the last dimension of `x` cannot be divisible by `group_size`"
+    ), "the last dimension of `x` cannot be divisible by `group_size` {} {}".format(
+        x.shape[-1], group_size
+    )
     assert x.is_contiguous(), "`x` is not contiguous"
 
     x_q = torch.empty_like(x, device=x.device, dtype=fp8_dtype)

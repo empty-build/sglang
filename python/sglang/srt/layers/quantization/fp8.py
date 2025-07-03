@@ -13,6 +13,7 @@ from sglang.srt.utils import get_bool_env_var
 
 MAX_SEQ_LEN = 32768
 USE_CUTLASS_OPT = True
+DECODE_BATCH_SIZE = 512
 try:
     from grouped_gemm.ops import permute
 except:
@@ -173,6 +174,13 @@ class GlobalVar:
             torch.empty((expert_num, 3), dtype=torch.int32, device=device),
             torch.empty((expert_num, 3), dtype=torch.int32, device=device),
         ]
+
+        self.problem_sizes[0][:, 1] = 2 * n
+        self.problem_sizes[0][:, 2] = k
+
+        self.problem_sizes[1][:, 1] = k
+        self.problem_sizes[1][:, 2] = n
+
         self.permute_map = [
             torch.empty((int(max_m * top_k)), dtype=torch.int32, device=device),
             torch.empty((int(max_m * top_k)), dtype=torch.int32, device=device),
@@ -938,14 +946,37 @@ class Fp8MoEMethod:
                 w13_weight_scale_inv = w13_weight_scale_inv.repeat(w13_weight.size(0))
                 w2_weight_scale_inv = w2_weight_scale_inv.repeat(w13_weight.size(0))
 
+                block_shape_1, block_shape_2 = self.quant_config.weight_block_size
+                w13_scale_expand_dim1 = w13_weight.size(1) // block_shape_1
+                w13_scale_expand_dim2 = w13_weight.size(2) // block_shape_2
+
+                w2_scale_expand_dim1 = w2_weight.size(1) // block_shape_1
+                w2_scale_expand_dim2 = w2_weight.size(2) // block_shape_2
+
+                # print("{} {} {} {}".format(w13_weight.size(1), w13_weight.size(2), w2_weight.size(1), w2_weight.size(2)))
+                w13_weight_scale_inv_fake = w13_weight_scale_inv.view(
+                    w13_weight.size(0), 1, 1
+                ).repeat(1, w13_scale_expand_dim1, w13_scale_expand_dim2)
+                w2_weight_scale_inv_fake = w2_weight_scale_inv.view(
+                    w2_weight.size(0), 1, 1
+                ).repeat(1, w2_scale_expand_dim1, w2_scale_expand_dim2)
+
                 # Minimize new GPU memory allocations
                 layer.w13_weight.data.copy_(w13_weight.contiguous())
-                layer.w13_weight_scale_inv = Parameter(
+                layer.w13_weight_scale_scalar = Parameter(
                     w13_weight_scale_inv, requires_grad=False
                 )  # cuz changed shape
                 layer.w2_weight.data.copy_(w2_weight.contiguous())
-                layer.w2_weight_scale_inv = Parameter(
+                layer.w2_weight_scale_scalar = Parameter(
                     w2_weight_scale_inv, requires_grad=False
+                )  # cuz changed shape
+
+                layer.w13_weight_scale_inv = Parameter(
+                    w13_weight_scale_inv_fake.contiguous(), requires_grad=False
+                )  # cuz changed shape
+
+                layer.w2_weight_scale_inv = Parameter(
+                    w2_weight_scale_inv_fake.contiguous(), requires_grad=False
                 )  # cuz changed shape
 
             return
@@ -1204,6 +1235,8 @@ class Fp8MoEMethod:
             if ret is not None:
                 return ret
 
+        is_prefill_shape = x.shape[0] > DECODE_BATCH_SIZE
+
         if (
             get_bool_env_var("SGLANG_CUTLASS_MOE")
             and self.cutlass_fp8_supported
@@ -1235,7 +1268,11 @@ class Fp8MoEMethod:
                 self.problem_sizes2,
                 use_fp8_blockscale=True,
             )
-        elif get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8") and USE_CUTLASS_OPT:
+        elif (
+            get_bool_env_var("SGL_USE_CUTLASS_MOE_FP8")
+            and USE_CUTLASS_OPT
+            and is_prefill_shape
+        ):
             moe_args = GlobalVar()
             n = layer.w13_weight.shape[1] / 2
             k = x.shape[1]
@@ -1249,8 +1286,8 @@ class Fp8MoEMethod:
                     1, 2
                 ),  # per-block = scale_inv # .transpose(1, 2), Hidden size matches w1
                 layer.w2_weight.transpose(1, 2),
-                layer.w13_weight_scale_inv,  # per-block = scale_inv # Hidden size match w2
-                layer.w2_weight_scale_inv,
+                layer.w13_weight_scale_scalar,  # per-block = scale_inv # Hidden size match w2
+                layer.w2_weight_scale_scalar,
                 topk_weights,
                 topk_ids,
                 self.ab_strides1,  # missing
