@@ -230,7 +230,9 @@ def cutlass_moe_fp8(
         ab_strides2,
         c_strides2,
     )
-
+    # torch.cuda.synchronize()
+    # device_id = torch.cuda.current_device()
+    # print("device_id:{}  a1_scale: {} a2_scale: {}\n".format(device_id, a1_scale, a2_scale))
     return unpermute(c2, unpermute_map, topk_weights)
 
 
