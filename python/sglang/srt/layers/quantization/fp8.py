@@ -14,6 +14,7 @@ from sglang.srt.utils import get_bool_env_var
 MAX_SEQ_LEN = 32768
 USE_CUTLASS_OPT = True
 DECODE_BATCH_SIZE = 512
+FIXED_SCALE = 0.005
 try:
     from grouped_gemm.ops import permute
 except:
@@ -164,6 +165,8 @@ class GlobalVar:
         device = "cuda"
         self.a1_scale = torch.empty((1), device=device, dtype=torch.float)
         self.a2_scale = torch.empty((1), device=device, dtype=torch.float)
+        self.a1_scale[0] = FIXED_SCALE
+        self.a2_scale[0] = FIXED_SCALE
         self.a_q_fp8 = torch.empty((max_m, k), device=device, dtype=torch.float8_e4m3fn)
         self.expert_offsets = torch.empty(
             (expert_num + 1), dtype=torch.int32, device=device
