@@ -15,7 +15,19 @@ from sglang.test.test_utils import (
     popen_launch_server,
 )
 
+def model_cache(model_repo_id):
+    # 从环境变量获取模型文件夹位置
+    model_dir = os.getenv('MODEL_DIR')
+    if model_dir is None:
+        return model_repo_id
+    
+    local_path = os.path.join(model_dir, model_repo_id)
 
+    # 检查本地路径是否存在
+    if os.path.isdir(local_path):
+        return os.path.abspath(local_path)
+
+    return model_repo_id
 
 class _BaseTestDynamicEPLB(CustomTestCase):
     extra_args = []
