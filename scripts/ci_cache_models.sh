@@ -17,9 +17,11 @@ if [ -z "$cache_dir" ]; then
 fi
 
 for model in $models; do
-    echo "Caching model: $model"
-    # 使用 cache_dir 作为下载路径
-    python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='$model', local_dir='$cache_dir', local_dir_use_symlinks=False)"
+    # 构建每个模型的本地下载路径
+    local_model_dir="$cache_dir/$model"
+    echo "Caching model: $model to $local_model_dir"
+    # 使用 local_model_dir 作为下载路径
+    python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='$model', local_dir='$local_model_dir', local_dir_use_symlinks=False)"
     if [ $? -ne 0 ]; then
         echo "Failed to cache model: $model"
     else
