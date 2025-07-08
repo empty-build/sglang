@@ -420,8 +420,8 @@ class ServerArgs:
 
         # DeepEP MoE
         if self.enable_deepep_moe:
-            if self.deepep_mode == "normal":
-                logger.warning("Cuda graph is disabled because deepep_mode=`normal`")
+            if self.deepep_mode == "normal" and self.nnodes > 1:
+                logger.warning("Cuda graph is disabled because deepep_mode=`normal` and nnodes > 1")
                 self.disable_cuda_graph = True
             self.ep_size = self.tp_size
             logger.warning(
