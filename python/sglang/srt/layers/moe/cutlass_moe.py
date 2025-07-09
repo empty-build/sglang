@@ -138,6 +138,7 @@ def cutlass_moe_fp8(
 
     assert m <= moe_ws.a_q_fp8.shape[0], "runtime shape exceed max workspace shape"
 
+    use_static_scale = moe_ws.static_scale
     local_topk_ids = topk_ids_
     if expert_map is not None:
         "Translate info from expert_map to topk_ids"
@@ -161,12 +162,13 @@ def cutlass_moe_fp8(
     #     hidden_states, a1_scale, use_per_token_if_dynamic=per_act_token)
     device = a.device
     a_q = moe_ws.a_q_fp8[0:m, :]
-
-    a1_scale = moe_ws.a1_scale
-    a2_scale = moe_ws.a2_scale
+    if use_static_scale:
+        a1_scale = moe_ws.a1_scale
+        a2_scale = moe_ws.a2_scale
+    else:
+        a1_scale = torch.empty(1, dtype=torch.float32, device="cuda")
+        a2_scale = torch.empty(1, dtype=torch.float32, device="cuda")
     # can not reuse scale for maxReduce will load a1_scale
-    # a1_scale = torch.empty(1, dtype = torch.float32, device = "cuda")
-    # a2_scale =  torch.empty(1, dtype = torch.float32, device = "cuda")
 
     expert_offsets = moe_ws.expert_offsets
     problem_sizes1 = moe_ws.problem_sizes[0]
@@ -185,7 +187,7 @@ def cutlass_moe_fp8(
     #                             problem_sizes2, a_map, c_map, num_experts, n,
     #                             k)
 
-    sgl_per_tensor_quant_fp8(a, a_q, a1_scale, True)
+    sgl_per_tensor_quant_fp8(a, a_q, a1_scale, use_static_scale)
     get_cutlass_moe_mm_data(
         local_topk_ids,
         expert_offsets,
@@ -216,7 +218,7 @@ def cutlass_moe_fp8(
 
     silu_and_mul(c1, intermediate)
 
-    sgl_per_tensor_quant_fp8(intermediate, intemediate_q, a2_scale, True)
+    sgl_per_tensor_quant_fp8(intermediate, intemediate_q, a2_scale, use_static_scale)
 
     cutlass_moe_mm(
         c2,
