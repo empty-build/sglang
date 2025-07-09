@@ -21,9 +21,11 @@ for model in $models; do
     local_model_dir="$cache_dir/$model"
     echo "Caching model: $model to $local_model_dir"
     # 使用 local_model_dir 作为下载路径
-    python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='$model', local_dir='$local_model_dir', local_dir_use_symlinks=False)"
+    mkdir -p "$local_model_dir"
+    huggingface-cli download "$model" --local-dir "$local_model_dir" --local-dir-use-symlinks False
     if [ $? -ne 0 ]; then
         echo "Failed to cache model: $model"
+        continue 
     else
         echo "Successfully cached model: $model"
     fi
