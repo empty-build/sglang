@@ -13,7 +13,7 @@ from sglang.srt.utils import get_bool_env_var
 
 MAX_SEQ_LEN = 32768
 USE_CUTLASS_OPT = True
-DECODE_BATCH_SIZE = 256
+DECODE_BATCH_SIZE = 512
 FIXED_SCALE_TP1_1 = 0.5848
 FIXED_SCALE_TP1_2 = 4.2857
 FIXED_SCALE_TP2_1 = 0.5848
@@ -149,6 +149,7 @@ class GlobalVar:
         self.inter_q = None
         self.remap_q = None
         self.permute_ws_inited = False
+        self.static_scale = False
 
     def init_permute_ws(self, top_k, hidden_size):
         if not self.permute_ws_inited and USE_CUTLASS_OPT:
@@ -162,7 +163,7 @@ class GlobalVar:
             self.permute_ws_inited = True
             del input_act
 
-    def create_workspace(self, max_m, n, k, top_k, expert_num):
+    def create_workspace(self, max_m, n, k, top_k, expert_num, static_scale=False):
 
         device_id = torch.cuda.current_device()
 
@@ -175,19 +176,20 @@ class GlobalVar:
         device = "cuda"
         self.a1_scale = torch.empty((1), device=device, dtype=torch.float)
         self.a2_scale = torch.empty((1), device=device, dtype=torch.float)
-        scale_1 = 0.0
-        scale_2 = 0.0
-        if torch.cuda.current_device() % 4 == 0:
-            scale_1, scale_2 = FIXED_SCALE_TP1_1, FIXED_SCALE_TP1_2
-        elif torch.cuda.current_device() % 4 == 1:
-            scale_1, scale_2 = FIXED_SCALE_TP2_1, FIXED_SCALE_TP2_2
-        elif torch.cuda.current_device() % 4 == 2:
-            scale_1, scale_2 = FIXED_SCALE_TP3_1, FIXED_SCALE_TP3_2
-        elif torch.cuda.current_device() % 4 == 3:
-            scale_1, scale_2 = FIXED_SCALE_TP4_1, FIXED_SCALE_TP4_2
-
-        self.a1_scale[0] = scale_1
-        self.a2_scale[0] = scale_2
+        if static_scale:
+            self.static_scale = True
+            scale_1 = 0.0
+            scale_2 = 0.0
+            if torch.cuda.current_device() % 4 == 0:
+                scale_1, scale_2 = FIXED_SCALE_TP1_1, FIXED_SCALE_TP1_2
+            elif torch.cuda.current_device() % 4 == 1:
+                scale_1, scale_2 = FIXED_SCALE_TP2_1, FIXED_SCALE_TP2_2
+            elif torch.cuda.current_device() % 4 == 2:
+                scale_1, scale_2 = FIXED_SCALE_TP3_1, FIXED_SCALE_TP3_2
+            elif torch.cuda.current_device() % 4 == 3:
+                scale_1, scale_2 = FIXED_SCALE_TP4_1, FIXED_SCALE_TP4_2
+            self.a1_scale[0] = scale_1
+            self.a2_scale[0] = scale_2
         self.a_q_fp8 = torch.empty((max_m, k), device=device, dtype=torch.float8_e4m3fn)
         self.expert_offsets = torch.empty(
             (expert_num + 1), dtype=torch.int32, device=device
@@ -1301,7 +1303,18 @@ class Fp8MoEMethod:
             expert_num = layer.w13_weight.shape[0]
             top_k = topk_ids.shape[1]
 
-            moe_args.create_workspace(MAX_SEQ_LEN, int(n), k, top_k, expert_num)
+            is_qwen3_235B_tp4 = (n == 384) and (k == 4096)
+            use_static_scale = get_bool_env_var("USE_STATIC_SCALE")
+            # if is_qwen3_235B_tp4:
+            # print("use static scale")
+            moe_args.create_workspace(
+                MAX_SEQ_LEN,
+                int(n),
+                k,
+                top_k,
+                expert_num,
+                static_scale=(is_qwen3_235B_tp4 and use_static_scale),
+            )
             return cutlass_moe_fp8(
                 x,
                 layer.w13_weight.transpose(

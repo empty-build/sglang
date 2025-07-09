@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 import math
+import os
 from typing import Callable, Optional
 
 import torch
@@ -37,6 +37,8 @@ from sglang.srt.utils import (
     is_hip,
     is_npu,
 )
+
+APP_1_SUM = 1.4783
 
 _is_cuda = is_cuda()
 _is_hip = is_hip()
@@ -121,6 +123,20 @@ def fused_topk(
         renormalize,
     )
 
+
+@torch.compile(dynamic=True, backend=get_compiler_backend())
+def _fused_topk_postprocess(
+    topk_weights,
+    topk_ids,
+    renormalize,
+    expert_location_dispatch_info,
+    num_token_non_padded,
+):
+    skip_renormize = os.getenv("USE_FAST_TOPK_WEIGHTS")
+    if renormalize and (not skip_renormize):
+        topk_weights = topk_weights / topk_weights.sum(dim=-1, keepdim=True)
+    if skip_renormize:
+        topk_weights = topk_weights * APP_1_SUM
     topk_ids = topk_ids_logical_to_physical(topk_ids, expert_location_dispatch_info)
     _mask_topk_ids_padded_region(topk_ids, num_token_non_padded)
     return topk_weights, topk_ids
