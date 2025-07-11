@@ -260,7 +260,7 @@ class PrisKVClient:
 
         get_data_execution_time = (time.perf_counter() - get_data_start_time) * 1e6
         logger.info(
-            "Pris batch_get detail info:- total key nums: {len(keys)} status: {status}, mget cost: {get_data_execution_time:%.2f}us "
+            f"Pris batch_get detail info:- total key nums: {len(keys)} status: {status}, mget cost: {get_data_execution_time}us "
         )
 
         # Ensure the output tensor is on the target device
@@ -270,7 +270,6 @@ class PrisKVClient:
         return items, success_mask
 
     def batch_set(self, keys: List[str], obj_inputs: torch.Tensor) -> bool:
-        start_time = time.perf_counter()
         logger.debug(f"Pris set {len(keys)} keys")
         assert len(keys) == len(obj_inputs)
         count = len(keys)
@@ -280,12 +279,15 @@ class PrisKVClient:
         if items is None:
             logger.error("Cannot allocate tensor from FlexibleKVCacheMemoryPool")
             return False
-
-        torch.cuda.set_stream(self.write_stream)
-        for i in range(len(keys)):
-            temp = items[i].reshape(obj_inputs[i].shape).contiguous()
-            temp.copy_(obj_inputs[i], non_blocking=True)
-        self.write_stream.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        start.record()
+        copy_end = torch.cuda.Event(enable_timing=True)
+        with torch.cuda.stream(self.write_stream):
+            for i in range(len(keys)):
+                temp = items[i].reshape(obj_inputs[i].shape).contiguous()
+                temp.copy_(obj_inputs[i], non_blocking=True)
+            copy_end.record()
+        self.write_stream.synchronize()    
         sgls = [
             pris.SGL(
                 item.data_ptr(),
@@ -294,10 +296,13 @@ class PrisKVClient:
             )
             for item in items
         ]
-        elapsed_copy_us = (time.perf_counter() - start_time) * 1e6
-        status, _ = self.client.mset(keys, sgls)
 
+        elapsed_copy_us = start.elapsed_time(copy_end) * 1000
+        
+        start_time = time.perf_counter()
+        status, _ = self.client.mset(keys, sgls)
         elapsed_us = (time.perf_counter() - start_time) * 1e6
+
         logger.info(
             f"Pris mset | keys={len(keys)} | shapes={self.kv_cache_shape} | status={status} | time={elapsed_us:.2f}µs, | copy_time={elapsed_copy_us:.2f}µs"
         )

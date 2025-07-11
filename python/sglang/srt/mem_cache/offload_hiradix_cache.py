@@ -120,7 +120,7 @@ class OffloadHiRadixCache(RadixCache):
         self.ongoing_load_back = {}
         # todo: dynamically adjust the threshold
         self.write_through_threshold = (
-            1 if hicache_write_policy == "write_through" else 3
+            1 if hicache_write_policy == "write_through" else 5
         )
         self.load_back_threshold = 10
         super().__init__(
@@ -301,11 +301,19 @@ class OffloadHiRadixCache(RadixCache):
         return self.evictable_size_
 
     def evict(self, num_tokens: int, evict_callback=None, retry_times: int = 5):
+        start_time = time.perf_counter()
+        w_ongoing_len = len(self.ongoing_write_through)
+        l_ongoing_len = len(self.ongoing_load_back)
+
         while len(self.ongoing_write_through) > 50 or len(self.ongoing_load_back) > 50:
             self.writing_check()
             self.loading_check()
             time.sleep(0.001)
-
+        
+        elapsed_us = (time.perf_counter() - start_time) * 1e6
+        logger.info(
+            f"start w_ongoing_len {w_ongoing_len},now w_ongoing_len {len(self.ongoing_write_through)}, start l_ongoing_len {l_ongoing_len}, now l_ongoing_len {len(self.ongoing_load_back)}, cost {elapsed_us:.3f} us"
+        )
         num_evicted = 0
         while retry_times > 0:
             retry_times -= 1
@@ -899,7 +907,7 @@ class OffloadPagedHiRadixCache(OffloadHiRadixCache):
             last_host_node=last_node_global,
             host_hit_length=host_hit_length,
         )
-       
+
     def write_backup(self, node: TreeNode, write_back=False):
         if _need_calculate_hash(node, self.page_size):
             self._calculate_content_hash(node)
