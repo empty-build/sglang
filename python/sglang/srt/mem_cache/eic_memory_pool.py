@@ -774,7 +774,7 @@ class EICBaseTokenToKVPoolHost:
             )
         return True
 
-    @debug_timing
+    # @debug_timing
     # def transfer(self, indices, flat_data):
     #     # backup prepared data from device to host
     #     return self.assign_flat_data(indices, flat_data)
