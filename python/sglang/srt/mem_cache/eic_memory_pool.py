@@ -13,7 +13,7 @@ from sglang.srt.layers.dp_attention import get_attention_tp_rank, get_attention_
 from sglang.srt.mem_cache.memory_pool import KVCache, MHATokenToKVPool, MLATokenToKVPool
 from sglang.srt.mem_cache.memory_pool_host import (
     MemoryStateInt,
-    debug_timing,
+    # debug_timing,
     synchronized,
 )
 
@@ -775,9 +775,9 @@ class EICBaseTokenToKVPoolHost:
         return True
 
     @debug_timing
-    def transfer(self, indices, flat_data):
-        # backup prepared data from device to host
-        return self.assign_flat_data(indices, flat_data)
+    # def transfer(self, indices, flat_data):
+    #     # backup prepared data from device to host
+    #     return self.assign_flat_data(indices, flat_data)
 
     @synchronized()
     def clear(self):
