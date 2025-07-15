@@ -14,7 +14,7 @@ from sglang.srt.mem_cache.memory_pool import (
     KVCache,
     MHATokenToKVPool,
     MLATokenToKVPool,
-    debug_timing,
+    # debug_timing,
 )
 from sglang.srt.mem_cache.memory_pool_host import MemoryStateInt, synchronized
 
@@ -515,9 +515,9 @@ class OffloadBaseTokenToKVPoolHost:
 
         return True
 
-    @debug_timing
-    def transfer(self, indices, flat_data):
-        return self.assign_flat_data(indices, flat_data)
+    # @debug_timing
+    # def transfer(self, indices, flat_data):
+    #     return self.assign_flat_data(indices, flat_data)
 
     @synchronized()
     def clear(self):

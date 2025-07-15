@@ -614,7 +614,7 @@ class Scheduler(
             )
         else:
             if self.enable_hierarchical_cache:
-                self.tree_cache = HiRadixCache(
+                # self.tree_cache = HiRadixCache(
                 tp_cache_group = (
                     self.attn_tp_cpu_group
                     if server_args.enable_dp_attention
@@ -1483,6 +1483,7 @@ class Scheduler(
         self._publish_kv_events()
 
     def check_memory(self):
+        from sglang.srt.mem_cache.allocator import SWATokenToKVPoolAllocator
         if isinstance(self.token_to_kv_pool_allocator, SWATokenToKVPoolAllocator):
             available_token_size = self.token_to_kv_pool_allocator.full_available_size()
         else:
