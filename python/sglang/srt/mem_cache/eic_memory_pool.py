@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import queue
@@ -11,11 +12,7 @@ import yaml
 
 from sglang.srt.layers.dp_attention import get_attention_tp_rank, get_attention_tp_size
 from sglang.srt.mem_cache.memory_pool import KVCache, MHATokenToKVPool, MLATokenToKVPool
-from sglang.srt.mem_cache.memory_pool_host import (
-    MemoryStateInt,
-    # debug_timing,
-    synchronized,
-)
+from sglang.srt.mem_cache.memory_pool_host import MemoryStateInt, synchronized
 
 logger = logging.getLogger(__name__)
 
@@ -35,27 +32,54 @@ G_EnableGPUNicAffinity = False
 # async kv set
 G_EnableAsyncKVSet = False
 
+# default H20 gpu nic affinity
+GPUNicAffinity = {
+    "cuda:0": "eth1",
+    "cuda:1": "eth1",
+    "cuda:2": "eth2",
+    "cuda:3": "eth2",
+    "cuda:4": "eth3",
+    "cuda:5": "eth3",
+    "cuda:6": "eth4",
+    "cuda:7": "eth4",
+}
 
-class FlexibleTensorSizePool:
-    def __init__(self, conn, kvcache_shape, kvcache_dtype):
+# default H20 cpu nic affinity
+CPUNicAffinity = {
+    "cuda:0": "cpu",
+    "cuda:1": "cpu",
+    "cuda:2": "cpu",
+    "cuda:3": "cpu",
+    "cuda:4": "cpu",
+    "cuda:5": "cpu",
+    "cuda:6": "cpu",
+    "cuda:7": "cpu",
+}
+
+
+def get_eic_config_file_path():
+    if os.environ.get(REMOTE_EIC_YAML_ENV_VAR) is not None:
+        logger.info(f"eic init with env var {REMOTE_EIC_YAML_ENV_VAR}")
+        config_file = os.environ.get(REMOTE_EIC_YAML_ENV_VAR)
+    else:
+        config_file = "/sgl-workspace/config/remote-eic.yaml"
+        logger.info(f"eic init with default config, config_file {config_file}")
+    return config_file
+
+
+class FlexibleKVCacheMemoryPool:
+    def __init__(self, conn, kvcache_shape, kvcache_dtype, device):
         self.connection = conn
-        if G_EnableGPUNicAffinity:
-            CPUNicAffinity = {
-                "cuda:0": "cpu:0",
-                "cuda:1": "cpu:0",
-                "cuda:2": "cpu:0",
-                "cuda:3": "cpu:0",
-                "cuda:4": "cpu:1",
-                "cuda:5": "cpu:1",
-                "cuda:6": "cpu:1",
-                "cuda:7": "cpu:1",
-            }
-            gpu_id = torch.cuda.current_device()
-            cpu_device = CPUNicAffinity["cuda:" + str(gpu_id)]
-        else:
-            cpu_device = "cpu"
 
-        self.device = cpu_device
+        if device.startswith("cpu") and G_EnableGPUNicAffinity:
+            gpu_id = torch.cuda.current_device()
+            self.device = CPUNicAffinity["cuda:" + str(gpu_id)]
+            # current memory pool size is 5 times of CPU TensorPoolSize
+            mempool_size = TensorPoolSize * 5
+        else:
+            self.device = device
+            mempool_size = TensorPoolSize
+
         self.kvcache_shape = kvcache_shape
         self.kvcache_dtype = kvcache_dtype
 
@@ -66,7 +90,6 @@ class FlexibleTensorSizePool:
         self.free_data_addr = set()
         self.data_ptr_to_index = dict()
 
-        mempool_size = TensorPoolSize * 5
         if self.device.startswith("cpu"):
             self.kvcache_mempool = torch.zeros(
                 (mempool_size,) + kvcache_shape,
@@ -94,11 +117,11 @@ class FlexibleTensorSizePool:
         )
         self.connection.register_memory(vals, meminfo)
         logger.info(
-            f"allocate cpu memory pool, size {self.kvcache_mempool.numel() * self.kvcache_mempool.element_size()}, device {self.device}"
+            f"allocate memory pool, size {self.kvcache_mempool.numel() * self.kvcache_mempool.element_size()}, device {self.device}"
         )
 
-    def allocate_cpu_kvcache_pool(self, shape, dtype):
-        if len(self.free_data_addr) == 0:
+    def try_allocate_kv_cache(self, shape, dtype, count=1):
+        if len(self.free_data_addr) < count:
             return None
 
         numel = 1
@@ -110,8 +133,11 @@ class FlexibleTensorSizePool:
             )
             return None
 
-        free_index = self.free_data_addr.pop()
-        return self.kvcache_mempool[free_index]
+        ret = []
+        for _ in range(count):
+            free_index = self.free_data_addr.pop()
+            ret.append(self.kvcache_mempool[free_index])
+        return ret
 
     def free_to_mempool(self, data_ptr):
         if data_ptr not in self.data_ptr_to_index:
@@ -128,81 +154,16 @@ class FlexibleTensorSizePool:
         return len(self.free_data_addr)
 
 
-class FlexibleKVCacheMemoryPool:
-    def __init__(self, conn, device: str, kv_cache_shape, kv_cache_dtype):
-        self.connection = conn
-        self.device = device
-        self.pined_cpu = False
-
-        """ (num_layer, 2, chunk_size, num_kv_head, head_size) """
-        self.kv_cache_shape = kv_cache_shape
-        self.kv_cache_dtype = kv_cache_dtype
-        self.max_kv_cache_num = TensorPoolSize
-
-        if self.device == "cpu" and self.pined_cpu:
-            self.mempool = torch.zeros(
-                (self.max_kv_cache_num,) + kv_cache_shape,
-                dtype=kv_cache_dtype,
-                device=device,
-                pin_memory=True,
-            )
-        else:
-            self.mempool = torch.zeros(
-                (self.max_kv_cache_num,) + kv_cache_shape,
-                dtype=kv_cache_dtype,
-                device=device,
-            )
-
-        self.kv_cache_numel = 1
-        for i in self.kv_cache_shape:
-            self.kv_cache_numel *= i
-
-        meminfo = eic.MemoryInfo()
-        meminfo.type = eic.MemoryType.MEMORY_CUDA
-        meminfo.cuda_id = 0
-
-        vals = eic.IOBuffers()
-        vals.append(
-            self.mempool.data_ptr(),
-            self.mempool.numel() * self.mempool.element_size(),
-            True,
-        )
-        self.connection.register_memory(vals, meminfo)
-
-        logger.info(
-            f"register memory memory pool shape {self.kv_cache_shape}, dtype {self.kv_cache_dtype}, kv_cache_num {self.max_kv_cache_num}, \
-device {device}, total_size {self.max_kv_cache_num * (self.mempool[0].numel() * self.mempool[0].element_size())}"
-        )
-
-    def try_allocate_kv_cache(self, shape, dtype, count):
-        if self.kv_cache_dtype != dtype or self.kv_cache_shape != shape:
-            logger.error(
-                f"allocate from mempool failed, self.kv_cache_shape {self.kv_cache_shape}, dtype {self.kv_cache_dtype}, require shape {shape}, dtype {dtype}"
-            )
-            return None
-
-        if count > self.max_kv_cache_num:
-            logger.error(
-                f"allocate from mempool failed, self.kv_cache_shape {self.kv_cache_shape}, dtype {self.kv_cache_dtype}, require count {count}, max_kv_cache_num {self.max_kv_cache_num}"
-            )
-            return None
-
-        return self.mempool[:count]
-
-
 class EICKVClient:
     """
     The remote url should start with "eic://" and only have one host-port pair
     """
 
-    def __init__(self, endpoint: str, kv_cache_dtype, kv_cache_shape, device="cpu"):
-        if os.environ.get(REMOTE_EIC_YAML_ENV_VAR) is not None:
-            logger.info(f"eic init with env var {REMOTE_EIC_YAML_ENV_VAR}")
-            config_file = os.environ.get(REMOTE_EIC_YAML_ENV_VAR)
-        else:
-            config_file = "/sgl-workspace/config/remote-eic.yaml"
-            logger.info(f"eic init with default config, config_file {config_file}")
+    def __init__(self, kv_cache_dtype, kv_cache_shape, device="cpu"):
+        global G_EnableKVSetGPUDirect, G_EnableKVGetGPUDirect, G_EnableAsyncKVSet
+        global GPUNicAffinity, CPUNicAffinity, G_EnableGPUNicAffinity
 
+        config_file = get_eic_config_file_path()
         if os.path.exists(config_file) is False:
             logger.error(f"config file {config_file} not exists")
             exit(1)
@@ -236,11 +197,14 @@ class EICKVClient:
         eic_flag_file = config.get("eic_flag_file", None)
         logger.info(f"eic flag_file: {eic_flag_file}")
 
-        global G_EnableKVSetGPUDirect, G_EnableKVGetGPUDirect, G_EnableGPUNicAffinity, G_EnableAsyncKVSet
-        G_EnableKVSetGPUDirect = config.get("enable_kvset_gpu_direct", False)
+        G_EnableKVSetGPUDirect = (
+            config.get("enable_kvset_gpu_direct", False) and torch.cuda.is_available()
+        )
         logger.info(f"eic enable_kvset_gpu_direct: {G_EnableKVSetGPUDirect}")
 
-        G_EnableKVGetGPUDirect = config.get("enable_kvget_gpu_direct", True)
+        G_EnableKVGetGPUDirect = (
+            config.get("enable_kvget_gpu_direct", True) and torch.cuda.is_available()
+        )
         logger.info(f"eic enable_kvget_gpu_direct: {G_EnableKVGetGPUDirect}")
 
         # rdma write
@@ -253,8 +217,16 @@ class EICKVClient:
         logger.info(f"eic enable_gpu_nic_affinity: {G_EnableGPUNicAffinity}")
         self.enable_gpu_nic_affinity = G_EnableGPUNicAffinity
 
+        if G_EnableGPUNicAffinity:
+            if "gpu_nic_affinity_config" in config:
+                GPUNicAffinity = json.loads(config["gpu_nic_affinity_config"])
+            if "cpu_nic_affinity_config" in config:
+                CPUNicAffinity = json.loads(config["cpu_nic_affinity_config"])
+            logger.info(f"eic gpu nic affinity {GPUNicAffinity}")
+            logger.info(f"eic cpu nic affinity {CPUNicAffinity}")
+
         G_EnableAsyncKVSet = config.get("enable_async_kvset", False)
-        logger.info(f"eic enable_async_batch_kvset: {G_EnableAsyncKVSet}")
+        logger.info(f"eic enable_async_kvset: {G_EnableAsyncKVSet}")
 
         eic_namespace = config.get("eic_namespace", "")
         logger.info(f"eic namespace: {eic_namespace}")
@@ -262,17 +234,6 @@ class EICKVClient:
 
         if not os.path.exists(eic_log_dir) and not os.path.isdir(eic_log_dir):
             os.makedirs(eic_log_dir, exist_ok=True)
-
-        GPUNicAffinity = {
-            "cuda:0": "eth1",
-            "cuda:1": "eth1",
-            "cuda:2": "eth2",
-            "cuda:3": "eth2",
-            "cuda:4": "eth3",
-            "cuda:5": "eth3",
-            "cuda:6": "eth4",
-            "cuda:7": "eth4",
-        }
 
         self.connection = eic.Client()
         init_option = eic.InitOption()
@@ -301,25 +262,25 @@ class EICKVClient:
         self.kv_cache_dtype = kv_cache_dtype
 
         # use for kv get
-        self.kv_cache_mem_pool = FlexibleKVCacheMemoryPool(
+        self.kv_cache_read_mem_pool = FlexibleKVCacheMemoryPool(
             self.connection,
-            self.device if G_EnableKVGetGPUDirect else "cpu",
             self.kv_cache_shape,
             self.kv_cache_dtype,
+            self.device if G_EnableKVGetGPUDirect else "cpu",
         )
 
         if G_EnableAsyncKVSet:
             logger.info("enable async kv set")
-            self.kv_cache_write_mem_pool = FlexibleTensorSizePool(
-                self.connection, self.kv_cache_shape, self.kv_cache_dtype
+            self.kv_cache_write_mem_pool = FlexibleKVCacheMemoryPool(
+                self.connection, self.kv_cache_shape, self.kv_cache_dtype, "cpu"
             )
         else:
             logger.info("enable sync kv set")
             self.kv_cache_write_mem_pool = FlexibleKVCacheMemoryPool(
                 self.connection,
-                self.device if G_EnableKVSetGPUDirect else "cpu",
                 self.kv_cache_shape,
                 self.kv_cache_dtype,
+                self.device if G_EnableKVSetGPUDirect else "cpu",
             )
 
         self.write_queue = queue.Queue()
@@ -360,37 +321,30 @@ class EICKVClient:
                 ):
                     self.kv_cache_write_mem_pool.free_to_mempool(value.data_ptr())
 
-    def async_batch_set(self, keys: str, obj_inputs: List[torch.Tensor]) -> None:
+    def async_batch_set(self, keys: List[str], obj_inputs: List[torch.Tensor]) -> None:
         logger.debug(f"eic async_batch_set {len(keys)}")
         start_time = time.perf_counter()
 
         if self.kv_cache_write_mem_pool.left_count() >= len(keys):
-            objs = [
-                self.kv_cache_write_mem_pool.allocate_cpu_kvcache_pool(
-                    obj_inputs[i].shape, obj_inputs[i].dtype
-                )
-                for i in range(len(keys))
-            ]
-            success = True
-
-            for obj in objs:
-                if obj is None:
-                    success = False
-                    break
-
-            if not success:
-                for obj in objs:
-                    if obj is not None:
-                        self.kv_cache_write_mem_pool.free_to_mempool(obj.data_ptr())
+            objs = self.kv_cache_write_mem_pool.try_allocate_kv_cache(
+                obj_inputs[0].shape, obj_inputs[0].dtype, len(keys)
+            )
+            if objs is None:
                 return False
 
-            for i in range(len(keys)):
-                objs[i] = objs[i].reshape(obj_inputs[i].shape)
-                objs[i].copy_(obj_inputs[i])
+            write_stream = torch.cuda.current_stream()
+            with torch.cuda.stream(write_stream):
+                for i in range(len(keys)):
+                    objs[i] = objs[i].reshape(obj_inputs[i].shape)
+                    objs[i].copy_(obj_inputs[i], non_blocking=True)
+            write_stream.synchronize()
             self.write_queue.put((keys, objs))
-            logger.info(
-                f"async batch set cost {(time.perf_counter() - start_time) * 1e3}.2f ms, {len(keys)} keys"
-            )
+
+            cost_time = time.perf_counter() - start_time
+            if cost_time >= 0.5:
+                logger.info(
+                    f"async batch set cost { cost_time * 1e3}.2f ms, {len(keys)} keys"
+                )
         else:
             self.write_queue.put((keys, [item.cpu() for item in obj_inputs]))
             logger.warning(
@@ -415,7 +369,7 @@ class EICKVClient:
             logger.debug(f"eic exists {key} failed, err_code {err_code}")
         return success
 
-    def exists_batch(self, keys: str) -> List[bool]:
+    def exists_batch(self, keys: List[str]) -> List[bool]:
         logger.debug(f"eic exists {len(keys)}")
         keys_vec = eic.StringVector()
         for key in keys:
@@ -431,7 +385,7 @@ class EICKVClient:
         return res
 
     def batch_get(
-        self, keys: str
+        self, keys: List[str]
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         logger.debug(f"eic get {len(keys)}")
 
@@ -444,13 +398,14 @@ class EICKVClient:
         count = len(keys)
 
         registered = False
-        items = self.kv_cache_mem_pool.try_allocate_kv_cache(
+        items = self.kv_cache_read_mem_pool.try_allocate_kv_cache(
             self.kv_cache_shape, self.kv_cache_dtype, count
         )
         if items is None:
-            objs = torch.empty(
+            large_tensor = torch.empty(
                 (count,) + self.kv_cache_shape, dtype=self.kv_cache_dtype, device="cpu"
             )
+            objs = [large_tensor[i] for i in range(count)]
             logger.error("can not allocate tensor from pool")
         else:
             objs = items
@@ -468,6 +423,14 @@ class EICKVClient:
         status_code, data_vals, get_outcome = self.connection.mget(
             data_keys, get_option, data_vals
         )
+
+        # return to mempool
+        if items is not None:
+            # clone before free
+            objs = [obj.clone() for obj in objs]
+            for item in items:
+                self.kv_cache_read_mem_pool.free_to_mempool(item.data_ptr())
+
         if status_code != eic.StatusCode.SUCCESS:
             if status_code == eic.StatusCode.PARTIAL_FAILED:
                 for i, err_code in enumerate(get_outcome.status_codes):
@@ -490,11 +453,11 @@ class EICKVClient:
         logger.debug(f"eic get {count} keys data cost %.2f us", get_data_execution_time)
         return objs, success_mask
 
-    def set(self, keys: str, obj_inputs: torch.Tensor) -> None:
+    def set(self, keys: List[str], obj_inputs: List[torch.Tensor]) -> None:
         logger.debug(f"eic set {len(keys)}")
         return self._sync_set_impl(keys, obj_inputs)
 
-    def _sync_set_impl(self, keys: str, obj_inputs: torch.Tensor) -> None:
+    def _sync_set_impl(self, keys: List[str], obj_inputs: List[torch.Tensor]) -> None:
         logger.debug(f"eic set {len(keys)} keys")
         keys_vec = eic.StringVector()
         vals_vec = eic.IOBuffers()
@@ -505,27 +468,36 @@ class EICKVClient:
             self.kv_cache_shape, self.kv_cache_dtype, count
         )
         if items is None:
-            objs = torch.empty(
+            large_tensor = torch.empty(
                 (count,) + self.kv_cache_shape, dtype=self.kv_cache_dtype, device="cpu"
             )
+            objs = [large_tensor[i] for i in range(count)]
             logger.error("can not allocate tensor from pool")
         else:
             objs = items
             registered = True
 
+        values_data_ptrs = []
+
+        write_stream = torch.cuda.current_stream()
+        with torch.cuda.stream(write_stream):
+            for i, key in enumerate(keys):
+                temp = objs[i].reshape(obj_inputs[i].shape).contiguous()
+                temp.copy_(obj_inputs[i], non_blocking=True)
+
+                if temp.data_ptr() != objs[i].data_ptr():
+                    registered = False
+                    temp = temp.cpu()
+                values_data_ptrs.append(
+                    (temp.data_ptr(), temp.element_size() * temp.numel(), registered)
+                )
+        write_stream.synchronize()
+
         for i, key in enumerate(keys):
-            temp = objs[i].reshape(obj_inputs[i].shape).contiguous()
-            temp.copy_(obj_inputs[i])
-
-            if temp.data_ptr() != objs[i].data_ptr():
-                registered = False
-                temp = temp.cpu()
-
             keys_vec.append(key)
+            data_ptr, data_size, registered = values_data_ptrs[i]
             vals_vec.append(
-                temp.data_ptr(),
-                temp.element_size() * temp.numel(),
-                registered and self.enable_kv_set_direct,
+                data_ptr, data_size, registered and self.enable_kv_set_direct
             )
 
         # set options
@@ -538,6 +510,10 @@ class EICKVClient:
         else:
             logger.debug(f"eic mset {len(keys)} success")
 
+        if items is not None:
+            for item in items:
+                self.kv_cache_write_mem_pool.free_to_mempool(item.data_ptr())
+
         err_code = set_outcome.status_codes[0]
         if err_code != eic.StatusCode.SUCCESS:
             logger.error(f"set data key {len(keys)} failed, err_code {err_code}")
@@ -546,7 +522,7 @@ class EICKVClient:
         logger.debug(f"set data key {len(keys)} success")
         return True
 
-    def _async_set_impl(self, keys: str, obj_inputs: torch.Tensor) -> None:
+    def _async_set_impl(self, keys: List[str], obj_inputs: List[torch.Tensor]) -> None:
         logger.debug(f"eic set {len(keys)} keys")
         keys_vec = eic.StringVector()
         vals_vec = eic.IOBuffers()
@@ -611,6 +587,8 @@ class EICBaseTokenToKVPoolHost:
         self.debug = logger.isEnabledFor(logging.DEBUG)
 
         self.rank = rank
+        self.attn_tp_size = get_attention_tp_size()
+        self.attn_tp_rank = get_attention_tp_rank()
         self.host_ip = self._get_host_ip()
         self.split_dim = 2
         self.extra_info = extra_info
@@ -629,11 +607,13 @@ class EICBaseTokenToKVPoolHost:
 
     def _get_deploy_info(self):
         model_path = self.extra_info.get("model_path", "fake_model_path")
-        attention_tp_size = get_attention_tp_size()
-        attention_tp_rank = get_attention_tp_rank()
+        attn_tp_size = self.attn_tp_size
+        attn_tp_rank = self.attn_tp_rank
         page_size = self.page_size
         framework = self.extra_info.get("framework", "sglang")
-        deploy_key = f"{model_path}_{attention_tp_size}_{attention_tp_rank}_{page_size}@{framework}"
+        deploy_key = (
+            f"{model_path}_{attn_tp_size}_{attn_tp_rank}_{page_size}@{framework}"
+        )
         return deploy_key
 
     def _encode_key_shared(self, content_hashs):
@@ -643,7 +623,7 @@ class EICBaseTokenToKVPoolHost:
     def get_flat_data(self, indices) -> Tuple[Optional[torch.Tensor], List[bool]]:
         logger.debug(f"get_flat_data indices {indices}")
         keys = self._encode_key_exclusive(indices)
-        bs = TensorPoolSize
+        bs = TensorPoolSize // 2
         ret = []
         masks = []
 
@@ -653,8 +633,9 @@ class EICBaseTokenToKVPoolHost:
             if objs is None:
                 logger.error(f"get_flat_data keys {key} failed, eic_client return none")
                 return None, []
-            copy_objs = objs.clone()
-            ret.extend([copy_objs[i] for i in range(copy_objs.shape[0])])
+
+            # todo(zhongwei.ren): preallocate recv tensors
+            ret.extend(objs)
             masks.extend(success_mask)
 
         if len(ret) == 0:
@@ -706,21 +687,31 @@ class EICBaseTokenToKVPoolHost:
 
         return self.head_dim * self.head_num * self.layer_num * self.dtype.itemsize * 2
 
-    def exist_page(self, content_hashs):
-        keys = self._encode_key_shared(content_hashs)
+    def exist_page(self, content_hashes):
+        """
+        for single prompt detect prefix key
+        """
+        keys = self._encode_key_shared(content_hashes)
         ret = self.eic_client.exists_batch(keys)
         res = []
         for i, exist in enumerate(ret):
             if exist:
-                res.append(content_hashs[i])
+                res.append(content_hashes[i])
             else:
                 break
         return res
 
+    def batch_exist_page(self, content_hashes):
+        """
+        for multi prompt detect prefix key
+        """
+        keys = self._encode_key_shared(content_hashes)
+        return self.eic_client.exists_batch(keys)
+
     def get_page_data(self, content_hashs):
         logger.debug(f"get_page_data content_hashs {content_hashs}")
         keys = self._encode_key_shared(content_hashs)
-        bs = TensorPoolSize
+        bs = TensorPoolSize // 2
         ret = []
         masks = []
 
@@ -730,8 +721,9 @@ class EICBaseTokenToKVPoolHost:
             if objs is None:
                 logger.error(f"get_page_data keys {key} failed, eic_client return none")
                 return None, []
-            copy_objs = objs.clone()
-            ret.extend([copy_objs[i] for i in range(copy_objs.shape[0])])
+
+            # todo(zhongwei.ren): preallocate recv tensors
+            ret.extend(objs)
             masks.extend(success_mask)
 
         if len(ret) == 0:
@@ -774,11 +766,9 @@ class EICBaseTokenToKVPoolHost:
             )
         return True
 
-
-    # @debug_timing
-    # def transfer(self, indices, flat_data):
-    #     # backup prepared data from device to host
-    #     return self.assign_flat_data(indices, flat_data)
+    def transfer(self, indices, flat_data):
+        # backup prepared data from device to host
+        return self.assign_flat_data(indices, flat_data)
 
     @synchronized()
     def clear(self):
@@ -897,8 +887,9 @@ class EICMHATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
             self.head_num,
             self.head_dim,
         )
+        self.kvcache_device = device_pool.device
         self.eic_client = EICKVClient(
-            None, self.dtype, self.kvcache_shape, device_pool.device
+            self.dtype, self.kvcache_shape, self.kvcache_device
         )
 
 
@@ -934,8 +925,9 @@ class EICMLATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
             1,
             self.kv_lora_rank + self.qk_rope_head_dim,
         )
+        self.kvcache_device = device_pool.device
         self.eic_client = EICKVClient(
-            None, self.dtype, self.kvcache_shape, device_pool.device
+            self.dtype, self.kvcache_shape, self.kvcache_device
         )
         self.split_dim = 1
 
@@ -947,14 +939,14 @@ class EICMLATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
         return deploy_key
 
     def _filter_kv_cache(self, keys: List[str], obj_inputs: torch.Tensor):
-        attention_tp_size = get_attention_tp_size()
-        attention_tp_rank = get_attention_tp_rank()
+        attn_tp_size = self.attn_tp_size
+        attn_tp_rank = self.attn_tp_rank
 
         keys_len = len(keys)
-        mean_len = keys_len // attention_tp_size
-        remainder = keys_len % attention_tp_size
-        tp_keys_len = mean_len + (1 if attention_tp_rank < remainder else 0)
-        start = attention_tp_rank * mean_len + min(attention_tp_rank, remainder)
+        mean_len = keys_len // attn_tp_size
+        remainder = keys_len % attn_tp_size
+        tp_keys_len = mean_len + (1 if attn_tp_rank < remainder else 0)
+        start = attn_tp_rank * mean_len + min(attn_tp_rank, remainder)
         end = start + tp_keys_len
         logger.debug(f"start: {start}, end: {end}, tp_keys_len: {tp_keys_len}")
 
@@ -979,3 +971,72 @@ class EICMLATokenToKVPoolHost(EICBaseTokenToKVPoolHost):
             * self.dtype.itemsize
             * self.layer_num
         )
+
+
+if __name__ == "__main__":
+    # Example usage
+    kv_cache_shape = (128, 2048)  # Example shape
+    numel = 1
+    for i in kv_cache_shape:
+        numel *= i
+    kv_cache_dtype = torch.float32  # Example dtype
+
+    import sys
+
+    if len(sys.argv) > 1:
+        data_device, mem_pool_device = sys.argv[1].split(",")
+    else:
+        data_device, mem_pool_device = "cpu", "cpu"
+
+    eic_client = EICKVClient(kv_cache_dtype, kv_cache_shape, mem_pool_device)
+    print(
+        f"EIC Client initialized with data_device: {data_device}, mem_pool_device: {mem_pool_device}, kv_cache_shape: {kv_cache_shape}, kv_cache_dtype: {kv_cache_dtype}"
+    )
+
+    test_keys = 1024
+    batch_size = 256
+    keys = ["test_key_" + str(i) for i in range(test_keys)]
+    values = [
+        torch.randn(kv_cache_shape, dtype=kv_cache_dtype, device=data_device)
+        for i in range(test_keys)
+    ]
+
+    last_time = time.perf_counter()
+    transmit_bytes = 0
+    write_size = test_keys * numel * kv_cache_dtype.itemsize
+
+    total_round = 100
+    for round_i in range(total_round):
+        for i in range(0, test_keys, batch_size):
+            eic_client._sync_set_impl(
+                keys[i : i + batch_size], values[i : i + batch_size]
+            )
+        transmit_bytes += write_size
+        if transmit_bytes >= 2 * 1024 * 1024 * 1024:
+            cost_time = time.perf_counter() - last_time
+            print(
+                f"data_device: {data_device}, mem_pool_device: {mem_pool_device}, write {transmit_bytes} bytes, cost time {cost_time}, bps {transmit_bytes // cost_time // 1024 // 1024} MB/s"
+            )
+            last_time = time.perf_counter()
+            transmit_bytes = 0
+
+    get_stream = torch.cuda.current_stream()
+    for round_i in range(total_round):
+        for i in range(0, test_keys, batch_size):
+            recv_objs, success = eic_client.batch_get(keys[i : i + batch_size])
+            with torch.cuda.stream(get_stream):
+                for j, obj in enumerate(recv_objs):
+                    obj.copy_(values[i + j], non_blocking=True)
+            get_stream.synchronize()
+
+        transmit_bytes += write_size
+        if transmit_bytes >= 2 * 1024 * 1024 * 1024:
+            cost_time = time.perf_counter() - last_time
+            print(
+                f"data_device: {data_device}, mem_pool_device: {mem_pool_device}, read {transmit_bytes} bytes, cost time {cost_time}, bps {transmit_bytes // cost_time // 1024 // 1024} MB/s"
+            )
+            last_time = time.perf_counter()
+            transmit_bytes = 0
+
+    del eic_client  # Clean up the client to release resources
+    print("EIC Client cleaned up.")
