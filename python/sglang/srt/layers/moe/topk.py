@@ -123,6 +123,10 @@ def fused_topk(
         renormalize,
     )
 
+    topk_ids = topk_ids_logical_to_physical(topk_ids, expert_location_dispatch_info)
+    _mask_topk_ids_padded_region(topk_ids, num_token_non_padded)
+    return topk_weights, topk_ids
+
 
 @torch.compile(dynamic=True, backend=get_compiler_backend())
 def _fused_topk_postprocess(
