@@ -132,10 +132,12 @@ from sglang.srt.managers.session_controller import Session
 from sglang.srt.managers.tp_worker import TpModelWorker
 from sglang.srt.managers.tp_worker_overlap_thread import TpModelWorkerClient
 from sglang.srt.managers.utils import validate_input_length
-from sglang.srt.mem_cache.chunk_cache import ChunkCache
+from sglang.srt.mem_cache.allocator import SWATokenToKVPoolAllocator
+from sglang.srt.mem_cache.chunk_cache import ChunkCache, SWAChunkCache
 from sglang.srt.mem_cache.eic_hiradix_cache import (
     EICHiRadixCache,
     EICHiRadixCacheBuilder,
+    EICPagedHiRadixCache,
 )
 from sglang.srt.mem_cache.hiradix_cache import HiRadixCache
 from sglang.srt.mem_cache.offload_hiradix_cache import OffloadHiRadixCacheBuilder
@@ -603,15 +605,34 @@ class Scheduler(
             server_args.chunked_prefill_size is not None
             and server_args.disable_radix_cache
         ):
-            if self.model_config.is_hybrid:
-                ChunkCacheClass = SWAChunkCache
+            if self.enable_eic_cache:
+                from sglang.srt.mem_cache.eic_chunk_cache import (
+                    EICChunkCache,
+                    EICSWAChunkCache,
+                )
+
+                logger.info(f"use EICChunkCache for decode save")
+                if self.model_config.is_hybrid:
+                    ChunkCacheClass = EICSWAChunkCache
+                else:
+                    ChunkCacheClass = EICChunkCache
+                self.tree_cache = ChunkCacheClass(
+                    req_to_token_pool=self.req_to_token_pool,
+                    token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
+                    page_size=self.page_size,
+                    tp_cache_group=tp_cache_group,
+                    server_args=server_args,
+                )
             else:
-                ChunkCacheClass = ChunkCache
-            self.tree_cache = ChunkCacheClass(
-                req_to_token_pool=self.req_to_token_pool,
-                token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
-                page_size=self.page_size,
-            )
+                if self.model_config.is_hybrid:
+                    ChunkCacheClass = SWAChunkCache
+                else:
+                    ChunkCacheClass = ChunkCache
+                self.tree_cache = ChunkCacheClass(
+                    req_to_token_pool=self.req_to_token_pool,
+                    token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
+                    page_size=self.page_size,
+                )
         else:
             if self.enable_hierarchical_cache:
                 # self.tree_cache = HiRadixCache(
@@ -1342,6 +1363,7 @@ class Scheduler(
         kv_metrics.num_requests_waiting = self.stats.num_queue_reqs
         kv_metrics.gpu_cache_usage_perc = self.stats.token_usage
         kv_metrics.gpu_prefix_cache_hit_rate = self.stats.cache_hit_rate
+        kv_metrics.eic_cache_hit_rate = self.stats.eic_cache_hit_rate
         kv_metrics.data_parallel_rank = self.dp_rank if self.dp_rank is not None else 0
 
         if not self.send_metrics_from_scheduler.closed:
@@ -1405,6 +1427,9 @@ class Scheduler(
             self.stats.token_usage = round(num_used / self.max_total_num_tokens, 2)
             self.stats.num_queue_reqs = len(self.waiting_queue)
             self.stats.cache_hit_rate = cache_hit_rate
+            self.stats.eic_hit_rate = adder.log_hit_eic_tokens / (
+                adder.log_input_tokens + adder.log_hit_tokens
+            )
 
             total_queue_latency = 0
             for req in can_run_list:
@@ -1474,6 +1499,7 @@ class Scheduler(
             self.stats.num_used_tokens = num_used
             self.stats.token_usage = num_used / self.max_total_num_tokens
             self.stats.cache_hit_rate = 0.0
+            self.stats.eic_hit_rate = 0.0
             self.stats.gen_throughput = self.last_gen_throughput
             self.stats.num_queue_reqs = len(self.waiting_queue)
             self.stats.num_grammar_queue_reqs = len(self.grammar_queue)
@@ -1484,6 +1510,7 @@ class Scheduler(
 
     def check_memory(self):
         from sglang.srt.mem_cache.allocator import SWATokenToKVPoolAllocator
+
         if isinstance(self.token_to_kv_pool_allocator, SWATokenToKVPoolAllocator):
             available_token_size = self.token_to_kv_pool_allocator.full_available_size()
         else:
@@ -1651,6 +1678,10 @@ class Scheduler(
 
         if self.lora_paths:
             lora_set = set([req.lora_path for req in self.running_batch.reqs])
+
+        if isinstance(self.tree_cache, EICPagedHiRadixCache):
+            # for batch exists from EIC cache
+            self.tree_cache.match_from_remote(self.waiting_queue)
 
         # Get requests from the waiting queue to a new prefill batch
         for req in self.waiting_queue:

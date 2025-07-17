@@ -262,7 +262,7 @@ class EICCacheController(HiCacheController):
                 except Empty:
                     continue
                 except Exception as e:
-                    logger.error(e, e.with_traceback(e.__traceback__))
+                    logger.exception("Exception in write thread: %s", e)
 
     def load_thread_func_direct(self):
         """
@@ -282,7 +282,7 @@ class EICCacheController(HiCacheController):
                 except Empty:
                     continue
                 except Exception as e:
-                    logger.error(e, e.with_traceback(e.__traceback__))
+                    logger.exception("Exception in load thread: %s", e)
 
     def host_allocate(self, size):
         """
@@ -290,15 +290,41 @@ class EICCacheController(HiCacheController):
         """
         return self.mem_pool_host.alloc(size)
 
-    def find_longest_prefix_in_eic(self, prompt):
+    def find_longest_prefix_in_eic(self, prompt, prev_hash=None):
         """
         Find the longest prefix in the EIC cache.
         """
         if len(prompt) == 0:
             return [], []
-        content_hash = get_content_hash(prompt, self.page_size)
+        content_hash = get_content_hash(prompt, self.page_size, prev_hash)
         exist_result = self.mem_pool_host.exist_page(content_hash)
         return exist_result, prompt[: len(exist_result) * self.page_size]
+
+    def batch_find_longest_prefix_in_eic(self, prompts, prev_hashes):
+        assert len(prompts) == len(
+            prev_hashes
+        ), "prompts and prev_hashes must have the same length"
+        prompt_key_offset = [
+            0,
+        ]
+        eic_prefix_len = []
+        content_hashes = []
+        for i in range(len(prompts)):
+            content_hash = get_content_hash(prompts[i], self.page_size, prev_hashes[i])
+            prompt_key_offset.append(len(content_hash) + prompt_key_offset[-1])
+            content_hashes.extend(content_hash)
+        if len(content_hashes) == 0:
+            return []
+        exist_result = self.mem_pool_host.batch_exist_page(content_hashes)
+        for i in range(len(prompts)):
+            eic_prefix_len.append(
+                exist_result[prompt_key_offset[i] : prompt_key_offset[i + 1]].count(
+                    True
+                )
+                * self.page_size
+            )
+
+        return eic_prefix_len
 
     def write_page(
         self,
@@ -310,7 +336,7 @@ class EICCacheController(HiCacheController):
         """
         Back up KV caches from device memory to host memory.
         """
-        host_indices = device_indices.clone()
+        host_indices = device_indices.clone().cpu()
         self.write_queue.put(
             EICCacheOperation(
                 host_indices, device_indices, node_id, content_hash, priority
