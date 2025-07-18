@@ -114,7 +114,7 @@ class DeepEPBuffer:
             low_latency_mode=deepep_mode.enable_low_latency(),
             num_qps_per_rank=num_qps_per_rank,
             # TODO can be false when unneeded
-            allow_mnnvl=False,
+            allow_mnnvl=True,
         )
         return cls._buffer
 
@@ -227,7 +227,7 @@ class _DeepEPDispatcherImplBase:
     def _get_buffer(self):
         raise NotImplementedError
 
-
+import os
 class _DeepEPDispatcherImplNormal(_DeepEPDispatcherImplBase):
     def __init__(self, async_finish: bool, **kwargs):
         super().__init__(**kwargs)
@@ -242,7 +242,9 @@ class _DeepEPDispatcherImplNormal(_DeepEPDispatcherImplBase):
         topk_weights: torch.Tensor,
     ):
         topk_idx = topk_idx.to(torch.int64)
-        if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM:
+        #TODO gjw
+        logger.info(f"befor dispatch_a  hidden_states[0] {hidden_states.shape} ")
+        if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and  os.getenv('USE_W4A8')!="1":
             # TODO hard code 128 block quant,use fp8 communication
             hidden_states = sglang_per_token_group_quant_fp8(
                 hidden_states,
@@ -251,11 +253,13 @@ class _DeepEPDispatcherImplNormal(_DeepEPDispatcherImplBase):
                 scale_tma_aligned=deep_gemm_wrapper.DEEPGEMM_SCALE_UE8M0,
                 scale_ue8m0=deep_gemm_wrapper.DEEPGEMM_SCALE_UE8M0,
             )
+            logger.info(f"dispatch_a  hidden_states[0] {hidden_states.shape}")
         previous_event = Buffer.capture() if self.async_finish else None
         return hidden_states, topk_idx, topk_weights, previous_event
 
     def dispatch_b(self, hidden_states, topk_idx, topk_weights, previous_event):
-        if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM:
+        logger.info(f"befor dispatch_b  hidden_states[0] {hidden_states.shape}  ")
+        if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM :
             (
                 hidden_states,
                 topk_idx,
@@ -507,8 +511,10 @@ class _DeepEPDispatcherImplLowLatency(_DeepEPDispatcherImplBase):
         topk_idx: torch.Tensor,
         topk_weights: torch.Tensor,
     ):
+        logger.info(f"befor dispatch_a  hidden_states[0] {hidden_states.shape} ")
         buffer = self._get_buffer()
         topk_idx = topk_idx.to(torch.int64)
+        logger.info(f"buffer.group_size {buffer.group_size} topk_idx.shape[1] {topk_idx.shape[1]}")
         expected_m = (
             hidden_states.shape[0] * buffer.group_size * topk_idx.shape[1]
             + self.num_experts
@@ -579,6 +585,8 @@ class _DeepEPDispatcherImplLowLatency(_DeepEPDispatcherImplBase):
                 and deep_gemm_wrapper.DEEPGEMM_BLACKWELL,
             )
         )
+        logger.info(f"befor dispatch_a  packed_recv_hidden {packed_recv_hidden[0].shape} ")
+
         return packed_recv_hidden, packed_recv_count, event, hook
 
     def combine_a(
@@ -677,6 +685,8 @@ class DeepEPDispatcher:
         self._stage = _Stage.INITIAL
 
     def dispatch(self, *args, **kwargs) -> Tuple:
+
+        logger.info(f"dispatch ........deepep_mode  {self.deepep_mode}")
         self.dispatch_a(*args, **kwargs)
         ret = self.dispatch_b()
         return ret

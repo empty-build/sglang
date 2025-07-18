@@ -5,11 +5,6 @@ import einops
 import torch
 from torch.nn import Module
 
-from sglang.srt.layers.quantization.w4afp8 import (
-    W4AFp8Config,
-    W4AFp8MoEMethod,
-)
-
 from sglang.srt.custom_op import CustomOp
 from sglang.srt.distributed import (
     get_tensor_model_parallel_rank,
@@ -17,7 +12,6 @@ from sglang.srt.distributed import (
 )
 from sglang.srt.eplb.expert_location import get_global_expert_location_metadata
 from sglang.srt.eplb.expert_location_dispatch import ExpertLocationDispatchInfo
-from sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
 from sglang.srt.layers.moe.ep_moe.kernels import (
     ep_gather,
     ep_scatter,
@@ -29,7 +23,6 @@ from sglang.srt.layers.moe.ep_moe.kernels import (
     pre_reorder_triton_kernel_for_cutlass_moe,
     run_cutlass_moe_ep_preproess,
     run_moe_ep_preproess,
-    run_cutlass_moe_ep_preproess,
     silu_and_mul_masked_post_quant_fwd,
     silu_and_mul_triton_kernel,
     tma_align_input_scale,
@@ -300,25 +293,27 @@ class EPMoE(torch.nn.Module):
         ep_rank = self.tp_rank
         global_num_experts = self.num_experts
 
-        
         assert ep_size > 0
         if ep_size == 1:
             return (global_num_experts, None)
 
         local_num_experts = global_num_experts // ep_size
 
-        expert_map = torch.full((global_num_experts, ), self.num_experts, dtype=torch.int32)
+        expert_map = torch.full(
+            (global_num_experts,), self.num_experts, dtype=torch.int32
+        )
         if ep_rank < (ep_size - 1):
-            expert_map[ep_rank * local_num_experts:
-                            (ep_rank + 1) * local_num_experts] = \
-                torch.arange(0, local_num_experts, dtype=torch.int32)
+            expert_map[
+                ep_rank * local_num_experts : (ep_rank + 1) * local_num_experts
+            ] = torch.arange(0, local_num_experts, dtype=torch.int32)
         else:
-            local_num_experts = (global_num_experts - ep_rank * local_num_experts)
+            local_num_experts = global_num_experts - ep_rank * local_num_experts
 
-            expert_map[-local_num_experts:] = \
-                torch.arange(0, local_num_experts, dtype=torch.int32)
+            expert_map[-local_num_experts:] = torch.arange(
+                0, local_num_experts, dtype=torch.int32
+            )
         return (local_num_experts, expert_map)
-    
+
     def forward(self, hidden_states: torch.Tensor, router_logits: torch.Tensor):
         if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8:
             return self.forward_deepgemm(hidden_states, router_logits)
@@ -510,8 +505,12 @@ class EPMoE(torch.nn.Module):
             local_topk_ids = topk_ids
             if self.expert_map is not None:
                 "Translate info from expert_map to topk_ids"
-                local_topk_ids = torch.where(self.expert_map[topk_ids] != self.num_experts,
-                                            self.expert_map[topk_ids], self.num_experts)
+                local_topk_ids = torch.where(
+                    self.expert_map[topk_ids] != self.num_experts,
+                    self.expert_map[topk_ids],
+                    self.num_experts,
+                )
+            logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_ids} \n local_topk_ids {local_topk_ids}")
 
             output = cutlass_w4a8_moe(
                 self.start_expert_id,
@@ -888,9 +887,9 @@ class EPMoE(torch.nn.Module):
                     param_data[expert_id] = loaded_weight
             elif self.use_w4afp8:
                 if shard_id == "w1":
-                    param_data[expert_id][:self.intermediate_size, :] = loaded_weight
+                    param_data[expert_id][: self.intermediate_size, :] = loaded_weight
                 elif shard_id == "w3":
-                    param_data[expert_id][self.intermediate_size:, :] = loaded_weight
+                    param_data[expert_id][self.intermediate_size :, :] = loaded_weight
                 else:
                     param_data[expert_id] = loaded_weight
             # If we are in merged column case (gate_up_proj)
@@ -1328,16 +1327,79 @@ class DeepEPMoE(EPMoE):
             forward_batch.is_extend_in_batch
         )
         if resolved_deepep_mode == DeepEPMode.normal:
-            if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM:
+            if self.use_w4afp8:
+                return self.forward_cutlass_w4a8(hidden_states, topk_idx, topk_weights)
+            elif deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM:
                 return self.forward_deepgemm_contiguous(
                     hidden_states, topk_idx, topk_weights, num_recv_tokens_per_expert
                 )
             else:
                 return self.forward_normal(hidden_states, reorder_topk_ids, seg_indptr)
         elif resolved_deepep_mode == DeepEPMode.low_latency:
-            return self.forward_deepgemm_masked(hidden_states, masked_m, expected_m)
+            if self.use_w4afp8:
+                return self.forward_cutlass_w4a8(hidden_states, topk_idx, topk_weights,masked_m, expected_m)
+            else:
+                return self.forward_deepgemm_masked(hidden_states, masked_m, expected_m)
         else:
             raise ValueError(f"Invalid deepep_mode: {self.deepep_mode}")
+
+    def forward_cutlass_w4a8(self,hidden_states, topk_idx, topk_weights,masked_m=None,expected_m=None):
+
+        local_topk_ids = topk_idx
+        if self.expert_map is not None:
+            "Translate info from expert_map to topk_ids"
+            logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_idx} \n local_topk_ids {local_topk_ids}")
+            local_topk_ids = torch.where(self.expert_map[topk_idx] != self.num_experts,
+                                        self.expert_map[topk_idx], self.num_experts)
+        logger.debug(f" w13_input_scale {self.w13_input_scale} \n self.w13_input_scale.device:{self.w13_input_scale.device} \n ")
+
+        # print(f"os.getenv('USE_W4A8') {os.getenv('USE_W4A8')}")
+        
+
+        if hidden_states.shape[0]>0 :
+            if expected_m is not None:
+                non_zero_count = torch.count_nonzero(hidden_states[0])
+                logger.info(f"Number of non-zero elements in hidden_states[0]: {non_zero_count}")
+                num_groups, m, k = hidden_states[0].size()
+                # valid_expert_mask = masked_m.squeeze(0) == 1
+                # input_tensor = input_tensor[valid_expert_mask]
+                # expected_m = min(expected_m, m)
+                # input_tensor=hidden_states[0].view(-1,k)
+
+            # else:
+            #     k = hidden_states[0].shape[-1]
+            #     input_tensor=hidden_states[0].view(-1,k)
+            output = cutlass_w4a8_moe(
+                self.start_expert_id,
+                self.end_expert_id,
+                self.num_experts,
+                hidden_states,
+                self.w13_weight,
+                self.w2_weight,
+                self.w13_weight_scale_inv,
+                self.w2_weight_scale_inv,
+                topk_weights,
+                topk_idx,
+                local_topk_ids,
+                self.quant_method.a_strides1,
+                self.quant_method.b_strides1,
+                self.quant_method.c_strides1,
+                self.quant_method.a_strides2,
+                self.quant_method.b_strides2,
+                self.quant_method.c_strides2,
+                self.quant_method.s_strides13,
+                self.quant_method.s_strides2,
+                self.quant_method.expert_offsets,
+                self.quant_method.problem_sizes1,
+                self.quant_method.problem_sizes2,
+                self.w13_input_scale,
+                self.w2_input_scale,
+            )
+        # logger.info(f"output: {output}")
+            return output.to(torch.bfloat16)
+        else:
+            return hidden_states.to(torch.bfloat16)
+        
 
     def forward_normal(
         self,
