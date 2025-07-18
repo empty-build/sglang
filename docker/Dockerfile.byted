@@ -9,7 +9,7 @@ ARG eic_sdk_version=
 ARG absl_version=2.3.0
 ARG branch=
 
-# 编译之前，将源统一设置成内网的
+# 编译之前，将pypi源统一设置成内网源
 RUN pip config set global.index-url https://bytedpypi.byted.org/simple
 RUN sed -i 's/archive.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
     sed -i 's/security.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
