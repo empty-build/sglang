@@ -65,7 +65,7 @@ if not _is_npu:
     from sgl_kernel import silu_and_mul
 
     from sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
-
+    from sglang.srt.layers.moe.cutlass_w4a8_moe_pure import cutlass_w4a8_moe_pure
 if _is_hip:
     from vllm._custom_ops import scaled_fp8_quant
 
@@ -1328,7 +1328,8 @@ class DeepEPMoE(EPMoE):
         )
         if resolved_deepep_mode == DeepEPMode.normal:
             if self.use_w4afp8:
-                return self.forward_cutlass_w4a8(hidden_states, topk_idx, topk_weights)
+                return self.forward_cutlass_w4a8(hidden_states, topk_idx)
+                # return self.forward_cutlass_w4a8(hidden_states, topk_idx, topk_weights,num_recv_tokens_per_expert,origin_topk_idx=origin_topk_idx)
             elif deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM:
                 return self.forward_deepgemm_contiguous(
                     hidden_states, topk_idx, topk_weights, num_recv_tokens_per_expert
@@ -1337,49 +1338,68 @@ class DeepEPMoE(EPMoE):
                 return self.forward_normal(hidden_states, reorder_topk_ids, seg_indptr)
         elif resolved_deepep_mode == DeepEPMode.low_latency:
             if self.use_w4afp8:
-                return self.forward_cutlass_w4a8(hidden_states, topk_idx, topk_weights,masked_m, expected_m)
+                return self.forward_cutlass_w4a8_masked(hidden_states, masked_m, expected_m)
             else:
                 return self.forward_deepgemm_masked(hidden_states, masked_m, expected_m)
         else:
             raise ValueError(f"Invalid deepep_mode: {self.deepep_mode}")
+    
+    def forward_cutlass_w4a8_masked(self,hidden_states, masked_m, expected_m):
 
-    def forward_cutlass_w4a8(self,hidden_states, topk_idx, topk_weights,masked_m=None,expected_m=None):
+        logger.info(f"hidden_states[0].shape:{hidden_states[0].shape} \n hidden_states[1].shape:{hidden_states[1].shape} \n masked_m.shape:{masked_m.shape}\n   masked_m:{masked_m} \n expected_m:{expected_m}")
+        result = hidden_states[0][masked_m.bool()]
+        # output = cutlass_w4a8_moe(
+        #         self.start_expert_id,
+        #         self.end_expert_id,
+        #         self.num_experts,
+        #         hidden_states,
+        #         self.w13_weight,
+        #         self.w2_weight,
+        #         self.w13_weight_scale_inv,
+        #         self.w2_weight_scale_inv,
+        #         topk_weights,
+        #         global_token_ids,
+        #         topk_idx,
+        #         self.quant_method.a_strides1,
+        #         self.quant_method.b_strides1,
+        #         self.quant_method.c_strides1,
+        #         self.quant_method.a_strides2,
+        #         self.quant_method.b_strides2,
+        #         self.quant_method.c_strides2,
+        #         self.quant_method.s_strides13,
+        #         self.quant_method.s_strides2,
+        #         self.quant_method.expert_offsets,
+        #         self.quant_method.problem_sizes1,
+        #         self.quant_method.problem_sizes2,
+        #         self.w13_input_scale,
+        #         self.w2_input_scale,
+        #     )
+
+
+    def forward_cutlass_w4a8(self,hidden_states, topk_idx):
 
         local_topk_ids = topk_idx
+        # hidden_states,hidden_states_scale=hidden_states
         if self.expert_map is not None:
             "Translate info from expert_map to topk_ids"
-            logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_idx} \n local_topk_ids {local_topk_ids}")
-            local_topk_ids = torch.where(self.expert_map[topk_idx] != self.num_experts,
-                                        self.expert_map[topk_idx], self.num_experts)
-        logger.debug(f" w13_input_scale {self.w13_input_scale} \n self.w13_input_scale.device:{self.w13_input_scale.device} \n ")
+            # logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_idx} \n local_topk_ids {local_topk_ids}")
+            # local_topk_ids = torch.where(self.expert_map[topk_idx] != self.num_experts,
+            #                             self.expert_map[topk_idx], self.num_experts)
+            # local_topk_ids=torch.where(self.expert_map[topk_idx] !=0,
+            #                              local_topk_ids, self.num_experts).contiguous()
+            # logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_idx} \n global_token_ids {origin_topk_idx} \n local_topk_ids {local_topk_ids}")
+            # logger.info(f"hidden_states.shape:{hidden_states.shape} \n local_topk_ids {local_topk_ids}")
+        local_topk_ids = torch.where(local_topk_ids == -1,  self.num_experts, topk_idx).to(torch.int32).contiguous()
 
-        # print(f"os.getenv('USE_W4A8') {os.getenv('USE_W4A8')}")
-        
-
+        logger.info(f"local_topk_ids{local_topk_ids}")
         if hidden_states.shape[0]>0 :
-            if expected_m is not None:
-                non_zero_count = torch.count_nonzero(hidden_states[0])
-                logger.info(f"Number of non-zero elements in hidden_states[0]: {non_zero_count}")
-                num_groups, m, k = hidden_states[0].size()
-                # valid_expert_mask = masked_m.squeeze(0) == 1
-                # input_tensor = input_tensor[valid_expert_mask]
-                # expected_m = min(expected_m, m)
-                # input_tensor=hidden_states[0].view(-1,k)
-
-            # else:
-            #     k = hidden_states[0].shape[-1]
-            #     input_tensor=hidden_states[0].view(-1,k)
-            output = cutlass_w4a8_moe(
-                self.start_expert_id,
-                self.end_expert_id,
-                self.num_experts,
+            print(f"befor gemm {hidden_states.shape}")
+            output=cutlass_w4a8_moe_pure(
                 hidden_states,
                 self.w13_weight,
                 self.w2_weight,
                 self.w13_weight_scale_inv,
                 self.w2_weight_scale_inv,
-                topk_weights,
-                topk_idx,
                 local_topk_ids,
                 self.quant_method.a_strides1,
                 self.quant_method.b_strides1,
@@ -1395,7 +1415,32 @@ class DeepEPMoE(EPMoE):
                 self.w13_input_scale,
                 self.w2_input_scale,
             )
-        # logger.info(f"output: {output}")
+        #     output = cutlass_w4a8_moe(
+        #         self.start_expert_id,
+        #         self.end_expert_id,
+        #         self.num_experts,
+        #         hidden_states,
+        #         self.w13_weight,
+        #         self.w2_weight,
+        #         self.w13_weight_scale_inv,
+        #         self.w2_weight_scale_inv,
+        #         topk_weights,
+        #         origin_topk_idx,
+        #         local_topk_ids,
+        #         self.quant_method.a_strides1,
+        #         self.quant_method.b_strides1,
+        #         self.quant_method.c_strides1,
+        #         self.quant_method.a_strides2,
+        #         self.quant_method.b_strides2,
+        #         self.quant_method.c_strides2,
+        #         self.quant_method.s_strides13,
+        #         self.quant_method.s_strides2,
+        #         self.quant_method.expert_offsets,
+        #         self.quant_method.problem_sizes1,
+        #         self.quant_method.problem_sizes2,
+        #         self.w13_input_scale,
+        #         self.w2_input_scale,
+        #     )
             return output.to(torch.bfloat16)
         else:
             return hidden_states.to(torch.bfloat16)
