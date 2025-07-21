@@ -1382,18 +1382,10 @@ class DeepEPMoE(EPMoE):
         # hidden_states,hidden_states_scale=hidden_states
         if self.expert_map is not None:
             "Translate info from expert_map to topk_ids"
-            # logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_idx} \n local_topk_ids {local_topk_ids}")
-            # local_topk_ids = torch.where(self.expert_map[topk_idx] != self.num_experts,
-            #                             self.expert_map[topk_idx], self.num_experts)
-            # local_topk_ids=torch.where(self.expert_map[topk_idx] !=0,
-            #                              local_topk_ids, self.num_experts).contiguous()
-            # logger.info(f"hidden_states.shape:{hidden_states.shape} \n topk_idx {topk_idx} \n global_token_ids {origin_topk_idx} \n local_topk_ids {local_topk_ids}")
-            # logger.info(f"hidden_states.shape:{hidden_states.shape} \n local_topk_ids {local_topk_ids}")
+
         local_topk_ids = torch.where(local_topk_ids == -1,  self.num_experts, topk_idx).to(torch.int32).contiguous()
 
-        logger.info(f"local_topk_ids{local_topk_ids}")
         if hidden_states.shape[0]>0 :
-            print(f"befor gemm {hidden_states.shape}")
             output=cutlass_w4a8_moe_pure(
                 hidden_states,
                 self.w13_weight,
@@ -1415,32 +1407,6 @@ class DeepEPMoE(EPMoE):
                 self.w13_input_scale,
                 self.w2_input_scale,
             )
-        #     output = cutlass_w4a8_moe(
-        #         self.start_expert_id,
-        #         self.end_expert_id,
-        #         self.num_experts,
-        #         hidden_states,
-        #         self.w13_weight,
-        #         self.w2_weight,
-        #         self.w13_weight_scale_inv,
-        #         self.w2_weight_scale_inv,
-        #         topk_weights,
-        #         origin_topk_idx,
-        #         local_topk_ids,
-        #         self.quant_method.a_strides1,
-        #         self.quant_method.b_strides1,
-        #         self.quant_method.c_strides1,
-        #         self.quant_method.a_strides2,
-        #         self.quant_method.b_strides2,
-        #         self.quant_method.c_strides2,
-        #         self.quant_method.s_strides13,
-        #         self.quant_method.s_strides2,
-        #         self.quant_method.expert_offsets,
-        #         self.quant_method.problem_sizes1,
-        #         self.quant_method.problem_sizes2,
-        #         self.w13_input_scale,
-        #         self.w2_input_scale,
-        #     )
             return output.to(torch.bfloat16)
         else:
             return hidden_states.to(torch.bfloat16)

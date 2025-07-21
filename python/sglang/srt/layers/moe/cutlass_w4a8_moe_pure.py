@@ -114,7 +114,7 @@ def cutlass_w4a8_moe_pure(
     # from the current triton kernel implementation to the cutlass-based one if needed.
     a_map = torch.empty((local_topk_ids.numel()), dtype=torch.int32, device=device)
     c_map = torch.empty((local_topk_ids.numel()), dtype=torch.int32, device=device)
-    logger.info(f"local_topk_ids {local_topk_ids}，num_experts {num_experts} expert_offsets{expert_offsets}")
+
     get_cutlass_w4a8_moe_mm_data(
         local_topk_ids,
         expert_offsets,
@@ -129,7 +129,7 @@ def cutlass_w4a8_moe_pure(
     
     c1 = torch.zeros((m , n * 2), device=device, dtype=torch.half)
     c2 = torch.zeros((m , k), device=device, dtype=torch.half)
-    # print(f"a1_scale_float:{a1_scale_float} {a1_scale_float.device}")
+
     a_q = torch.empty(
         a.shape, dtype=torch.float8_e4m3fn, device=device
     )
@@ -158,8 +158,7 @@ def cutlass_w4a8_moe_pure(
     )
     a2_scale_float=a2_scale.float()
     sgl_per_tensor_quant_fp8(intermediate, intermediate_q, a2_scale_float, True)
-    logger.info(f"before  intermediate_q.shape{intermediate_q.shape} \n topk {topk} \n \
-                before  expert_offsets[:-1]---------{expert_offsets[:-1]}\n expert_offsets[:-1].shape{ expert_offsets[:-1].shape} \n problem_sizes1 {problem_sizes1}\n problem_sizes2 {problem_sizes2} \n")
+
     cutlass_w4a8_moe_mm(
         c2,
         intermediate_q,

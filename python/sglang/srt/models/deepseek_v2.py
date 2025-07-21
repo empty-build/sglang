@@ -566,7 +566,6 @@ class DeepseekV2MoE(nn.Module):
             topk_weights = torch.empty(
                 (0, self.top_k), dtype=torch.float32, device=hidden_states.device
             )
-        logger.info(f"before dispatch topk_idx {topk_idx} \n ")
         if self.ep_size > 1:
             # TODO(ch-wan): allow users to set num_max_dispatch_tokens_per_rank value
             (
@@ -584,13 +583,7 @@ class DeepseekV2MoE(nn.Module):
                 topk_weights=topk_weights,
                 forward_batch=forward_batch,
             )
-            # logger.info(f"after dispatch hidden_states{hidden_states} hidden_states.shape{hidden_states.shape}")
-            #masked_m: a tensor of shape `[num_groups]`, `masked_m[i]` records actual rows of the `lhs[i]` matrix to compute in the i-th group.
-            #expected_m: a value hint (which is a value on CPU) for the M expectation of each batch, correctly setting this value may lead to better performance.
-            #num_groups, m, k = hidden_states
-            # logger.info(f"num_recv_tokens_per_expert {num_recv_tokens_per_expert} masked_m {masked_m} expected_m {expected_m}")
-            
-            # logger.info(f"reorder_topk_ids {reorder_topk_ids}")
+
         final_hidden_states = self.experts(
             hidden_states=hidden_states,
             topk_idx=topk_idx,
@@ -602,7 +595,6 @@ class DeepseekV2MoE(nn.Module):
             num_recv_tokens_per_expert=num_recv_tokens_per_expert,
             forward_batch=forward_batch,
         )
-        # logger.info(f"before combine final_hidden_states {final_hidden_states} \n topk_idx {topk_idx}")
         if self.ep_size > 1:
             final_hidden_states = self.deepep_dispatcher.combine(
                 hidden_states=final_hidden_states,
@@ -610,19 +602,15 @@ class DeepseekV2MoE(nn.Module):
                 topk_weights=topk_weights,
                 forward_batch=forward_batch,
             )
-            # logger.info(f"after combine final_hidden_states {final_hidden_states}  \n final_hidden_states.shape {final_hidden_states.shape}  topk_idx {topk_idx}")
 
         if shared_output is not None:
             x = shared_output
             x.add_(final_hidden_states, alpha=self.routed_scaling_factor)
             final_hidden_states = x
-            # logger.info(f"shared_output final_hidden_states {final_hidden_states} final_hidden_states.shape{final_hidden_states.shape}")
 
         else:
             final_hidden_states *= self.routed_scaling_factor
-            # logger.info(f"no shared_output final_hidden_states {final_hidden_states} final_hidden_states.shape{final_hidden_states.shape}")
 
-        logger.info(f"*********************** finish combine ***********************")
 
         return final_hidden_states
 
