@@ -275,7 +275,23 @@ def torch_column_count_cumsum(x: torch.Tensor, num_columns: int) -> torch.Tensor
             )
     return y
 
-
+@triton.autotune(
+    configs=[
+        # Basic configurations
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=8),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 128}, num_warps=8),
+        
+        # More configurations with different num_stages
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=4),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=8, num_stages=4),
+    ],
+    key=['Q_LEN', 'K_LEN', 'QK_HEAD_DIM', 'V_HEAD_DIM'],
+)
 @triton.jit
 def block_wise_prefill_attention_kernel(
     q_ptr,  # shape: [batch_size, seq_len, num_heads, head_dim]
@@ -291,7 +307,8 @@ def block_wise_prefill_attention_kernel(
     NUM_SHARE_Q_HEADS,
     Q_LEN,
     K_LEN,
-    HEAD_DIM,
+    QK_HEAD_DIM,
+    V_HEAD_DIM,
     NUM_BLOCK,
     grid_offset,
     # softmax_scale
@@ -347,7 +364,7 @@ def block_wise_prefill_attention_kernel(
     # init qkv ptrs
     q_ptrs = tl.make_block_ptr(
         base=q_ptr + pid_b * stride_qb + pid_h * stride_qh,
-        shape=(Q_LEN, HEAD_DIM),
+        shape=(Q_LEN, QK_HEAD_DIM),
         strides=(stride_qn, stride_qd),
         offsets=(pid_q * BLOCK_SIZE_Q - grid_offset, 0),
         block_shape=(BLOCK_SIZE_Q, BLOCK_SIZE_D),
@@ -355,7 +372,7 @@ def block_wise_prefill_attention_kernel(
     )
     k_ptrs = tl.make_block_ptr(
         base=k_ptr + pid_b * stride_kb + pid_kh * stride_kh,
-        shape=(HEAD_DIM, K_LEN),
+        shape=(QK_HEAD_DIM, K_LEN),
         strides=(stride_kd, stride_kn),
         offsets=(0, 0),
         block_shape=(BLOCK_SIZE_D, BLOCK_SIZE_K),
@@ -363,7 +380,7 @@ def block_wise_prefill_attention_kernel(
     )
     v_ptrs = tl.make_block_ptr(
         base=v_ptr + pid_b * stride_vb + pid_kh * stride_vh,
-        shape=(K_LEN, HEAD_DIM),
+        shape=(K_LEN, V_HEAD_DIM),
         strides=(stride_vn, stride_vd),
         offsets=(0, 0),
         block_shape=(BLOCK_SIZE_K, BLOCK_SIZE_D),
@@ -412,7 +429,7 @@ def block_wise_prefill_attention_kernel(
     # save output
     o_ptrs = tl.make_block_ptr(
         base=o_ptr + pid_b * stride_ob + pid_h * stride_oh,
-        shape=(Q_LEN, HEAD_DIM),
+        shape=(Q_LEN, V_HEAD_DIM),
         strides=(stride_on, stride_od),
         offsets=(pid_q * BLOCK_SIZE_Q - grid_offset, 0),
         block_shape=(BLOCK_SIZE_Q, BLOCK_SIZE_D),
@@ -430,6 +447,7 @@ def triton_block_wise_prefill_attention(
     grid_offset: int = 0,
     softmax_scale: Optional[float] = None,
     gqa_interleave: bool = False,
+    is_mla: bool = False,
 ) -> torch.Tensor:
     """Block wise sparse attention (causal attention) implemented by openai triton (ver 3.0.0).
 
@@ -449,6 +467,9 @@ def triton_block_wise_prefill_attention(
     """
     batch_size, q_len, num_q_heads, head_dim = q.shape
     batch_size, k_len, num_kv_heads, head_dim = k.shape
+    batch_size, v_len, num_kv_heads, v_head_dim = v.shape
+    if is_mla:
+        qk_head_dim = head_dim
     assert q.dtype == torch.bfloat16
     assert q_len == k_len
     assert head_dim <= 256, "only support head_dim <= 256"
@@ -506,9 +527,13 @@ def triton_block_wise_prefill_attention(
         )
         idx_bins = torch_column_count_cumsum(block_idx, total_k_blocks)
     # launch attention kernel
-    o = torch.empty_like(q)
+    if is_mla:
+        o = torch.empty_like(v)
+    else:
+        o = torch.empty_like(q)
     num_warps, num_stages = get_num_warps_stages(head_dim, block_size)
-    BLOCK_SIZE_D = triton.next_power_of_2(head_dim)
+    BLOCK_SIZE_D = triton.next_power_of_2(v_head_dim)
+
     block_wise_prefill_attention_kernel[(batch_size * num_q_heads, total_q_blocks)](
         q,
         k,
@@ -522,7 +547,8 @@ def triton_block_wise_prefill_attention(
         num_share_q_heads,
         q_len,
         k_len,
-        head_dim,
+        qk_head_dim,
+        v_head_dim,
         total_q_blocks,
         grid_offset,
         softmax_scale,
@@ -549,11 +575,11 @@ def triton_block_wise_prefill_attention(
         idx_bins.stride(0),
         idx_bins.stride(1),
         idx_bins.stride(2),
-        BLOCK_SIZE_Q=block_size,
-        BLOCK_SIZE_K=block_size,
-        BLOCK_SIZE_D=BLOCK_SIZE_D,
-        num_warps=num_warps,
-        num_stages=num_stages,
+        # BLOCK_SIZE_Q=block_size,
+        # BLOCK_SIZE_K=block_size,
+        # BLOCK_SIZE_D=BLOCK_SIZE_D,
+        # num_warps=num_warps,
+        # num_stages=num_stages,
     )
     return o
 
@@ -567,6 +593,7 @@ def triton_block_wise_attention(
     grid_offset: int = 0,
     softmax_scale: Optional[float] = None,
     gqa_interleave: bool = False,
+    is_mla: bool = False,
 ) -> torch.Tensor:
     """Block wise sparse attention (causal attention) implemented by openai triton (ver 3.0.0).
 
@@ -593,6 +620,7 @@ def triton_block_wise_attention(
         grid_offset,
         softmax_scale,
         gqa_interleave,
+        is_mla,
     )
 
 
@@ -676,7 +704,7 @@ def bnhd_pool_kernel(
 
 def triton_bnhd_pool(x: torch.Tensor, kernel_size: int, pool_type: str = "avg"):
     b, n, h, d = x.shape
-    assert d in {16, 32, 64, 128}
+    assert d in {16, 32, 64, 128, 192}
     assert kernel_size in {16, 32, 64, 128, 256, 512}
     m = triton.cdiv(n, kernel_size)
     y = torch.zeros(b, m, h, d, device=x.device, dtype=x.dtype)
@@ -1019,8 +1047,9 @@ def flex_prefill_attention(
     max_budget: int = 2147483647,
     gqa_interleave: bool = False,
     softmax_scale: Optional[float] = None,
-    block_size: int = 128,
+    block_size: int = 64,
     return_computational_ratio: bool = False,
+    is_mla: bool = False,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, float]]:
     """Flex Prefill sparse attention function. If query length is 1, will use flash decoding attention.
 
@@ -1040,11 +1069,16 @@ def flex_prefill_attention(
     Returns:
         Union[torch.Tensor, Tuple[torch.Tensor, float]]: if return_computational_ratio is True, return attention output, else return attention output and computation ratio.
     """
+    if is_mla:
+        block_size = 64
+    else:
+        block_size = 128
+
     batch_size, q_len, num_q_heads, head_dim = q.shape
     batch_size, k_len, num_kv_heads, head_dim = k.shape
     assert batch_size == 1, "only support batch size 1 for now"
     assert q.shape[1] == k.shape[1]
-    assert head_dim in {16, 32, 64, 128}
+    assert head_dim in {16, 32, 64, 128, 192}
     assert block_size in {16, 32, 64, 128}
     num_blocks = math.ceil(q_len / block_size)
     # get vertical slash index
@@ -1077,8 +1111,116 @@ def flex_prefill_attention(
         block_size,
         softmax_scale=softmax_scale,
         gqa_interleave=gqa_interleave,
+        is_mla=is_mla,
     )
     if return_computational_ratio:
         return attn_out, computational_ratio
     else:
         return attn_out
+
+from sgl_kernel.flash_attn import flash_attn_varlen_func
+
+
+@triton.testing.perf_report([
+    triton.testing.Benchmark(
+        x_names=['N'],
+        x_vals=[2500, 3500, 4000, 8000, 16000, 25000, 32000],
+        line_arg='provider',
+        line_vals=['flex', 'flash'],
+        line_names=['flex_prefill_attention', 'flash_attention'],
+        styles=[('blue', '-'), ('green', '-')],
+        ylabel='TFLOPS',
+        plot_name='prefill-attention-performance',
+        args={'H': 16, 'QK_HEAD_DIM': 192, 'V_HEAD_DIM': 128, 'B': 1, 'dtype': torch.bfloat16}
+    )
+])
+def benchmark(B, N, H, QK_HEAD_DIM, V_HEAD_DIM, dtype, provider):
+    q = torch.randn((B, N, H, QK_HEAD_DIM), device="cuda", dtype=dtype)
+    k = torch.randn((B, N, H, QK_HEAD_DIM), device="cuda", dtype=dtype)
+    v = torch.randn((B, N, H, V_HEAD_DIM), device="cuda", dtype=dtype)
+    
+    quantiles = [0.5, 0.2, 0.8]
+    if provider == 'flex':
+        # Benchmark your flex_prefill_attention implementation
+        ms, min_ms, max_ms = triton.testing.do_bench(lambda: flex_prefill_attention(q, k, v, is_mla=True), quantiles=quantiles)
+    elif provider == 'flash':
+        # Benchmark flash_attention
+        cu_seqlens_q = torch.tensor([0, N], dtype=torch.int32, device="cuda")
+        scaling = 1 / (QK_HEAD_DIM**0.5)
+        ms, min_ms, max_ms = triton.testing.do_bench(lambda: flash_attn_varlen_func(
+             q=q.view(-1, H, QK_HEAD_DIM), 
+             k=k.view(-1, H, QK_HEAD_DIM), 
+             v=v.view(-1, H, V_HEAD_DIM), 
+             cu_seqlens_q=cu_seqlens_q, 
+             cu_seqlens_k=cu_seqlens_q, 
+             max_seqlen_q=N, 
+             max_seqlen_k=N, 
+             softmax_scale=scaling, 
+             causal=True, 
+             return_softmax_lse=True, 
+         ), quantiles=quantiles)
+    
+    # FLOPs for causal self-attention is approx. B * N^2 * (H * D_k + H * D_v)
+    flops = 0.5 * B * N * N * (H * QK_HEAD_DIM + H * V_HEAD_DIM)
+    return flops / ms / 1e9
+
+if __name__ == "__main__":
+    benchmark.run(print_data=True, show_plots=True)
+    # B = 1
+    # N = 32000
+    # H = 16
+    # QK_HEAD_DIM = 192
+    # V_HEAD_DIM = 128
+
+    # q = torch.randn((B, N, H, QK_HEAD_DIM), device="cuda", dtype=torch.bfloat16)
+    # k = torch.randn((B, N, H, QK_HEAD_DIM), device="cuda", dtype=torch.bfloat16)
+    # v = torch.randn((B, N, H, V_HEAD_DIM), device="cuda", dtype=torch.bfloat16)
+
+    # s = torch.cuda.Event(enable_timing=True)
+    # e = torch.cuda.Event(enable_timing=True)
+    # # warmup 
+    # for _ in range(3):
+    #     flex_prefill_attention(q, k, v, is_mla=True)
+
+    # # benchmark
+    # s.record()
+    # for _ in range(10):
+    #     flex_prefill_attention(q, k, v, is_mla=True)
+    # e.record()
+    # torch.cuda.synchronize()
+    # print(f"Time: {s.elapsed_time(e)}ms")
+
+    # cu_seqlens_q = torch.tensor([0, N], dtype=torch.int32, device="cuda")
+    # max_seq_len_q = N
+    # scaling = 0.1352337788608801
+    # # warmup fa3
+    # for _ in range(3):
+    #     output, lse, *rest = flash_attn_varlen_func(
+    #         q=q.view(-1, H, QK_HEAD_DIM),
+    #         k=k.view(-1, H, QK_HEAD_DIM),
+    #         v=v.view(-1, H, V_HEAD_DIM),
+    #         cu_seqlens_q=cu_seqlens_q,
+    #         cu_seqlens_k=cu_seqlens_q,
+    #         max_seqlen_q=max_seq_len_q,
+    #         max_seqlen_k=max_seq_len_q,
+    #         softmax_scale=scaling,
+    #         causal=True,
+    #         return_softmax_lse=True,
+    #     )
+    # s.record()
+    # for _ in range(10):
+    #     output, lse, *rest = flash_attn_varlen_func(
+    #         q=q.view(-1, H, QK_HEAD_DIM),
+    #         k=k.view(-1, H, QK_HEAD_DIM),
+    #         v=v.view(-1, H, V_HEAD_DIM),
+    #         cu_seqlens_q=cu_seqlens_q,
+    #         cu_seqlens_k=cu_seqlens_q,
+    #         max_seqlen_q=max_seq_len_q,
+    #         max_seqlen_k=max_seq_len_q,
+    #         softmax_scale=scaling,
+    #         causal=True,
+    #         return_softmax_lse=True,
+    #     )    
+    # e.record()
+    # torch.cuda.synchronize()
+    # print(f"Time: {s.elapsed_time(e)}ms")

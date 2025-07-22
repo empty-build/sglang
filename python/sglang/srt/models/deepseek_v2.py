@@ -1717,7 +1717,6 @@ class DeepseekV2AttentionMLA(nn.Module):
         # Do mha for extended part without prefix
         forward_batch.set_attn_attend_prefix_cache(False)
         attn_output, lse = self.attn_mha(q, k, v, forward_batch, save_kv_cache=False)
-        lse = torch.transpose(lse, 0, 1).contiguous()
 
         # Do mha attention with chunked prefix cache if there are any sequence with prefix
         if any(forward_batch.extend_prefix_lens_cpu):
@@ -1726,6 +1725,7 @@ class DeepseekV2AttentionMLA(nn.Module):
                 forward_batch.prepare_chunked_prefix_cache_info(q.device)
 
             forward_batch.set_attn_attend_prefix_cache(True)
+            lse = torch.transpose(lse, 0, 1).contiguous()
             attn_output = self._chunked_prefix_attn_mha(
                 q=q,
                 accum_output=attn_output,

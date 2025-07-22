@@ -663,12 +663,14 @@ class FlashAttentionBackend(AttentionBackend):
                     forward_batch.batch_size, -1, layer.tp_k_head_num, layer.head_dim
                 ),
                 v.view(
-                    forward_batch.batch_size, -1, layer.tp_v_head_num, layer.head_dim
+                    forward_batch.batch_size, -1, layer.tp_v_head_num, layer.v_head_dim
                 ),
-                softmax_scale=layer.scaling,
+                softmax_scale=layer.scaling, is_mla=self.use_mla,
             )
-
-            return out.view(-1, layer.tp_q_head_num * layer.v_head_dim)
+            if not forward_batch.attn_attend_prefix_cache:
+                return out.view(-1, layer.tp_q_head_num * layer.v_head_dim), None
+            else:
+                return out.view(-1, layer.tp_q_head_num * layer.v_head_dim)
 
         # Use precomputed metadata across all layers
         metadata = self.forward_metadata
@@ -803,7 +805,6 @@ class FlashAttentionBackend(AttentionBackend):
 
                     chunk_idx = forward_batch.prefix_chunk_idx
                     assert chunk_idx >= 0
-
                     output, lse, *rest = flash_attn_varlen_func(
                         q=q.view(-1, layer.tp_q_head_num, layer.head_dim),
                         k=k.view(-1, layer.tp_k_head_num, layer.head_dim).to(q.dtype),
