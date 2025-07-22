@@ -21,7 +21,11 @@ void cutlass_w4a8_moe_mm_sm90(
     torch::Tensor const& b_scales, torch::Tensor const& expert_offsets,
     torch::Tensor const& problem_sizes, torch::Tensor const& a_strides,
     torch::Tensor const& b_strides, torch::Tensor const& d_strides,
+<<<<<<< HEAD
     torch::Tensor const& s_strides, int64_t chunk_size, int64_t topk);
+=======
+    torch::Tensor const& s_strides, int64_t chunk_size, int64_t M);
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 
 void get_cutlass_moe_mm_data_caller(
     const torch::Tensor& topk_ids, torch::Tensor& expert_offsets,
@@ -37,12 +41,20 @@ void cutlass_w4a8_moe_mm(
     torch::Tensor const& b_scales, torch::Tensor const& expert_offsets,
     torch::Tensor const& problem_sizes, torch::Tensor const& a_strides,
     torch::Tensor const& b_strides, torch::Tensor const& d_strides,
+<<<<<<< HEAD
     torch::Tensor const& s_strides, int64_t chunk_size, int64_t topk) {
+=======
+    torch::Tensor const& s_strides, int64_t chunk_size, int64_t M) {
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
   int32_t version_num = get_sm_version_num();
 #if defined ENABLE_CUTLASS_MOE_SM90 && ENABLE_CUTLASS_MOE_SM90
   cutlass_w4a8_moe_mm_sm90(d_tensors, a_tensors, b_tensors, a_scales, b_scales,
                            expert_offsets, problem_sizes, a_strides, b_strides,
+<<<<<<< HEAD
                            d_strides, s_strides, chunk_size, topk);
+=======
+                           d_strides, s_strides, chunk_size, M);
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
   return;
 #endif
   TORCH_CHECK_NOT_IMPLEMENTED(

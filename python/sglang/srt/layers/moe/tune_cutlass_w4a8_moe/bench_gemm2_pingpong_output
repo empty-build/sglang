@@ -1,0 +1,5720 @@
+110611
+INFO 06-17 07:54:57 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 110611 test_time: 1.8236637115478516 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 110611 test_time: 1.8544197082519531 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 110611 test_time: 1.8978118896484375 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 110611 test_time: 1.9714832305908203 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 110611 test_time: 4.004955291748047 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 110611 test_time: 2.1288394927978516 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 110611 test_time: 2.171754837036133 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 110611 test_time: 2.773761749267578 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 110611 test_time: 4.149198532104492 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 110611 test_time: 6.953001022338867 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 110611 test_time: 12.833356857299805 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 110611 test_time: 23.745298385620117 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 110611 test_time: 45.82786560058594 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 110611 test_time: 89.6151065826416 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+110621
+INFO 06-17 07:55:11 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 110621 test_time: 1.9359588623046875 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 110621 test_time: 2.002716064453125 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 110621 test_time: 2.048969268798828 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 110621 test_time: 2.244710922241211 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 110621 test_time: 3.1309127807617188 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 110621 test_time: 3.0679702758789062 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 110621 test_time: 3.33404541015625 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 110621 test_time: 3.4685134887695312 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 110621 test_time: 4.812717437744141 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 110621 test_time: 7.474184036254883 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 110621 test_time: 13.406991958618164 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 110621 test_time: 25.001049041748047 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 110621 test_time: 47.731876373291016 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 110621 test_time: 93.9188003540039 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+110711
+INFO 06-17 07:55:25 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 110711 test_time: 1.9145011901855469 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 110711 test_time: 1.9605159759521484 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 110711 test_time: 1.8544197082519531 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 110711 test_time: 1.9681453704833984 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 110711 test_time: 1.9772052764892578 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 110711 test_time: 2.1610260009765625 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 110711 test_time: 4.277467727661133 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 110711 test_time: 2.8595924377441406 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 110711 test_time: 11.486053466796875 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 110711 test_time: 17.029762268066406 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 110711 test_time: 30.185699462890625 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 110711 test_time: 37.41168975830078 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 110711 test_time: 106.54568672180176 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 110711 test_time: 206.93278312683105 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+110721
+INFO 06-17 07:55:39 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 110721 test_time: 3.9272308349609375 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 110721 test_time: 3.9331912994384766 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 110721 test_time: 6.859064102172852 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 110721 test_time: 3.8368701934814453 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 110721 test_time: 11.85297966003418 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 110721 test_time: 12.814044952392578 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 110721 test_time: 13.086795806884766 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 110721 test_time: 13.27371597290039 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 110721 test_time: 20.612239837646484 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 110721 test_time: 34.07788276672363 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 110721 test_time: 26.02100372314453 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 110721 test_time: 106.99343681335449 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 110721 test_time: 206.58397674560547 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 110721 test_time: 407.91916847229004 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+113111
+INFO 06-17 07:55:55 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 113111 test_time: 1.8777847290039062 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 113111 test_time: 1.9459724426269531 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 113111 test_time: 1.8961429595947266 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 113111 test_time: 1.970052719116211 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 113111 test_time: 1.9886493682861328 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 113111 test_time: 2.1085739135742188 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 113111 test_time: 2.1829605102539062 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 113111 test_time: 2.2830963134765625 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 113111 test_time: 3.2939910888671875 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 113111 test_time: 4.869222640991211 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 113111 test_time: 8.372068405151367 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 113111 test_time: 15.28167724609375 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 113111 test_time: 29.234886169433594 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 113111 test_time: 56.537628173828125 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+113121
+INFO 06-17 07:56:09 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 113121 test_time: 1.9118785858154297 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 113121 test_time: 2.0062923431396484 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 113121 test_time: 2.0780563354492188 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 113121 test_time: 2.4421215057373047 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 113121 test_time: 2.6645660400390625 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 113121 test_time: 3.3850669860839844 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 113121 test_time: 3.568887710571289 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 113121 test_time: 3.687620162963867 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 113121 test_time: 4.10151481628418 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 113121 test_time: 5.99980354309082 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 113121 test_time: 9.697914123535156 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 113121 test_time: 17.165422439575195 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 113121 test_time: 31.695842742919922 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 113121 test_time: 61.22565269470215 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+113211
+INFO 06-17 07:56:23 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 113211 test_time: 1.922607421875 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 113211 test_time: 1.8150806427001953 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 113211 test_time: 1.9578933715820312 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 113211 test_time: 1.9385814666748047 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 113211 test_time: 1.9872188568115234 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 113211 test_time: 2.2885799407958984 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 113211 test_time: 2.337932586669922 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 113211 test_time: 2.434253692626953 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 113211 test_time: 3.2672882080078125 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 113211 test_time: 5.32078742980957 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 113211 test_time: 8.838176727294922 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 113211 test_time: 16.49618148803711 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 113211 test_time: 30.996322631835938 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 113211 test_time: 61.180830001831055 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+113221
+INFO 06-17 07:56:37 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 113221 test_time: 1.9183158874511719 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 113221 test_time: 2.051830291748047 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 113221 test_time: 3.4770965576171875 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 113221 test_time: 4.834175109863281 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 113221 test_time: 5.92803955078125 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 113221 test_time: 6.749153137207031 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 113221 test_time: 6.765604019165039 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 113221 test_time: 6.919384002685547 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 113221 test_time: 7.333040237426758 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 113221 test_time: 11.250734329223633 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 113221 test_time: 17.722129821777344 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 113221 test_time: 31.429052352905273 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 113221 test_time: 59.19241905212402 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 113221 test_time: 113.43121528625488 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+118111
+INFO 06-17 07:56:51 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 118111 test_time: 1.8374919891357422 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 118111 test_time: 1.9953250885009766 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 118111 test_time: 1.9960403442382812 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 118111 test_time: 1.985311508178711 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 118111 test_time: 2.301454544067383 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 118111 test_time: 2.438068389892578 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 118111 test_time: 2.5205612182617188 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 118111 test_time: 2.6335716247558594 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 118111 test_time: 3.016233444213867 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 118111 test_time: 4.139900207519531 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 118111 test_time: 6.869316101074219 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 118111 test_time: 12.186050415039062 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 118111 test_time: 22.557735443115234 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 118111 test_time: 43.329477310180664 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+118121
+INFO 06-17 07:57:05 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 118121 test_time: 1.8641948699951172 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 118121 test_time: 2.002716064453125 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 118121 test_time: 1.9876956939697266 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 118121 test_time: 3.3416748046875 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 118121 test_time: 3.5600662231445312 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 118121 test_time: 3.995656967163086 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 118121 test_time: 4.073858261108398 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 118121 test_time: 4.151105880737305 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 118121 test_time: 4.574775695800781 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 118121 test_time: 5.169153213500977 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 118121 test_time: 7.685184478759766 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 118121 test_time: 13.11492919921875 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 118121 test_time: 23.73957633972168 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 118121 test_time: 45.08543014526367 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+118211
+INFO 06-17 07:57:20 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 118211 test_time: 1.890420913696289 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 118211 test_time: 1.9791126251220703 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 118211 test_time: 1.9447803497314453 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 118211 test_time: 2.013683319091797 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 118211 test_time: 2.2385120391845703 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 118211 test_time: 2.443552017211914 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 118211 test_time: 2.5854110717773438 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 118211 test_time: 2.6803016662597656 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 118211 test_time: 3.0765533447265625 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 118211 test_time: 4.255056381225586 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 118211 test_time: 7.137060165405273 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 118211 test_time: 12.261629104614258 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 118211 test_time: 23.252487182617188 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 118211 test_time: 44.19517517089844 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+118221
+INFO 06-17 07:57:34 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 118221 test_time: 2.1677017211914062 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 118221 test_time: 2.3119449615478516 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 118221 test_time: 3.6249160766601562 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 118221 test_time: 4.574775695800781 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 118221 test_time: 6.969213485717773 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 118221 test_time: 7.866382598876953 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 118221 test_time: 7.9135894775390625 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 118221 test_time: 8.168697357177734 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 118221 test_time: 8.470773696899414 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 118221 test_time: 9.02247428894043 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 118221 test_time: 14.003753662109375 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 118221 test_time: 22.696256637573242 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 118221 test_time: 41.330814361572266 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 118221 test_time: 78.49287986755371 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+128111
+INFO 06-17 07:57:48 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 128111 test_time: 1.9445419311523438 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 128111 test_time: 2.1295547485351562 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 128111 test_time: 3.644227981567383 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 128111 test_time: 3.6935806274414062 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 128111 test_time: 5.297422409057617 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 128111 test_time: 6.073474884033203 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 128111 test_time: 6.237506866455078 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 128111 test_time: 6.312131881713867 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 128111 test_time: 6.669759750366211 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 128111 test_time: 7.292509078979492 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 128111 test_time: 10.87331771850586 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 128111 test_time: 17.640113830566406 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 128111 test_time: 32.351016998291016 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 128111 test_time: 61.598777770996094 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+128121
+INFO 06-17 07:58:02 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 128121 test_time: 2.765178680419922 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 128121 test_time: 3.3092498779296875 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 128121 test_time: 7.462978363037109 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 128121 test_time: 7.548809051513672 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 128121 test_time: 8.135557174682617 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 128121 test_time: 11.012792587280273 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 128121 test_time: 11.050939559936523 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 128121 test_time: 11.177778244018555 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 128121 test_time: 11.524677276611328 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 128121 test_time: 12.153863906860352 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 128121 test_time: 13.28420639038086 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 128121 test_time: 21.03710174560547 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 128121 test_time: 35.028934478759766 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 128121 test_time: 64.29624557495117 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+128211
+INFO 06-17 07:58:16 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 128211 test_time: 1.9824504852294922 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 128211 test_time: 2.066373825073242 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 128211 test_time: 3.296375274658203 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 128211 test_time: 4.354953765869141 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 128211 test_time: 5.326271057128906 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 128211 test_time: 5.954504013061523 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 128211 test_time: 6.0482025146484375 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 128211 test_time: 6.160974502563477 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 128211 test_time: 6.583929061889648 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 128211 test_time: 7.281303405761719 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 128211 test_time: 11.00778579711914 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 128211 test_time: 18.198251724243164 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 128211 test_time: 32.160043716430664 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 128211 test_time: 60.98127365112305 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+128221
+INFO 06-17 07:58:30 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 128221 test_time: 5.789518356323242 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 128221 test_time: 7.927179336547852 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 128221 test_time: 7.938146591186523 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 128221 test_time: 19.276857376098633 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 128221 test_time: 18.619537353515625 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 128221 test_time: 23.634672164916992 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 128221 test_time: 23.71501922607422 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 128221 test_time: 23.799896240234375 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 128221 test_time: 24.27220344543457 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 128221 test_time: 24.859905242919922 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 128221 test_time: 26.00240707397461 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 128221 test_time: 39.71982002258301 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 128221 test_time: 70.57595252990723 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 128221 test_time: 123.6257553100586 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+210611
+INFO 06-17 07:58:45 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 210611 test_time: 1.871347427368164 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 210611 test_time: 1.8773078918457031 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 210611 test_time: 1.8773078918457031 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 210611 test_time: 2.001047134399414 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 210611 test_time: 2.0689964294433594 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 210611 test_time: 2.0897388458251953 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 210611 test_time: 2.131223678588867 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 210611 test_time: 2.9344558715820312 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 210611 test_time: 4.007577896118164 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 210611 test_time: 6.548166275024414 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 210611 test_time: 11.712312698364258 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 210611 test_time: 21.706581115722656 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 210611 test_time: 42.18602180480957 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 210611 test_time: 82.84592628479004 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+210621
+INFO 06-17 07:58:59 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 210621 test_time: 1.8837451934814453 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 210621 test_time: 1.9588470458984375 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 210621 test_time: 1.9862651824951172 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 210621 test_time: 2.386808395385742 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 210621 test_time: 3.203153610229492 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 210621 test_time: 3.3435821533203125 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 210621 test_time: 3.422260284423828 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 210621 test_time: 3.520965576171875 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 210621 test_time: 5.052089691162109 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 210621 test_time: 7.48896598815918 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 210621 test_time: 12.315511703491211 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 210621 test_time: 22.614240646362305 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 210621 test_time: 43.154239654541016 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 210621 test_time: 83.2512378692627 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+210711
+INFO 06-17 07:59:13 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 210711 test_time: 1.8486976623535156 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 210711 test_time: 1.873016357421875 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 210711 test_time: 1.9230842590332031 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 210711 test_time: 2.0067691802978516 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 210711 test_time: 1.9927024841308594 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 210711 test_time: 2.146482467651367 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 210711 test_time: 2.2754669189453125 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 210711 test_time: 2.896547317504883 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 210711 test_time: 4.303216934204102 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 210711 test_time: 6.762266159057617 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 210711 test_time: 11.735200881958008 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 210711 test_time: 21.746158599853516 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 210711 test_time: 42.33384132385254 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 210711 test_time: 83.13751220703125 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+210721
+INFO 06-17 07:59:27 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 210721 test_time: 1.909494400024414 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 210721 test_time: 2.038240432739258 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 210721 test_time: 2.192258834838867 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 210721 test_time: 3.722667694091797 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 210721 test_time: 4.458427429199219 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 210721 test_time: 5.451202392578125 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 210721 test_time: 5.519628524780273 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 210721 test_time: 5.663156509399414 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 210721 test_time: 7.657051086425781 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 210721 test_time: 13.934612274169922 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 210721 test_time: 22.468090057373047 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 210721 test_time: 42.94729232788086 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 210721 test_time: 82.51738548278809 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 210721 test_time: 161.6823673248291 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+213111
+INFO 06-17 07:59:42 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 213111 test_time: 1.861572265625 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 213111 test_time: 1.922607421875 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 213111 test_time: 1.9497871398925781 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 213111 test_time: 1.9726753234863281 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 213111 test_time: 2.0918846130371094 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 213111 test_time: 2.244710922241211 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 213111 test_time: 2.3927688598632812 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 213111 test_time: 2.4919509887695312 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 213111 test_time: 3.331422805786133 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 213111 test_time: 5.340099334716797 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 213111 test_time: 8.561372756958008 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 213111 test_time: 15.071868896484375 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 213111 test_time: 28.400897979736328 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 213111 test_time: 54.67343330383301 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+213121
+INFO 06-17 07:59:56 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 213121 test_time: 1.924276351928711 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 213121 test_time: 1.997232437133789 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 213121 test_time: 1.9881725311279297 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 213121 test_time: 2.6221275329589844 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 213121 test_time: 3.175497055053711 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 213121 test_time: 3.4356117248535156 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 213121 test_time: 3.519773483276367 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 213121 test_time: 3.6611557006835938 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 213121 test_time: 4.02069091796875 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 213121 test_time: 5.716085433959961 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 213121 test_time: 8.911371231079102 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 213121 test_time: 15.837907791137695 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 213121 test_time: 28.822898864746094 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 213121 test_time: 55.59062957763672 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+213211
+INFO 06-17 08:00:10 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 213211 test_time: 1.8391609191894531 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 213211 test_time: 1.9097328186035156 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 213211 test_time: 1.9521713256835938 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 213211 test_time: 1.9423961639404297 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 213211 test_time: 2.1660327911376953 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 213211 test_time: 2.216339111328125 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 213211 test_time: 2.2602081298828125 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 213211 test_time: 2.4247169494628906 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 213211 test_time: 3.4902095794677734 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 213211 test_time: 5.219221115112305 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 213211 test_time: 8.311986923217773 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 213211 test_time: 14.75834846496582 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 213211 test_time: 27.913331985473633 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 213211 test_time: 54.613590240478516 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+213221
+INFO 06-17 08:00:24 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 213221 test_time: 1.9977092742919922 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 213221 test_time: 2.0399093627929688 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 213221 test_time: 2.6650428771972656 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 213221 test_time: 3.973245620727539 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 213221 test_time: 5.113124847412109 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 213221 test_time: 5.723714828491211 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 213221 test_time: 5.959272384643555 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 213221 test_time: 6.082057952880859 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 213221 test_time: 6.436347961425781 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 213221 test_time: 8.961200714111328 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 213221 test_time: 16.258955001831055 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 213221 test_time: 27.20785140991211 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 213221 test_time: 51.11360549926758 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 213221 test_time: 98.49786758422852 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+218111
+INFO 06-17 08:00:38 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 218111 test_time: 1.8813610076904297 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 218111 test_time: 1.9118785858154297 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 218111 test_time: 2.0465850830078125 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 218111 test_time: 2.296924591064453 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 218111 test_time: 3.101348876953125 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 218111 test_time: 3.555774688720703 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 218111 test_time: 3.631591796875 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 218111 test_time: 3.747224807739258 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 218111 test_time: 4.158735275268555 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 218111 test_time: 5.683660507202148 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 218111 test_time: 9.356260299682617 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 218111 test_time: 16.39533042907715 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 218111 test_time: 29.815196990966797 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 218111 test_time: 56.572914123535156 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+218121
+INFO 06-17 08:00:52 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 218121 test_time: 1.9502639770507812 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 218121 test_time: 2.197265625 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 218121 test_time: 2.371072769165039 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 218121 test_time: 3.8204193115234375 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 218121 test_time: 4.112482070922852 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 218121 test_time: 5.03230094909668 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 218121 test_time: 5.106210708618164 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 218121 test_time: 5.219936370849609 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 218121 test_time: 5.643367767333984 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 218121 test_time: 6.163358688354492 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 218121 test_time: 8.626461029052734 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 218121 test_time: 14.523744583129883 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 218121 test_time: 25.728702545166016 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 218121 test_time: 48.86484146118164 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+218211
+INFO 06-17 08:01:06 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 218211 test_time: 1.8558502197265625 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 218211 test_time: 1.9631385803222656 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 218211 test_time: 2.0186901092529297 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 218211 test_time: 2.337217330932617 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 218211 test_time: 2.7017593383789062 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 218211 test_time: 3.0281543731689453 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 218211 test_time: 3.148317337036133 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 218211 test_time: 3.2355785369873047 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 218211 test_time: 3.6475658416748047 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 218211 test_time: 5.240440368652344 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 218211 test_time: 8.171558380126953 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 218211 test_time: 13.933420181274414 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 218211 test_time: 24.924755096435547 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 218211 test_time: 47.36208915710449 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+218221
+INFO 06-17 08:01:20 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 218221 test_time: 1.9698143005371094 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 218221 test_time: 3.8721561431884766 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 218221 test_time: 3.7343502044677734 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 218221 test_time: 6.110906600952148 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 218221 test_time: 8.888006210327148 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 218221 test_time: 8.982419967651367 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 218221 test_time: 9.275197982788086 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 218221 test_time: 9.303569793701172 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 218221 test_time: 9.69839096069336 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 218221 test_time: 10.241508483886719 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 218221 test_time: 15.136003494262695 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 218221 test_time: 24.335861206054688 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 218221 test_time: 46.10490798950195 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 218221 test_time: 85.40463447570801 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+228111
+INFO 06-17 08:01:35 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 228111 test_time: 3.05938720703125 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 228111 test_time: 5.515575408935547 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 228111 test_time: 6.314992904663086 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 228111 test_time: 12.212991714477539 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 228111 test_time: 16.350984573364258 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 228111 test_time: 19.536256790161133 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 228111 test_time: 19.76490020751953 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 228111 test_time: 19.901752471923828 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 228111 test_time: 20.290851593017578 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 228111 test_time: 20.83134651184082 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 228111 test_time: 30.043363571166992 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 228111 test_time: 55.15480041503906 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 228111 test_time: 96.36235237121582 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 228111 test_time: 181.22148513793945 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+228121
+INFO 06-17 08:01:49 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 228121 test_time: 4.830360412597656 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 228121 test_time: 9.810686111450195 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 228121 test_time: 19.03700828552246 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 228121 test_time: 27.456045150756836 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 228121 test_time: 33.31589698791504 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 228121 test_time: 39.28351402282715 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 228121 test_time: 39.31617736816406 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 228121 test_time: 39.45803642272949 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 228121 test_time: 39.88504409790039 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 228121 test_time: 40.43149948120117 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 228121 test_time: 41.57757759094238 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 228121 test_time: 64.68510627746582 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 228121 test_time: 114.38870429992676 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 228121 test_time: 192.26574897766113 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+228211
+INFO 06-17 08:02:04 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 228211 test_time: 5.695343017578125 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 228211 test_time: 4.00543212890625 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 228211 test_time: 8.250236511230469 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 228211 test_time: 12.543678283691406 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 228211 test_time: 18.379926681518555 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 228211 test_time: 20.08366584777832 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 228211 test_time: 20.292043685913086 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 228211 test_time: 20.415544509887695 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 228211 test_time: 20.802974700927734 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 228211 test_time: 21.375417709350586 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 228211 test_time: 31.708478927612305 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 228211 test_time: 55.77969551086426 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 228211 test_time: 98.94680976867676 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 228211 test_time: 182.387113571167 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+228221
+INFO 06-17 08:02:20 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 228221 test_time: 9.672164916992188 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 228221 test_time: 14.739274978637695 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 228221 test_time: 31.363964080810547 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 228221 test_time: 48.697710037231445 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 228221 test_time: 65.49978256225586 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 228221 test_time: 76.48754119873047 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 228221 test_time: 76.68709754943848 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 228221 test_time: 76.70116424560547 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 228221 test_time: 77.03161239624023 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 228221 test_time: 77.90613174438477 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 228221 test_time: 78.91964912414551 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 228221 test_time: 107.61332511901855 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 228221 test_time: 203.05848121643066 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 228221 test_time: 356.1902046203613 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+410611
+INFO 06-17 08:02:36 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 410611 test_time: 1.966714859008789 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 410611 test_time: 2.0258426666259766 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 410611 test_time: 1.94549560546875 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 410611 test_time: 2.3174285888671875 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 410611 test_time: 2.92205810546875 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 410611 test_time: 3.2122135162353516 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 410611 test_time: 3.2639503479003906 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 410611 test_time: 4.05573844909668 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 410611 test_time: 6.48808479309082 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 410611 test_time: 10.915040969848633 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 410611 test_time: 20.260334014892578 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 410611 test_time: 38.18392753601074 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 410611 test_time: 75.35696029663086 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 410611 test_time: 148.53477478027344 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+410621
+INFO 06-17 08:02:52 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 410621 test_time: 2.0639896392822266 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 410621 test_time: 2.0666122436523438 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 410621 test_time: 3.155231475830078 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 410621 test_time: 3.7827491760253906 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 410621 test_time: 5.293846130371094 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 410621 test_time: 5.86700439453125 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 410621 test_time: 6.104469299316406 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 410621 test_time: 6.266117095947266 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 410621 test_time: 8.21685791015625 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 410621 test_time: 13.251781463623047 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 410621 test_time: 24.626493453979492 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 410621 test_time: 43.56718063354492 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 410621 test_time: 82.03721046447754 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 410621 test_time: 161.6840362548828 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+410711
+INFO 06-17 08:03:06 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 410711 test_time: 1.8875598907470703 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 410711 test_time: 1.9583702087402344 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 410711 test_time: 1.9412040710449219 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 410711 test_time: 2.3283958435058594 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 410711 test_time: 2.5815963745117188 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 410711 test_time: 3.01361083984375 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 410711 test_time: 3.091096878051758 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 410711 test_time: 3.94439697265625 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 410711 test_time: 6.234169006347656 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 410711 test_time: 9.85097885131836 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 410711 test_time: 17.569303512573242 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 410711 test_time: 34.391164779663086 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 410711 test_time: 65.5524730682373 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 410711 test_time: 130.29742240905762 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+410721
+INFO 06-17 08:03:21 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 410721 test_time: 1.8825531005859375 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 410721 test_time: 2.220630645751953 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 410721 test_time: 3.197908401489258 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 410721 test_time: 5.210399627685547 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 410721 test_time: 7.18998908996582 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 410721 test_time: 8.554220199584961 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 410721 test_time: 8.937597274780273 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 410721 test_time: 9.065866470336914 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 410721 test_time: 13.135194778442383 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 410721 test_time: 21.18396759033203 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 410721 test_time: 39.11304473876953 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 410721 test_time: 71.38228416442871 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 410721 test_time: 138.39483261108398 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 410721 test_time: 270.10083198547363 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+413111
+INFO 06-17 08:03:36 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 413111 test_time: 2.038240432739258 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 413111 test_time: 2.002239227294922 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 413111 test_time: 2.5603771209716797 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 413111 test_time: 3.9298534393310547 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 413111 test_time: 4.997968673706055 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 413111 test_time: 5.514383316040039 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 413111 test_time: 5.593776702880859 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 413111 test_time: 5.808353424072266 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 413111 test_time: 7.3757171630859375 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 413111 test_time: 11.963844299316406 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 413111 test_time: 19.304990768432617 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 413111 test_time: 34.60359573364258 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 413111 test_time: 65.24443626403809 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 413111 test_time: 128.32307815551758 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+413121
+INFO 06-17 08:03:50 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 413121 test_time: 1.8537044525146484 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 413121 test_time: 2.0499229431152344 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 413121 test_time: 3.088712692260742 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 413121 test_time: 4.215240478515625 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 413121 test_time: 5.564451217651367 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 413121 test_time: 5.918025970458984 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 413121 test_time: 5.959510803222656 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 413121 test_time: 6.101846694946289 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 413121 test_time: 6.508350372314453 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 413121 test_time: 9.170770645141602 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 413121 test_time: 15.50602912902832 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 413121 test_time: 26.229143142700195 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 413121 test_time: 51.09691619873047 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 413121 test_time: 98.64187240600586 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+413211
+INFO 06-17 08:04:04 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 413211 test_time: 1.932382583618164 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 413211 test_time: 1.9092559814453125 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 413211 test_time: 2.052783966064453 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 413211 test_time: 2.2704601287841797 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 413211 test_time: 3.2587051391601562 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 413211 test_time: 3.4792423248291016 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 413211 test_time: 3.612518310546875 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 413211 test_time: 3.675222396850586 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 413211 test_time: 5.035877227783203 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 413211 test_time: 7.201910018920898 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 413211 test_time: 12.63570785522461 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 413211 test_time: 23.877859115600586 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 413211 test_time: 45.17245292663574 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 413211 test_time: 88.10615539550781 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+
+413221
+INFO 06-17 08:04:19 __init__.py:190] Automatically detected platform cuda.
+Benchmarking models:
+
++++++++ test mkn : (4, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4 label: 413221 test_time: 2.9468536376953125 ms
++++++++ test mkn : (4, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8 label: 413221 test_time: 2.563953399658203 ms
++++++++ test mkn : (8, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16 label: 413221 test_time: 4.06193733215332 ms
++++++++ test mkn : (16, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32 label: 413221 test_time: 7.708311080932617 ms
++++++++ test mkn : (32, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (64, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((64, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 64 label: 413221 test_time: 9.218215942382812 ms
++++++++ test mkn : (64, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (128, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((128, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 128 label: 413221 test_time: 9.977579116821289 ms
++++++++ test mkn : (128, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (256, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((256, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 256 label: 413221 test_time: 10.46895980834961 ms
++++++++ test mkn : (256, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (512, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((512, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 512 label: 413221 test_time: 10.58506965637207 ms
++++++++ test mkn : (512, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (1024, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((1024, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 1024 label: 413221 test_time: 10.935783386230469 ms
++++++++ test mkn : (1024, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (2048, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((2048, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 2048 label: 413221 test_time: 15.867948532104492 ms
++++++++ test mkn : (2048, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (4096, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((4096, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 4096 label: 413221 test_time: 26.75914764404297 ms
++++++++ test mkn : (4096, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (8192, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((8192, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 8192 label: 413221 test_time: 47.66225814819336 ms
++++++++ test mkn : (8192, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (16384, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((16384, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 16384 label: 413221 test_time: 90.12126922607422 ms
++++++++ test mkn : (16384, 7168, 2048)  end++++++++
+
+
++++++++ test mkn : (32768, 7168, 2048)  start++++++++
+num_experts and topk: 32 8
+Testing: DeepSeek-W4AFP8, num_experts=32, topk=8, MKN=((32768, 7168, 2048))
+
+>>>>>> cutlass execute time <<<<<<
+
+batch_size: 32768 label: 413221 test_time: 176.2993335723877 ms
++++++++ test mkn : (32768, 7168, 2048)  end++++++++
+

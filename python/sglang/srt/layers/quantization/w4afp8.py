@@ -1,12 +1,24 @@
 # Adapted from https://github.com/vllm-project/vllm/blob/v0.6.4.post1/vllm/model_executor/layers/quantization/fp8.py
 
 import logging
+<<<<<<< HEAD
 from typing import Any, Dict, List, Optional
 
 import torch
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
+=======
+from typing import Any, Callable, Dict, List, Optional
+
+import torch
+import torch.nn.functional as F
+from torch.nn import Module
+from torch.nn.parameter import Parameter
+
+from grouped_gemm.ops import permute
+
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 from sglang.srt.layers.linear import (
     LinearBase,
     UnquantizedLinearMethod,
@@ -39,6 +51,38 @@ def singleton(cls):
 
     return get_instance
 
+<<<<<<< HEAD
+=======
+@singleton
+class GlobalVar:
+    def __init__(self):
+        self.inited = False
+        self.act_scale = None
+        self.a_q_fp8 = None
+        self.expert_offsets = None
+        self.problem_sizes = []
+        self.permute_map = []
+        self.inter = None
+        self.c1 = None
+        self.c2 = None
+        self.inter_q = None
+        self.remap_q = None
+        self.permute_ws_inited = False
+
+    def init_permute_ws(self, top_k, hidden_size):
+        if not self.permute_ws_inited:
+            errs = [list(range(top_k)) for i in range(MAX_SEQ_LEN)]
+            indexes = torch.tensor(errs, dtype=torch.int32, device="cuda")
+
+            input_act = torch.empty(
+                (MAX_SEQ_LEN, hidden_size), dtype=torch.float8_e4m3fn, device="cuda"
+            )
+            _, _ = permute(input_act, indexes, max_token_num=MAX_SEQ_LEN)
+            self.permute_ws_inited = True
+            del input_act
+
+
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 class W4AFp8Config(QuantizationConfig):
     """Config class for MIXED_PRECISION W4AFp8."""
 
@@ -166,6 +210,11 @@ class W4AFp8MoEMethod:
             requires_grad=False,
         )
         layer.register_parameter("w13_weight_scale_inv", w13_weight_scale)
+<<<<<<< HEAD
+=======
+        # extra_weight_attrs.update(
+        #     {"quant_method": FusedMoeWeightScaleSupported.BLOCK.value})
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         set_weight_attrs(w13_weight_scale, extra_weight_attrs)
 
         w2_weight_scale = torch.nn.Parameter(
@@ -195,6 +244,10 @@ class W4AFp8MoEMethod:
         set_weight_attrs(w2_input_scale, extra_weight_attrs)
 
         # Pre-populate the strides
+<<<<<<< HEAD
+=======
+        # num_experts_per_partition = layer.w2_weight.shape[0]
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         device = layer.w13_weight.device
 
         self.a_strides1 = torch.full((num_experts_per_partition, 3),
@@ -218,6 +271,13 @@ class W4AFp8MoEMethod:
         self.b_strides2 = self.a_strides2
         self.s_strides2 = self.c_strides2
 
+<<<<<<< HEAD
+=======
+        # singleton_var = GlobalVar()
+        # # [TODO]: for other moe topk_nums modify here
+        # singleton_var.init_permute_ws(8, hidden_size)
+
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         self.expert_offsets = torch.empty((num_experts_per_partition + 1),
                                  dtype=torch.int32,
                                  device=device)
@@ -275,3 +335,72 @@ class W4AFp8MoEMethod:
             device=device
         )
         layer.w2_input_scale = Parameter(new_w2_input_scale, requires_grad=False)
+<<<<<<< HEAD
+=======
+
+
+
+    # def apply(
+    #     self,
+    #     layer: torch.nn.Module,
+    #     x: torch.Tensor,
+    #     topk_weights: torch.Tensor,
+    #     topk_ids: torch.Tensor,
+    #     expert_map: torch.Tensor,
+    #     router_logits: torch.Tensor,
+    #     top_k: int,
+    #     renormalize: bool,
+    #     use_grouped_topk: bool,
+    #     topk_group: Optional[int] = None,
+    #     num_expert_group: Optional[int] = None,
+    #     custom_routing_function: Optional[Callable] = None,
+    #     correction_bias: Optional[torch.Tensor] = None,
+    #     activation: str = "silu",
+    #     apply_router_weight_on_input: bool = False,
+    #     inplace: bool = True,
+    #     no_combine: bool = False,
+    #     routed_scaling_factor: Optional[float] = None,
+    # ) -> torch.Tensor:
+    #     # from sglang.srt.layers.moe.topk import select_experts
+
+    #     # topk_weights, topk_ids = select_experts(
+    #     #     hidden_states=x,
+    #     #     router_logits=router_logits,
+    #     #     top_k=top_k,
+    #     #     use_grouped_topk=use_grouped_topk,
+    #     #     renormalize=renormalize,
+    #     #     topk_group=topk_group,
+    #     #     num_expert_group=num_expert_group,
+    #     #     correction_bias=self.correction_bias,
+    #     #     custom_routing_function=self.custom_routing_function,
+    #     #     routed_scaling_factor=self.routed_scaling_factor,
+    #     #     expert_location_dispatch_info=ExpertLocationDispatchInfo.init_new(
+    #     #         ep_rank=self.tp_rank,
+    #     #         layer_id=self.layer_id,
+    #     #     ),
+    #     # )
+
+    #     # return cutlass_w4a8_moe(
+    #     #     x,
+    #     #     layer.w13_weight,  # Alreay transpose
+    #     #     layer.w2_weight,  # Alreay transpose
+    #     #     layer.w13_weight_scale_inv,  # Already interleaved
+    #     #     layer.w2_weight_scale_inv,  # Already interleaved
+    #     #     topk_weights,
+    #     #     topk_ids,
+    #     #     self.a_strides1,
+    #     #     self.b_strides1,
+    #     #     self.c_strides1,
+    #     #     self.a_strides2,
+    #     #     self.b_strides2,
+    #     #     self.c_strides2,
+    #     #     self.s_strides13,
+    #     #     self.s_strides2,
+    #     #     layer.w13_input_scale,
+    #     #     layer.w2_input_scale,
+    #     #     expert_map,
+    #     #     apply_router_weight_on_input,
+    #     # )
+
+    #     return x
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)

@@ -235,7 +235,11 @@ void cutlass_w4a8_moe_mm(
     torch::Tensor const& b_scales, torch::Tensor const& expert_offsets,
     torch::Tensor const& problem_sizes, torch::Tensor const& a_strides,
     torch::Tensor const& b_strides, torch::Tensor const& d_strides,
+<<<<<<< HEAD
     torch::Tensor const& s_strides, int64_t chunk_size, int64_t topk);
+=======
+    torch::Tensor const& s_strides, int64_t chunk_size, int64_t M);
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 
 /*
  * From csrc/speculative

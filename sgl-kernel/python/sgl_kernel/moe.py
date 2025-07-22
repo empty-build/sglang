@@ -132,7 +132,11 @@ def cutlass_w4a8_moe_mm(
     d_strides: torch.tensor,
     s_strides: torch.tensor,
     chunk_size: int = 0,
+<<<<<<< HEAD
     topk: int = 0,
+=======
+    m: int = 0,
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 ):
     """
     Perform grouped matrix multiplication between int4 weights and fp8 activations.
@@ -173,4 +177,8 @@ def cutlass_w4a8_moe_mm(
 
     torch.ops.sgl_kernel.cutlass_w4a8_moe_mm.default(
         d, a, b, a_scales, b_scales, experts_offsets, problem_sizes, 
+<<<<<<< HEAD
         a_strides, b_strides, d_strides, s_strides, chunk_size, topk)
+=======
+        a_strides, b_strides, d_strides, s_strides, chunk_size, m)
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)

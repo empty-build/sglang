@@ -112,10 +112,17 @@ def test_fused_moe_w4afp8(dtype):
                                  dtype=torch.int8,
                                  device='cuda')
         affine_coeff = 0.005
+<<<<<<< HEAD
         a1_scale = torch.randn(1, dtype=torch.float32, device="cuda")
         a2_scale = torch.randn(1, dtype=torch.float32, device="cuda")
         # a1_scale = torch.ones(1, dtype=torch.float32, device="cuda")
         # a2_scale = torch.ones(1, dtype=torch.float32, device="cuda")
+=======
+        # a1_scale = torch.randn(1, dtype=torch.float32, device="cuda")
+        # a2_scale = torch.randn(1, dtype=torch.float32, device="cuda")
+        a1_scale = torch.ones(1, dtype=torch.float32, device="cuda")
+        a2_scale = torch.ones(1, dtype=torch.float32, device="cuda")
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         scale_1 = torch.randn(
             local_e, K // group_size, N * 2, dtype=dtype,
             device="cuda") * affine_coeff
@@ -245,6 +252,7 @@ def cutlass_moe(
     local_topk_ids = torch.where(expert_map[topk_ids_] != E,
                                     expert_map[topk_ids_], E)
     device = a.device
+<<<<<<< HEAD
 
     local_num_experts = end_expert_id - start_expert_id + 1
     expert_offsets = torch.empty((local_num_experts + 1),
@@ -260,6 +268,31 @@ def cutlass_moe(
         start_expert_id,
         end_expert_id,
         E,
+=======
+    gateup_input = torch.empty(
+        ((a.shape[0] * 8), a.shape[1]),
+        device=device,
+        dtype=torch.float8_e4m3fn,
+    )
+    reorder_topk_ids, src2dst, seg_indptr = run_cutlass_moe_ep_preproess(
+        local_topk_ids, end_expert_id - start_expert_id + 1,
+    )
+    # reorder_topk_ids, src2dst = run_cutlass_moe_ep_preproess(
+    #     local_topk_ids, E
+    # )
+    pre_reorder_triton_kernel_for_cutlass_moe[(a.shape[0],)](
+        a,
+        gateup_input,
+        src2dst,
+        local_topk_ids,
+        a1_scale,
+        E,
+        8,
+        a.shape[1],
+        BLOCK_SIZE=512,
+    )
+    return cutlass_w4a8_moe(
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         a,
         w1_q,
         w2_q,
@@ -267,7 +300,11 @@ def cutlass_moe(
         w2_scale,
         topk_weights,
         topk_ids_,
+<<<<<<< HEAD
         local_topk_ids,
+=======
+        cutlass_w4a8_moe,
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         a_strides1,
         b_strides1,
         c_strides1,
@@ -276,12 +313,23 @@ def cutlass_moe(
         c_strides2,
         s_strides13,
         s_strides2,
+<<<<<<< HEAD
         expert_offsets,
         problem_sizes1,
         problem_sizes2,
         a1_scale,
         a2_scale,
         apply_router_weight_on_input,
+=======
+        gateup_input,
+        src2dst,
+        # seg_indptr,
+        start_expert_id,
+        end_expert_id,
+        a1_scale,
+        a2_scale,
+        expert_map,
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     )
 
 

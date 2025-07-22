@@ -24,7 +24,11 @@
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/dispatch_policy.hpp"
 #include "cutlass/gemm/group_array_problem_shape.hpp"
+<<<<<<< HEAD
 #include "cutlass_extensions/gemm/collective/collective_builder_mixed_input.hpp"
+=======
+#include "cutlass/gemm/collective/collective_builder.hpp"
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 #include "cutlass/epilogue/collective/collective_builder.hpp"
 #include "cutlass/gemm/device/gemm_universal_adapter.h"
 #include "cutlass/gemm/kernel/gemm_universal.hpp"
@@ -85,7 +89,11 @@ struct cutlass_3x_w4a8_group_gemm {
             EpilogueSchedule>::CollectiveOp;
 
     using CollectiveMainloopScaleOnly =
+<<<<<<< HEAD
         typename cutlass::gemm::collective::CollectiveBuilderMixedInput<
+=======
+        typename cutlass::gemm::collective::CollectiveBuilder<
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
             ArchTag, OperatorClass, cute::tuple<QuantType, ElementScalePacked>,
             LayoutB_Transpose*, AlignmentB, MmaType, LayoutA_Transpose*,
             AlignmentA, ElementAccumulator, TileShape, ClusterShape,

@@ -94,6 +94,14 @@ def create_cutlass_test_data(M, E, K, N, a, topk_ids):
     c_map=torch.zeros((topk_ids.numel()),
                               dtype=torch.int32,
                               device=device)
+<<<<<<< HEAD
+=======
+    # for i in range(1, E + 1):
+    #     expert_offsets[i] = expert_offsets[i - 1] + tokens_per_group
+    # problem_sizes = torch.tensor(
+    #     [[N, tokens_per_group, K]] * E, dtype=torch.int32, device="cuda"
+    # )
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     get_cutlass_moe_mm_data(topk_ids, expert_offsets, problem_sizes1,
                                 problem_sizes2, a_map, c_map, E, N,
                                 K)
@@ -111,6 +119,11 @@ def create_cutlass_test_data(M, E, K, N, a, topk_ids):
 
 
 def create_triton_test_data(M, E, K, N, a, topk_ids):
+<<<<<<< HEAD
+=======
+    tokens_per_group = M // E
+
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     fp8_info = torch.finfo(torch.float8_e4m3fn)
     fp8_max, fp8_min = fp8_info.max, fp8_info.min
     ref_w = torch.randn(
@@ -126,6 +139,12 @@ def create_triton_test_data(M, E, K, N, a, topk_ids):
         * factor_for_scale
     )
 
+<<<<<<< HEAD
+=======
+    # seg_indptr = torch.zeros(E + 1, dtype=torch.int64, device="cuda")
+    # for i in range(1, E + 1):
+    #     seg_indptr[i] = seg_indptr[i - 1] + tokens_per_group
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     reorder_topk_ids, src2dst, seg_indptr = run_moe_ep_preproess(topk_ids, E)
     gateup_input = torch.empty(
             (int(a.shape[0] * 8), a.shape[1]),
@@ -219,7 +238,11 @@ def benchmark(batch_size, provider):
                 c_strides,
                 s_strides,
                 group_size,
+<<<<<<< HEAD
                 8,
+=======
+                M,
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
             ),
             quantiles=quantiles,
         )

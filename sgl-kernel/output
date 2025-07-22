@@ -1,0 +1,1110 @@
+INFO 06-13 09:09:29 __init__.py:190] Automatically detected platform cuda.
+reorder duration: 15.273 ms
+seg indptr duration: 0.112 ms
+compute src2dst duration: 483.251 ms
+run_cutlass_moe_ep_preproess duration: 498.645 ms
+run_cutlass_moe_ep_preproess took: 526.602030 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 2.264500 ms
+get_cutlass_moe_mm_data took: 0.591278 ms
+first_gemm_duration took: 0.657320 ms
+fp8 scale took: 1.139879 ms
+second_gemm_duration took: 0.077248 ms
+post_reorder_triton took: 1749805773639.080811 ms
+cutlass_w4a8_moe took: 533.726454 ms
+reorder duration: 0.099 ms
+seg indptr duration: 0.026 ms
+compute src2dst duration: 0.087 ms
+run_cutlass_moe_ep_preproess duration: 0.214 ms
+run_cutlass_moe_ep_preproess took: 0.478268 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.052214 ms
+get_cutlass_moe_mm_data took: 0.073433 ms
+first_gemm_duration took: 0.066519 ms
+fp8 scale took: 0.035048 ms
+second_gemm_duration took: 0.027657 ms
+post_reorder_triton took: 1749805773689.690430 ms
+cutlass_w4a8_moe took: 0.806808 ms
+reorder duration: 0.045 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.044 ms
+run_cutlass_moe_ep_preproess duration: 0.104 ms
+run_cutlass_moe_ep_preproess took: 0.198841 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.040293 ms
+get_cutlass_moe_mm_data took: 0.061989 ms
+first_gemm_duration took: 0.045776 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773692.564453 ms
+cutlass_w4a8_moe took: 0.475407 ms
+reorder duration: 0.042 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.100 ms
+run_cutlass_moe_ep_preproess took: 0.186443 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.041008 ms
+get_cutlass_moe_mm_data took: 0.055075 ms
+first_gemm_duration took: 0.045061 ms
+fp8 scale took: 0.024796 ms
+second_gemm_duration took: 0.024080 ms
+post_reorder_triton took: 1749805773694.207520 ms
+cutlass_w4a8_moe took: 0.434875 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.163794 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039101 ms
+get_cutlass_moe_mm_data took: 0.051737 ms
+first_gemm_duration took: 0.042200 ms
+fp8 scale took: 0.022411 ms
+second_gemm_duration took: 0.023842 ms
+post_reorder_triton took: 1749805773694.859863 ms
+cutlass_w4a8_moe took: 0.401497 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.190735 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.040293 ms
+get_cutlass_moe_mm_data took: 0.053167 ms
+first_gemm_duration took: 0.044823 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.024080 ms
+post_reorder_triton took: 1749805773695.071045 ms
+cutlass_w4a8_moe took: 0.437975 ms
+reorder duration: 0.048 ms
+seg indptr duration: 0.018 ms
+compute src2dst duration: 0.057 ms
+run_cutlass_moe_ep_preproess duration: 0.124 ms
+run_cutlass_moe_ep_preproess took: 0.236750 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.042677 ms
+get_cutlass_moe_mm_data took: 0.061274 ms
+first_gemm_duration took: 0.052691 ms
+fp8 scale took: 0.028372 ms
+second_gemm_duration took: 0.031948 ms
+post_reorder_triton took: 1749805773692.510010 ms
+cutlass_w4a8_moe took: 0.516176 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.172615 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038385 ms
+get_cutlass_moe_mm_data took: 0.074625 ms
+first_gemm_duration took: 0.062227 ms
+fp8 scale took: 0.026703 ms
+second_gemm_duration took: 0.025511 ms
+post_reorder_triton took: 1749805773699.416260 ms
+cutlass_w4a8_moe took: 0.462770 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.179291 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036478 ms
+get_cutlass_moe_mm_data took: 0.051498 ms
+first_gemm_duration took: 0.041962 ms
+fp8 scale took: 0.021935 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773700.313232 ms
+cutlass_w4a8_moe took: 0.419617 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.089 ms
+run_cutlass_moe_ep_preproess took: 0.163555 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037909 ms
+get_cutlass_moe_mm_data took: 0.050545 ms
+first_gemm_duration took: 0.041962 ms
+fp8 scale took: 0.022650 ms
+second_gemm_duration took: 0.024796 ms
+post_reorder_triton took: 1749805773700.960449 ms
+cutlass_w4a8_moe took: 0.397205 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.188351 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038147 ms
+get_cutlass_moe_mm_data took: 0.052214 ms
+first_gemm_duration took: 0.043869 ms
+fp8 scale took: 0.023603 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773701.868896 ms
+cutlass_w4a8_moe took: 0.427008 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.036 ms
+run_cutlass_moe_ep_preproess duration: 0.086 ms
+run_cutlass_moe_ep_preproess took: 0.158072 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036716 ms
+get_cutlass_moe_mm_data took: 0.050545 ms
+first_gemm_duration took: 0.042200 ms
+fp8 scale took: 0.021935 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773702.262939 ms
+cutlass_w4a8_moe took: 0.388861 ms
+reorder duration: 0.035 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.037 ms
+run_cutlass_moe_ep_preproess duration: 0.086 ms
+run_cutlass_moe_ep_preproess took: 0.163555 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.050306 ms
+get_cutlass_moe_mm_data took: 0.058651 ms
+first_gemm_duration took: 0.047922 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773701.981201 ms
+cutlass_w4a8_moe took: 0.432014 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.012 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.170946 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037909 ms
+get_cutlass_moe_mm_data took: 0.051498 ms
+first_gemm_duration took: 0.043154 ms
+fp8 scale took: 0.022888 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773702.395508 ms
+cutlass_w4a8_moe took: 0.405788 ms
+reorder duration: 0.035 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.037 ms
+run_cutlass_moe_ep_preproess duration: 0.086 ms
+run_cutlass_moe_ep_preproess took: 0.157595 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.035286 ms
+get_cutlass_moe_mm_data took: 0.051022 ms
+first_gemm_duration took: 0.041008 ms
+fp8 scale took: 0.022650 ms
+second_gemm_duration took: 0.036240 ms
+post_reorder_triton took: 1749805773691.600342 ms
+cutlass_w4a8_moe took: 0.405788 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.170231 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037670 ms
+get_cutlass_moe_mm_data took: 0.051975 ms
+first_gemm_duration took: 0.044107 ms
+fp8 scale took: 0.023603 ms
+second_gemm_duration took: 0.023603 ms
+post_reorder_triton took: 1749805773704.647461 ms
+cutlass_w4a8_moe took: 0.406027 ms
+reorder duration: 0.034 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.036 ms
+run_cutlass_moe_ep_preproess duration: 0.085 ms
+run_cutlass_moe_ep_preproess took: 0.156403 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.035763 ms
+get_cutlass_moe_mm_data took: 0.050306 ms
+first_gemm_duration took: 0.042439 ms
+fp8 scale took: 0.028372 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773703.376221 ms
+cutlass_w4a8_moe took: 0.396013 ms
+reorder duration: 0.054 ms
+seg indptr duration: 0.016 ms
+compute src2dst duration: 0.128 ms
+run_cutlass_moe_ep_preproess duration: 0.200 ms
+run_cutlass_moe_ep_preproess took: 0.298977 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.042677 ms
+get_cutlass_moe_mm_data took: 0.064373 ms
+first_gemm_duration took: 0.053883 ms
+fp8 scale took: 0.027180 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773703.961426 ms
+cutlass_w4a8_moe took: 0.579119 ms
+reorder duration: 0.046 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.103 ms
+run_cutlass_moe_ep_preproess took: 0.196457 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039101 ms
+get_cutlass_moe_mm_data took: 0.052452 ms
+first_gemm_duration took: 0.044823 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773704.410400 ms
+cutlass_w4a8_moe took: 0.441551 ms
+reorder duration: 0.046 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.104 ms
+run_cutlass_moe_ep_preproess took: 0.190735 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038147 ms
+get_cutlass_moe_mm_data took: 0.053644 ms
+first_gemm_duration took: 0.045061 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773704.849121 ms
+cutlass_w4a8_moe took: 0.433207 ms
+reorder duration: 0.035 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.087 ms
+run_cutlass_moe_ep_preproess took: 0.164747 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037670 ms
+get_cutlass_moe_mm_data took: 0.051498 ms
+first_gemm_duration took: 0.041723 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.024557 ms
+post_reorder_triton took: 1749805773705.969727 ms
+cutlass_w4a8_moe took: 0.399828 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.012 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.089 ms
+run_cutlass_moe_ep_preproess took: 0.160456 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.035524 ms
+get_cutlass_moe_mm_data took: 0.065565 ms
+first_gemm_duration took: 0.048399 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773706.629639 ms
+cutlass_w4a8_moe took: 0.415802 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.037 ms
+run_cutlass_moe_ep_preproess duration: 0.087 ms
+run_cutlass_moe_ep_preproess took: 0.163794 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036716 ms
+get_cutlass_moe_mm_data took: 0.050783 ms
+first_gemm_duration took: 0.042915 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773706.319580 ms
+cutlass_w4a8_moe took: 0.400782 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.097 ms
+run_cutlass_moe_ep_preproess took: 0.173569 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039577 ms
+get_cutlass_moe_mm_data took: 0.052691 ms
+first_gemm_duration took: 0.044346 ms
+fp8 scale took: 0.025034 ms
+second_gemm_duration took: 0.024796 ms
+post_reorder_triton took: 1749805773707.033691 ms
+cutlass_w4a8_moe took: 0.435352 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.180006 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.040531 ms
+get_cutlass_moe_mm_data took: 0.053167 ms
+first_gemm_duration took: 0.046015 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773707.031982 ms
+cutlass_w4a8_moe took: 0.429153 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.092 ms
+run_cutlass_moe_ep_preproess took: 0.167608 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.051737 ms
+first_gemm_duration took: 0.042677 ms
+fp8 scale took: 0.022888 ms
+second_gemm_duration took: 0.064135 ms
+post_reorder_triton took: 1749805773668.673584 ms
+cutlass_w4a8_moe took: 0.467062 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.099 ms
+run_cutlass_moe_ep_preproess took: 0.186682 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039101 ms
+get_cutlass_moe_mm_data took: 0.054836 ms
+first_gemm_duration took: 0.046253 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773708.015137 ms
+cutlass_w4a8_moe took: 0.434637 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.168562 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036716 ms
+get_cutlass_moe_mm_data took: 0.050068 ms
+first_gemm_duration took: 0.042200 ms
+fp8 scale took: 0.023127 ms
+second_gemm_duration took: 0.023842 ms
+post_reorder_triton took: 1749805773709.881836 ms
+cutlass_w4a8_moe took: 0.399113 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.187874 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036716 ms
+get_cutlass_moe_mm_data took: 0.052929 ms
+first_gemm_duration took: 0.044823 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.024557 ms
+post_reorder_triton took: 1749805773709.629639 ms
+cutlass_w4a8_moe took: 0.426769 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.164270 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.051498 ms
+first_gemm_duration took: 0.042439 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.023603 ms
+post_reorder_triton took: 1749805773711.019775 ms
+cutlass_w4a8_moe took: 0.399113 ms
+reorder duration: 0.053 ms
+seg indptr duration: 0.017 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.113 ms
+run_cutlass_moe_ep_preproess took: 0.185966 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036955 ms
+get_cutlass_moe_mm_data took: 0.053883 ms
+first_gemm_duration took: 0.045300 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773710.055908 ms
+cutlass_w4a8_moe took: 0.429392 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.092 ms
+run_cutlass_moe_ep_preproess took: 0.169754 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.035763 ms
+get_cutlass_moe_mm_data took: 0.049829 ms
+first_gemm_duration took: 0.041962 ms
+fp8 scale took: 0.023127 ms
+second_gemm_duration took: 0.023127 ms
+post_reorder_triton took: 1749805773712.398926 ms
+cutlass_w4a8_moe took: 0.398397 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.037 ms
+run_cutlass_moe_ep_preproess duration: 0.087 ms
+run_cutlass_moe_ep_preproess took: 0.162363 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036478 ms
+get_cutlass_moe_mm_data took: 0.060320 ms
+first_gemm_duration took: 0.046015 ms
+fp8 scale took: 0.023603 ms
+second_gemm_duration took: 0.024796 ms
+post_reorder_triton took: 1749805773711.190674 ms
+cutlass_w4a8_moe took: 0.424623 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.170231 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.035524 ms
+get_cutlass_moe_mm_data took: 0.050068 ms
+first_gemm_duration took: 0.042915 ms
+fp8 scale took: 0.022411 ms
+second_gemm_duration took: 0.024557 ms
+post_reorder_triton took: 1749805773711.870117 ms
+cutlass_w4a8_moe took: 0.402689 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.131 ms
+run_cutlass_moe_ep_preproess took: 0.203133 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.065804 ms
+get_cutlass_moe_mm_data took: 0.083208 ms
+first_gemm_duration took: 0.054359 ms
+fp8 scale took: 0.027180 ms
+second_gemm_duration took: 0.026226 ms
+post_reorder_triton took: 1749805773710.763672 ms
+cutlass_w4a8_moe took: 0.528574 ms
+reorder duration: 0.049 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.045 ms
+run_cutlass_moe_ep_preproess duration: 0.111 ms
+run_cutlass_moe_ep_preproess took: 0.210524 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039577 ms
+get_cutlass_moe_mm_data took: 0.053644 ms
+first_gemm_duration took: 0.045538 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.025272 ms
+post_reorder_triton took: 1749805773712.221436 ms
+cutlass_w4a8_moe took: 0.455618 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.092 ms
+run_cutlass_moe_ep_preproess took: 0.169039 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037909 ms
+get_cutlass_moe_mm_data took: 0.070572 ms
+first_gemm_duration took: 0.053883 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773713.653076 ms
+cutlass_w4a8_moe took: 0.440359 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.174999 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038385 ms
+get_cutlass_moe_mm_data took: 0.051975 ms
+first_gemm_duration took: 0.041962 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.024080 ms
+post_reorder_triton took: 1749805773714.341309 ms
+cutlass_w4a8_moe took: 0.410557 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.089 ms
+run_cutlass_moe_ep_preproess took: 0.160217 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038624 ms
+get_cutlass_moe_mm_data took: 0.052691 ms
+first_gemm_duration took: 0.041246 ms
+fp8 scale took: 0.041008 ms
+second_gemm_duration took: 0.028849 ms
+post_reorder_triton took: 1749805773710.033447 ms
+cutlass_w4a8_moe took: 0.424147 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.094 ms
+run_cutlass_moe_ep_preproess took: 0.173330 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037909 ms
+get_cutlass_moe_mm_data took: 0.052214 ms
+first_gemm_duration took: 0.042439 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.023842 ms
+post_reorder_triton took: 1749805773715.487793 ms
+cutlass_w4a8_moe took: 0.408888 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.089 ms
+run_cutlass_moe_ep_preproess took: 0.161648 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.040770 ms
+get_cutlass_moe_mm_data took: 0.052214 ms
+first_gemm_duration took: 0.043631 ms
+fp8 scale took: 0.022650 ms
+second_gemm_duration took: 0.025749 ms
+post_reorder_triton took: 1749805773714.020264 ms
+cutlass_w4a8_moe took: 0.414848 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.179291 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039339 ms
+get_cutlass_moe_mm_data took: 0.055075 ms
+first_gemm_duration took: 0.049114 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773715.217041 ms
+cutlass_w4a8_moe took: 0.429392 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.089 ms
+run_cutlass_moe_ep_preproess took: 0.160694 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.052452 ms
+first_gemm_duration took: 0.044584 ms
+fp8 scale took: 0.023603 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773716.368164 ms
+cutlass_w4a8_moe took: 0.416994 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.045 ms
+run_cutlass_moe_ep_preproess duration: 0.103 ms
+run_cutlass_moe_ep_preproess took: 0.201702 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.040293 ms
+get_cutlass_moe_mm_data took: 0.054836 ms
+first_gemm_duration took: 0.044823 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773716.877930 ms
+cutlass_w4a8_moe took: 0.447989 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.087 ms
+run_cutlass_moe_ep_preproess took: 0.161171 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038147 ms
+get_cutlass_moe_mm_data took: 0.051022 ms
+first_gemm_duration took: 0.043154 ms
+fp8 scale took: 0.023603 ms
+second_gemm_duration took: 0.024319 ms
+post_reorder_triton took: 1749805773717.315186 ms
+cutlass_w4a8_moe took: 0.397205 ms
+reorder duration: 0.052 ms
+seg indptr duration: 0.017 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.112 ms
+run_cutlass_moe_ep_preproess took: 0.184059 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036955 ms
+get_cutlass_moe_mm_data took: 0.052929 ms
+first_gemm_duration took: 0.043869 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773717.056641 ms
+cutlass_w4a8_moe took: 0.422001 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.089 ms
+run_cutlass_moe_ep_preproess took: 0.167608 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037432 ms
+get_cutlass_moe_mm_data took: 0.053883 ms
+first_gemm_duration took: 0.048161 ms
+fp8 scale took: 0.023842 ms
+second_gemm_duration took: 0.024796 ms
+post_reorder_triton took: 1749805773717.744629 ms
+cutlass_w4a8_moe took: 0.411034 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.019 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.165462 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.056982 ms
+get_cutlass_moe_mm_data took: 0.058413 ms
+first_gemm_duration took: 0.046492 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773717.976562 ms
+cutlass_w4a8_moe took: 0.435829 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.175476 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.051022 ms
+first_gemm_duration took: 0.043631 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.023842 ms
+post_reorder_triton took: 1749805773719.617920 ms
+cutlass_w4a8_moe took: 0.410080 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.090 ms
+run_cutlass_moe_ep_preproess took: 0.164032 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036478 ms
+get_cutlass_moe_mm_data took: 0.051022 ms
+first_gemm_duration took: 0.061512 ms
+fp8 scale took: 0.025988 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773718.884521 ms
+cutlass_w4a8_moe took: 0.423431 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.094 ms
+run_cutlass_moe_ep_preproess took: 0.173330 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037670 ms
+get_cutlass_moe_mm_data took: 0.053406 ms
+first_gemm_duration took: 0.044346 ms
+fp8 scale took: 0.023127 ms
+second_gemm_duration took: 0.024557 ms
+post_reorder_triton took: 1749805773719.814453 ms
+cutlass_w4a8_moe took: 0.417948 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.203609 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.045061 ms
+get_cutlass_moe_mm_data took: 0.080824 ms
+first_gemm_duration took: 0.066519 ms
+fp8 scale took: 0.026941 ms
+second_gemm_duration took: 0.024796 ms
+post_reorder_triton took: 1749805773720.128662 ms
+cutlass_w4a8_moe took: 0.512362 ms
+reorder duration: 0.046 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.045 ms
+run_cutlass_moe_ep_preproess duration: 0.107 ms
+run_cutlass_moe_ep_preproess took: 0.198841 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.040293 ms
+get_cutlass_moe_mm_data took: 0.055075 ms
+first_gemm_duration took: 0.046253 ms
+fp8 scale took: 0.026464 ms
+second_gemm_duration took: 0.025034 ms
+post_reorder_triton took: 1749805773720.388916 ms
+cutlass_w4a8_moe took: 0.451326 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.167131 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036240 ms
+get_cutlass_moe_mm_data took: 0.051737 ms
+first_gemm_duration took: 0.042915 ms
+fp8 scale took: 0.041962 ms
+second_gemm_duration took: 0.027895 ms
+post_reorder_triton took: 1749805773717.994141 ms
+cutlass_w4a8_moe took: 0.428200 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.013 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.176191 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036240 ms
+get_cutlass_moe_mm_data took: 0.052929 ms
+first_gemm_duration took: 0.044107 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.025511 ms
+post_reorder_triton took: 1749805773720.832520 ms
+cutlass_w4a8_moe took: 0.415325 ms
+reorder duration: 0.036 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.092 ms
+run_cutlass_moe_ep_preproess took: 0.166178 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036240 ms
+get_cutlass_moe_mm_data took: 0.051260 ms
+first_gemm_duration took: 0.042200 ms
+fp8 scale took: 0.022888 ms
+second_gemm_duration took: 0.024796 ms
+post_reorder_triton took: 1749805773721.998535 ms
+cutlass_w4a8_moe took: 0.414848 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.094 ms
+run_cutlass_moe_ep_preproess took: 0.177145 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038385 ms
+get_cutlass_moe_mm_data took: 0.054359 ms
+first_gemm_duration took: 0.045300 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.143766 ms
+post_reorder_triton took: 1749805773603.611084 ms
+cutlass_w4a8_moe took: 0.540257 ms
+reorder duration: 0.037 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.090 ms
+run_cutlass_moe_ep_preproess took: 0.164747 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037432 ms
+get_cutlass_moe_mm_data took: 0.052214 ms
+first_gemm_duration took: 0.532150 ms
+fp8 scale took: 0.028610 ms
+second_gemm_duration took: 0.466347 ms
+post_reorder_triton took: 1749805773282.419678 ms
+cutlass_w4a8_moe took: 1.354694 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.184298 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038624 ms
+get_cutlass_moe_mm_data took: 0.061035 ms
+first_gemm_duration took: 0.465155 ms
+fp8 scale took: 0.025272 ms
+second_gemm_duration took: 0.457048 ms
+post_reorder_triton took: 1749805773293.068115 ms
+cutlass_w4a8_moe took: 1.298428 ms
+reorder duration: 0.042 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.101 ms
+run_cutlass_moe_ep_preproess took: 0.187159 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037670 ms
+get_cutlass_moe_mm_data took: 0.052691 ms
+first_gemm_duration took: 0.498533 ms
+fp8 scale took: 0.030279 ms
+second_gemm_duration took: 0.447989 ms
+post_reorder_triton took: 1749805773303.484619 ms
+cutlass_w4a8_moe took: 1.314878 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.177383 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038862 ms
+get_cutlass_moe_mm_data took: 0.071049 ms
+first_gemm_duration took: 0.495672 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.537872 ms
+post_reorder_triton took: 1749805773215.055664 ms
+cutlass_w4a8_moe took: 1.414776 ms
+reorder duration: 0.044 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.101 ms
+run_cutlass_moe_ep_preproess took: 0.193596 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037432 ms
+get_cutlass_moe_mm_data took: 0.054359 ms
+first_gemm_duration took: 0.403404 ms
+fp8 scale took: 0.025511 ms
+second_gemm_duration took: 0.456810 ms
+post_reorder_triton took: 1749805773297.394287 ms
+cutlass_w4a8_moe took: 1.230717 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.094 ms
+run_cutlass_moe_ep_preproess took: 0.176668 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.055075 ms
+first_gemm_duration took: 0.508547 ms
+fp8 scale took: 0.028849 ms
+second_gemm_duration took: 0.449181 ms
+post_reorder_triton took: 1749805773306.386963 ms
+cutlass_w4a8_moe took: 1.323462 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.050 ms
+run_cutlass_moe_ep_preproess duration: 0.106 ms
+run_cutlass_moe_ep_preproess took: 0.189304 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039339 ms
+get_cutlass_moe_mm_data took: 0.056505 ms
+first_gemm_duration took: 0.497103 ms
+fp8 scale took: 0.025034 ms
+second_gemm_duration took: 0.455379 ms
+post_reorder_triton took: 1749805773301.552002 ms
+cutlass_w4a8_moe took: 1.324415 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.179291 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036240 ms
+get_cutlass_moe_mm_data took: 0.053167 ms
+first_gemm_duration took: 0.511169 ms
+fp8 scale took: 0.040293 ms
+second_gemm_duration took: 0.442028 ms
+post_reorder_triton took: 1749805773316.267822 ms
+cutlass_w4a8_moe took: 1.324177 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.182867 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036955 ms
+get_cutlass_moe_mm_data took: 0.051975 ms
+first_gemm_duration took: 0.510454 ms
+fp8 scale took: 0.029087 ms
+second_gemm_duration took: 0.449181 ms
+post_reorder_triton took: 1749805773310.478516 ms
+cutlass_w4a8_moe took: 1.320601 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.190258 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038147 ms
+get_cutlass_moe_mm_data took: 0.053644 ms
+first_gemm_duration took: 0.496864 ms
+fp8 scale took: 0.024080 ms
+second_gemm_duration took: 0.458479 ms
+post_reorder_triton took: 1749805773302.547119 ms
+cutlass_w4a8_moe took: 1.323700 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.176191 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036955 ms
+get_cutlass_moe_mm_data took: 0.053167 ms
+first_gemm_duration took: 0.514507 ms
+fp8 scale took: 0.028372 ms
+second_gemm_duration took: 0.447750 ms
+post_reorder_triton took: 1749805773314.631592 ms
+cutlass_w4a8_moe took: 1.315355 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.025 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.107 ms
+run_cutlass_moe_ep_preproess took: 0.185966 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.084162 ms
+get_cutlass_moe_mm_data took: 0.059843 ms
+first_gemm_duration took: 0.449181 ms
+fp8 scale took: 0.027895 ms
+second_gemm_duration took: 0.451326 ms
+post_reorder_triton took: 1749805773312.425537 ms
+cutlass_w4a8_moe took: 1.324177 ms
+reorder duration: 0.046 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.045 ms
+run_cutlass_moe_ep_preproess duration: 0.108 ms
+run_cutlass_moe_ep_preproess took: 0.205278 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038624 ms
+get_cutlass_moe_mm_data took: 0.055075 ms
+first_gemm_duration took: 0.460386 ms
+fp8 scale took: 0.026464 ms
+second_gemm_duration took: 0.454664 ms
+post_reorder_triton took: 1749805773310.451904 ms
+cutlass_w4a8_moe took: 1.306057 ms
+reorder duration: 0.042 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.099 ms
+run_cutlass_moe_ep_preproess took: 0.184536 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036478 ms
+get_cutlass_moe_mm_data took: 0.053406 ms
+first_gemm_duration took: 0.496864 ms
+fp8 scale took: 0.029325 ms
+second_gemm_duration took: 0.447989 ms
+post_reorder_triton took: 1749805773318.479980 ms
+cutlass_w4a8_moe took: 1.309395 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.176430 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036001 ms
+get_cutlass_moe_mm_data took: 0.064135 ms
+first_gemm_duration took: 0.504017 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.459194 ms
+post_reorder_triton took: 1749805773308.643066 ms
+cutlass_w4a8_moe took: 1.325607 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.176668 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036955 ms
+get_cutlass_moe_mm_data took: 0.054121 ms
+first_gemm_duration took: 0.508547 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.457764 ms
+post_reorder_triton took: 1749805773311.434570 ms
+cutlass_w4a8_moe took: 1.322269 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.193596 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038385 ms
+get_cutlass_moe_mm_data took: 0.054359 ms
+first_gemm_duration took: 0.491381 ms
+fp8 scale took: 0.030041 ms
+second_gemm_duration took: 0.449181 ms
+post_reorder_triton took: 1749805773321.376465 ms
+cutlass_w4a8_moe took: 1.317024 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.049 ms
+run_cutlass_moe_ep_preproess duration: 0.104 ms
+run_cutlass_moe_ep_preproess took: 0.184059 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039577 ms
+get_cutlass_moe_mm_data took: 0.057697 ms
+first_gemm_duration took: 0.499487 ms
+fp8 scale took: 0.025272 ms
+second_gemm_duration took: 0.456095 ms
+post_reorder_triton took: 1749805773315.827393 ms
+cutlass_w4a8_moe took: 1.325607 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.174522 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036001 ms
+get_cutlass_moe_mm_data took: 0.051975 ms
+first_gemm_duration took: 0.515461 ms
+fp8 scale took: 0.039339 ms
+second_gemm_duration took: 0.438690 ms
+post_reorder_triton took: 1749805773334.597412 ms
+cutlass_w4a8_moe took: 1.325130 ms
+reorder duration: 0.043 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.044 ms
+run_cutlass_moe_ep_preproess duration: 0.104 ms
+run_cutlass_moe_ep_preproess took: 0.196457 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.039577 ms
+get_cutlass_moe_mm_data took: 0.056267 ms
+first_gemm_duration took: 0.473738 ms
+fp8 scale took: 0.029325 ms
+second_gemm_duration took: 0.449419 ms
+post_reorder_triton took: 1749805773325.221924 ms
+cutlass_w4a8_moe took: 1.313210 ms
+reorder duration: 0.045 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.105 ms
+run_cutlass_moe_ep_preproess took: 0.201941 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038385 ms
+get_cutlass_moe_mm_data took: 0.053406 ms
+first_gemm_duration took: 0.479221 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.457048 ms
+post_reorder_triton took: 1749805773318.958496 ms
+cutlass_w4a8_moe took: 1.317024 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.015 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.176907 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.052929 ms
+first_gemm_duration took: 0.510216 ms
+fp8 scale took: 0.028610 ms
+second_gemm_duration took: 0.447750 ms
+post_reorder_triton took: 1749805773329.615479 ms
+cutlass_w4a8_moe took: 1.315832 ms
+reorder duration: 0.041 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.181913 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.051498 ms
+first_gemm_duration took: 0.505924 ms
+fp8 scale took: 0.028610 ms
+second_gemm_duration took: 0.447512 ms
+post_reorder_triton took: 1749805773331.211426 ms
+cutlass_w4a8_moe took: 1.311779 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.043 ms
+run_cutlass_moe_ep_preproess duration: 0.098 ms
+run_cutlass_moe_ep_preproess took: 0.181913 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.038862 ms
+get_cutlass_moe_mm_data took: 0.053883 ms
+first_gemm_duration took: 0.499487 ms
+fp8 scale took: 0.023365 ms
+second_gemm_duration took: 0.459433 ms
+post_reorder_triton took: 1749805773320.661133 ms
+cutlass_w4a8_moe took: 1.319647 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.101 ms
+run_cutlass_moe_ep_preproess took: 0.184298 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037432 ms
+get_cutlass_moe_mm_data took: 0.052214 ms
+first_gemm_duration took: 0.504732 ms
+fp8 scale took: 0.028849 ms
+second_gemm_duration took: 0.449419 ms
+post_reorder_triton took: 1749805773332.036133 ms
+cutlass_w4a8_moe took: 1.319170 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.096 ms
+run_cutlass_moe_ep_preproess took: 0.177145 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.066280 ms
+first_gemm_duration took: 0.500202 ms
+fp8 scale took: 0.025272 ms
+second_gemm_duration took: 0.454664 ms
+post_reorder_triton took: 1749805773328.171631 ms
+cutlass_w4a8_moe took: 1.342535 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.020 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.102 ms
+run_cutlass_moe_ep_preproess took: 0.183821 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036716 ms
+get_cutlass_moe_mm_data took: 0.052452 ms
+first_gemm_duration took: 0.487804 ms
+fp8 scale took: 0.024319 ms
+second_gemm_duration took: 0.455618 ms
+post_reorder_triton took: 1749805773328.561035 ms
+cutlass_w4a8_moe took: 1.301527 ms
+reorder duration: 0.040 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.094 ms
+run_cutlass_moe_ep_preproess took: 0.172853 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036716 ms
+get_cutlass_moe_mm_data took: 0.052214 ms
+first_gemm_duration took: 0.521183 ms
+fp8 scale took: 0.029564 ms
+second_gemm_duration took: 0.449181 ms
+post_reorder_triton took: 1749805773336.359131 ms
+cutlass_w4a8_moe took: 1.321554 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.038 ms
+run_cutlass_moe_ep_preproess duration: 0.091 ms
+run_cutlass_moe_ep_preproess took: 0.169516 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.049353 ms
+get_cutlass_moe_mm_data took: 0.061750 ms
+first_gemm_duration took: 0.461578 ms
+fp8 scale took: 0.025272 ms
+second_gemm_duration took: 0.456095 ms
+post_reorder_triton took: 1749805773330.817627 ms
+cutlass_w4a8_moe took: 1.330137 ms
+reorder duration: 0.043 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.041 ms
+run_cutlass_moe_ep_preproess duration: 0.100 ms
+run_cutlass_moe_ep_preproess took: 0.189543 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.036955 ms
+get_cutlass_moe_mm_data took: 0.053883 ms
+first_gemm_duration took: 0.486135 ms
+fp8 scale took: 0.023603 ms
+second_gemm_duration took: 0.456810 ms
+post_reorder_triton took: 1749805773331.457520 ms
+cutlass_w4a8_moe took: 1.309633 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.093 ms
+run_cutlass_moe_ep_preproess took: 0.174284 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.035524 ms
+get_cutlass_moe_mm_data took: 0.054121 ms
+first_gemm_duration took: 0.514507 ms
+fp8 scale took: 0.028849 ms
+second_gemm_duration took: 0.446081 ms
+post_reorder_triton took: 1749805773343.541504 ms
+cutlass_w4a8_moe took: 1.313448 ms
+reorder duration: 0.054 ms
+seg indptr duration: 0.017 ms
+compute src2dst duration: 0.042 ms
+run_cutlass_moe_ep_preproess duration: 0.114 ms
+run_cutlass_moe_ep_preproess took: 0.194550 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037909 ms
+get_cutlass_moe_mm_data took: 0.055790 ms
+first_gemm_duration took: 0.493765 ms
+fp8 scale took: 0.024557 ms
+second_gemm_duration took: 0.458717 ms
+post_reorder_triton took: 1749805773332.273926 ms
+cutlass_w4a8_moe took: 1.326799 ms
+reorder duration: 0.039 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.040 ms
+run_cutlass_moe_ep_preproess duration: 0.095 ms
+run_cutlass_moe_ep_preproess took: 0.176907 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037193 ms
+get_cutlass_moe_mm_data took: 0.051737 ms
+first_gemm_duration took: 0.517845 ms
+fp8 scale took: 0.027657 ms
+second_gemm_duration took: 0.449657 ms
+post_reorder_triton took: 1749805773342.691895 ms
+cutlass_w4a8_moe took: 1.320124 ms
+reorder duration: 0.038 ms
+seg indptr duration: 0.014 ms
+compute src2dst duration: 0.039 ms
+run_cutlass_moe_ep_preproess duration: 0.092 ms
+run_cutlass_moe_ep_preproess took: 0.167847 ms
+pre_reorder_triton_kernel_for_cutlass_moe took: 0.037432 ms
+get_cutlass_moe_mm_data took: 0.051737 ms
+first_gemm_duration took: 0.522614 ms
+fp8 scale took: 0.027657 ms
+second_gemm_duration took: 0.450850 ms
+post_reorder_triton took: 1749805773342.860596 ms
+cutlass_w4a8_moe took: 1.319170 ms
+  ep_preproess: 5968.3192 ms
+  pre_reorder: 63.8464 ms
+  get_cutlass_moe_mm_data: 61.4570 ms
+  first_gemm_duration: 220.7127 ms
+  silu_and_mul_and_scale: 38.2072 ms
+  second_gemm_duration: 188.1280 ms
+  post_reorder_triton: 1749805773559660.0000 ms
+reorder duration: 0.071 ms
+seg indptr duration: 1.962 ms
+compute src2dst duration: 0.079 ms
+run_moe_ep_preproess duration: 2.113 ms
+preprocess_duration: 2.123594284057617 ms
+pre_reorder_duration: 2.068758010864258 ms
+first_gemm_duration: 5.918264389038086 ms
+silu_and_mul took: 2.238274 ms
+second_gemm_duration: 1.8811225891113281 ms
+post_reorder_triton took: 1749805771984.210205 ms

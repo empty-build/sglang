@@ -170,6 +170,10 @@ class EPMoE(torch.nn.Module):
 
         self.num_experts = num_experts
         assert self.num_experts % self.tp_size == 0
+<<<<<<< HEAD
+=======
+        # self.num_experts_per_partition = self.num_experts // self.tp_size
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
         self.num_experts_per_partition, self.expert_map = self.determine_expert_map()
         self.start_expert_id = self.tp_rank * self.num_experts_per_partition
         self.end_expert_id = self.start_expert_id + self.num_experts_per_partition - 1
@@ -256,7 +260,11 @@ class EPMoE(torch.nn.Module):
                     to the current rank.
                 - expert_map (Optional[torch.Tensor]): A tensor of shape
                     (global_num_experts,) mapping from global to local index.
+<<<<<<< HEAD
                     Contains global_num_experts for experts not assigned to the current rank.
+=======
+                    Contains -1 for experts not assigned to the current rank.
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
                     Returns None if ep_size is 1.
         """
         ep_size = self.tp_size
@@ -269,12 +277,24 @@ class EPMoE(torch.nn.Module):
 
         local_num_experts = global_num_experts // ep_size
 
+<<<<<<< HEAD
         expert_map = torch.full((global_num_experts, ), self.num_experts, dtype=torch.int32)
         if ep_rank < (ep_size - 1):
+=======
+        # Create a tensor of size num_experts filled with num_experts
+        expert_map = torch.full((global_num_experts, ), self.num_experts, dtype=torch.int32)
+        # Create a expert map for the local experts
+        if ep_rank < (ep_size - 1):
+            # Each non-last rank gets local_num_experts experts.
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
             expert_map[ep_rank * local_num_experts:
                             (ep_rank + 1) * local_num_experts] = \
                 torch.arange(0, local_num_experts, dtype=torch.int32)
         else:
+<<<<<<< HEAD
+=======
+            # All remaining experts are assigned to the last rank.
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
             local_num_experts = (global_num_experts - ep_rank * local_num_experts)
 
             expert_map[-local_num_experts:] = \
@@ -413,11 +433,44 @@ class EPMoE(torch.nn.Module):
                 "Translate info from expert_map to topk_ids"
                 local_topk_ids = torch.where(self.expert_map[topk_ids] != self.num_experts,
                                             self.expert_map[topk_ids], self.num_experts)
+<<<<<<< HEAD
 
             output = cutlass_w4a8_moe(
                 self.start_expert_id,
                 self.end_expert_id,
                 self.num_experts,
+=======
+            # reorder_topk_ids 当前rank的专家都排前面，从0开始，后面的值是256，shape=(m*8,)
+            # seg_indptr就是expert_offsets，改成本地的expert offset, 从0开始, shape=(32+1,)
+            # src2dst用于存储每个 token 的原始位置与重排后新位置的映射关系, shape=(m*8,)
+            reorder_topk_ids, src2dst, seg_indptr = run_cutlass_moe_ep_preproess(
+                local_topk_ids, self.num_experts,
+            )
+
+            gateup_input = torch.empty(
+                (int(hidden_states.shape[0] * self.top_k), hidden_states.shape[1]),
+                device=hidden_states.device,
+                dtype=(
+                    self.fp8_dtype
+                    if ((self.use_fp8_w8a8 or self.use_w4afp8) and not self.use_block_quant)
+                    else hidden_states.dtype
+                ),
+            )
+            pre_reorder_triton_kernel_for_cutlass_moe[(hidden_states.shape[0],)](
+                hidden_states,
+                gateup_input,
+                src2dst,
+                local_topk_ids,
+                self.w13_input_scale,
+                self.num_experts,
+                self.top_k,
+                hidden_states.shape[1],
+                BLOCK_SIZE=512,
+            )
+            
+            # print(f"a_strides1,{self.quant_method.a_strides1}")
+            output = cutlass_w4a8_moe(
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
                 hidden_states,
                 self.w13_weight,
                 self.w2_weight,
@@ -434,11 +487,22 @@ class EPMoE(torch.nn.Module):
                 self.quant_method.c_strides2,
                 self.quant_method.s_strides13,
                 self.quant_method.s_strides2,
+<<<<<<< HEAD
+=======
+                gateup_input,
+                src2dst,
+                self.start_expert_id,
+                self.end_expert_id,
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
                 self.quant_method.expert_offsets,
                 self.quant_method.problem_sizes1,
                 self.quant_method.problem_sizes2,
                 self.w13_input_scale,
                 self.w2_input_scale,
+<<<<<<< HEAD
+=======
+                self.expert_map,
+>>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
             )
             return output
 
