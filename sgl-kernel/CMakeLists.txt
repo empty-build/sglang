@@ -43,10 +43,16 @@ include(FetchContent)
 
 # cutlass
 # set(repo-cutlass_SOURCE_DIR "/sgl-workspace/cutlass_Hopper_moe_w4a8_v2")
+# FetchContent_Declare(
+#     repo-cutlass
+#     GIT_REPOSITORY https://github.com/NVIDIA/cutlass
+#     GIT_TAG        e94e888df3551224738bfa505787b515eae8352f
+#     GIT_SHALLOW    OFF
+# )
 FetchContent_Declare(
     repo-cutlass
-    GIT_REPOSITORY https://github.com/NVIDIA/cutlass
-    GIT_TAG        e94e888df3551224738bfa505787b515eae8352f
+    GIT_REPOSITORY https://github.com/yangsijia-serena/cutlass
+    GIT_TAG        a2dac85105ceb939df20c03cca5eb29939bd8c8a
     GIT_SHALLOW    OFF
 )
 FetchContent_Populate(repo-cutlass)

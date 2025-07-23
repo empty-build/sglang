@@ -4,7 +4,7 @@
 #include <torch/all.h>
 #include <c10/cuda/CUDAStream.h>
 
-#include "core/scalar_type.hpp"
+// #include "core/scalar_type.hpp"
 #include "cutlass/bfloat16.h"
 #include "cutlass/float8.h"
 
