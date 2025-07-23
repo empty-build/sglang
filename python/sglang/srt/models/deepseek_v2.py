@@ -1479,7 +1479,7 @@ class DeepseekV2ForCausalLM(nn.Module):
                 torch.cuda.get_device_capability("cuda") >= (9, 0)
                 and self.config.architectures[0] == architecture
                 and self.config.n_routed_experts == 256
-                and (not global_server_args_dict["enable_deepep_moe"])
+                and (not (global_server_args_dict["enable_deepep_moe"] or global_server_args_dict["enable_ep_moe"]))
             ):
                 self.n_share_experts_fusion = self.tp_size
                 global_server_args_dict["n_share_experts_fusion"] = self.tp_size
@@ -1711,6 +1711,12 @@ class DeepseekV2ForCausalLM(nn.Module):
             ckpt_up_proj_name="up_proj",
             num_experts=self.config.n_routed_experts + self.n_share_experts_fusion,
         )
+        if self.quant_config.get_name() == "w4afp8":
+            expert_params_mapping += (
+                MoEImpl.make_expert_input_scale_params_mapping(
+                    num_experts=self.config.n_routed_experts
+                )
+            )
 
         # Fuse q_a_proj and kv_a_proj_with_mqa along output dimension when q_lora_rank is not None
         fuse_qkv_a_proj = hasattr(self.config, "q_lora_rank") and (

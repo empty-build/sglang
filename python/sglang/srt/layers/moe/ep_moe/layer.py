@@ -6,6 +6,10 @@ import torch._dynamo
 from torch.nn import Module
 
 torch._dynamo.config.suppress_errors = True
+from sglang.srt.layers.quantization.w4afp8 import (
+    W4AFp8Config,
+    W4AFp8MoEMethod,
+)
 
 try:
     from deep_gemm import (
@@ -22,6 +26,7 @@ from sglang.srt.distributed import (
     get_tensor_model_parallel_rank,
     get_tensor_model_parallel_world_size,
 )
+from sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
 from sglang.srt.layers.moe.ep_moe.kernels import (
     deepgemm_post_reorder_triton_kernel,
     gelu_and_mul_triton_kernel,
@@ -29,7 +34,9 @@ from sglang.srt.layers.moe.ep_moe.kernels import (
     moe_ep_deepgemm_preproess,
     post_reorder_triton_kernel,
     pre_reorder_triton_kernel,
+    pre_reorder_triton_kernel_for_cutlass_moe,
     run_moe_ep_preproess,
+    run_cutlass_moe_ep_preproess,
     silu_and_mul_masked_post_quant_fwd,
     silu_and_mul_triton_kernel,
 )
@@ -163,7 +170,7 @@ class EPMoE(torch.nn.Module):
 
         self.num_experts = num_experts
         assert self.num_experts % self.tp_size == 0
-        self.num_experts_per_partition = self.num_experts // self.tp_size
+        self.num_experts_per_partition, self.expert_map = self.determine_expert_map()
         self.start_expert_id = self.tp_rank * self.num_experts_per_partition
         self.end_expert_id = self.start_expert_id + self.num_experts_per_partition - 1
 
@@ -186,6 +193,17 @@ class EPMoE(torch.nn.Module):
             self.use_block_quant = False
             self.block_shape = None
             self.activation_scheme = None
+            self.use_w4afp8 = False
+        elif isinstance(quant_config, W4AFp8Config):
+            self.quant_method: Optional[QuantizeMethodBase] = W4AFp8MoEMethod(
+                quant_config)
+            self.use_w4afp8 = True
+            self.use_fp8_w8a8 = False
+            self.use_block_quant = False
+            self.fp8_dtype = torch.float8_e4m3fn
+            self.w13_weight_scale = None
+            self.w2_weight_scale = None
+            self.activation_scheme = quant_config.moe_activation_scheme
         else:
             self.quant_method: Optional[QuantizeMethodBase] = Fp8EPMoEMethod(
                 quant_config
@@ -199,6 +217,7 @@ class EPMoE(torch.nn.Module):
             )
             self.fp8_dtype = torch.float8_e4m3fn
             self.activation_scheme = quant_config.activation_scheme
+            self.use_w4afp8 = False
 
         self.quant_method.create_weights(
             layer=self,
@@ -224,6 +243,44 @@ class EPMoE(torch.nn.Module):
             self.w2_weight_scale_inv if self.use_block_quant else self.w2_weight_scale,
         )
 
+    def determine_expert_map(self) -> Tuple[int, Optional[torch.Tensor]]:
+        """
+        Calculates how many experts should be assigned to each rank for EP and
+        creates a mapping from global to local expert index. Experts are
+        distributed evenly across ranks. Any remaining are assigned to the
+        last rank.
+
+        Returns:
+            Tuple[int, Optional[torch.Tensor]]: A tuple containing:
+                - local_num_experts (int): The number of experts assigned
+                    to the current rank.
+                - expert_map (Optional[torch.Tensor]): A tensor of shape
+                    (global_num_experts,) mapping from global to local index.
+                    Contains global_num_experts for experts not assigned to the current rank.
+                    Returns None if ep_size is 1.
+        """
+        ep_size = self.tp_size
+        ep_rank = self.tp_rank
+        global_num_experts = self.num_experts
+        
+        assert ep_size > 0
+        if ep_size == 1:
+            return (global_num_experts, None)
+
+        local_num_experts = global_num_experts // ep_size
+
+        expert_map = torch.full((global_num_experts, ), self.num_experts, dtype=torch.int32)
+        if ep_rank < (ep_size - 1):
+            expert_map[ep_rank * local_num_experts:
+                            (ep_rank + 1) * local_num_experts] = \
+                torch.arange(0, local_num_experts, dtype=torch.int32)
+        else:
+            local_num_experts = (global_num_experts - ep_rank * local_num_experts)
+
+            expert_map[-local_num_experts:] = \
+                torch.arange(0, local_num_experts, dtype=torch.int32)
+        return (local_num_experts, expert_map)
+    
     def forward(self, hidden_states: torch.Tensor, router_logits: torch.Tensor):
         if use_deep_gemm and epmoe_use_deepgemm:
             return self.forward_deepgemm(hidden_states, router_logits)
@@ -337,12 +394,6 @@ class EPMoE(torch.nn.Module):
     def forward_normal(self, hidden_states: torch.Tensor, router_logits: torch.Tensor):
         assert self.quant_method is not None
 
-        if self.grouped_gemm_runner is None:
-            self.grouped_gemm_runner = GroupedGemmRunner(
-                hidden_states.device,
-                use_flashinfer=False,  # TODO: use flashinfer
-            )
-
         topk_weights, topk_ids = select_experts(
             hidden_states=hidden_states,
             router_logits=router_logits,
@@ -356,6 +407,47 @@ class EPMoE(torch.nn.Module):
             routed_scaling_factor=self.routed_scaling_factor,
         )
 
+        if self.use_w4afp8:
+            local_topk_ids = topk_ids
+            if self.expert_map is not None:
+                "Translate info from expert_map to topk_ids"
+                local_topk_ids = torch.where(self.expert_map[topk_ids] != self.num_experts,
+                                            self.expert_map[topk_ids], self.num_experts)
+
+            output = cutlass_w4a8_moe(
+                self.start_expert_id,
+                self.end_expert_id,
+                self.num_experts,
+                hidden_states,
+                self.w13_weight,
+                self.w2_weight,
+                self.w13_weight_scale_inv,
+                self.w2_weight_scale_inv,
+                topk_weights,
+                topk_ids,
+                local_topk_ids,
+                self.quant_method.a_strides1,
+                self.quant_method.b_strides1,
+                self.quant_method.c_strides1,
+                self.quant_method.a_strides2,
+                self.quant_method.b_strides2,
+                self.quant_method.c_strides2,
+                self.quant_method.s_strides13,
+                self.quant_method.s_strides2,
+                self.quant_method.expert_offsets,
+                self.quant_method.problem_sizes1,
+                self.quant_method.problem_sizes2,
+                self.w13_input_scale,
+                self.w2_input_scale,
+            )
+            return output
+
+        if self.grouped_gemm_runner is None:
+            self.grouped_gemm_runner = GroupedGemmRunner(
+                hidden_states.device,
+                use_flashinfer=False,  # TODO: use flashinfer
+            )
+
         reorder_topk_ids, src2dst, seg_indptr = run_moe_ep_preproess(
             topk_ids, self.num_experts
         )
@@ -365,7 +457,7 @@ class EPMoE(torch.nn.Module):
             device=hidden_states.device,
             dtype=(
                 self.fp8_dtype
-                if (self.use_fp8_w8a8 and not self.use_block_quant)
+                if ((self.use_fp8_w8a8 or self.use_w4afp8) and not self.use_block_quant)
                 else hidden_states.dtype
             ),
         )
@@ -535,6 +627,23 @@ class EPMoE(torch.nn.Module):
             ]
         ]
 
+    @classmethod
+    def make_expert_input_scale_params_mapping(
+        cls,
+        num_experts: int,
+    ) -> List[Tuple[str, str, int, str]]:
+        # (param_name, weight_name, expert_id, shard_id)
+        return [
+            (
+                "experts.w13_" if shard_id in ["w1", "w3"] else "experts.w2_",
+                f"experts.{expert_id}.{shard_id}.",
+                expert_id,
+                shard_id,
+            )
+            for expert_id in range(num_experts)
+            for shard_id in ["w1", "w2", "w3"]
+        ]
+
     def weight_loader(
         self,
         param: torch.nn.Parameter,
@@ -584,6 +693,15 @@ class EPMoE(torch.nn.Module):
 
         # Input scales can be loaded directly and should be equal.
         if "input_scale" in weight_name:
+            if self.use_w4afp8:
+                if shard_id == "w1":
+                    param_data[expert_id][0] = loaded_weight
+                elif shard_id == "w3":
+                    param_data[expert_id][1] = loaded_weight
+                else:
+                    param_data[expert_id] = loaded_weight
+                return
+
             if (
                 param_data[expert_id] != 1
                 and (param_data[expert_id] - loaded_weight).abs() > 1e-5
@@ -607,6 +725,13 @@ class EPMoE(torch.nn.Module):
                         (self.intermediate_size + block_n - 1) // block_n :, :
                     ] = loaded_weight
                 else:  # w2
+                    param_data[expert_id] = loaded_weight
+            elif self.use_w4afp8:
+                if shard_id == "w1":
+                    param_data[expert_id][:self.intermediate_size, :] = loaded_weight
+                elif shard_id == "w3":
+                    param_data[expert_id][self.intermediate_size:, :] = loaded_weight
+                else:
                     param_data[expert_id] = loaded_weight
             # If we are in merged column case (gate_up_proj)
             else:

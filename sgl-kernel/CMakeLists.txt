@@ -42,10 +42,17 @@ clear_cuda_arches(CMAKE_FLAG)
 include(FetchContent)
 
 # cutlass
+# set(repo-cutlass_SOURCE_DIR "/sgl-workspace/cutlass_Hopper_moe_w4a8_v2")
+# FetchContent_Declare(
+#     repo-cutlass
+#     GIT_REPOSITORY https://github.com/NVIDIA/cutlass
+#     GIT_TAG        e94e888df3551224738bfa505787b515eae8352f
+#     GIT_SHALLOW    OFF
+# )
 FetchContent_Declare(
     repo-cutlass
-    GIT_REPOSITORY https://github.com/NVIDIA/cutlass
-    GIT_TAG        e94e888df3551224738bfa505787b515eae8352f
+    GIT_REPOSITORY https://github.com/yangsijia-serena/cutlass
+    GIT_TAG        a2dac85105ceb939df20c03cca5eb29939bd8c8a
     GIT_SHALLOW    OFF
 )
 FetchContent_Populate(repo-cutlass)
@@ -176,6 +183,9 @@ if ("${CUDA_VERSION}" VERSION_GREATER_EQUAL "12.8" OR SGL_KERNEL_ENABLE_FP4)
     )
 endif()
 
+list(APPEND SGL_KERNEL_CUDA_FLAGS "-DENABLE_SCALED_MM_SM90=1")
+list(APPEND SGL_KERNEL_CUDA_FLAGS "-DENABLE_CUTLASS_MOE_SM90=1")
+
 string(REPLACE "-D__CUDA_NO_HALF_OPERATORS__"       "" CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 string(REPLACE "-D__CUDA_NO_HALF_CONVERSIONS__"     "" CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
 string(REPLACE "-D__CUDA_NO_BFLOAT16_CONVERSIONS__" "" CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}")
@@ -207,6 +217,9 @@ set(SOURCES
     "csrc/moe/moe_fused_gate.cu"
     "csrc/moe/moe_topk_softmax_kernels.cu"
     "csrc/moe/fp8_blockwise_moe_kernel.cu"
+    "csrc/moe/cutlass_w4a8/moe_data.cu"
+    "csrc/moe/cutlass_w4a8/scaled_mm_entry.cu"
+    "csrc/moe/cutlass_w4a8/w4a8_grouped_mm_c3x.cu"
     "csrc/speculative/eagle_utils.cu"
     "csrc/speculative/speculative_sampling.cu"
     "csrc/speculative/packbit.cu"
