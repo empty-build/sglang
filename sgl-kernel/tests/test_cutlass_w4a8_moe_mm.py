@@ -152,11 +152,7 @@ def test_int4_fp8_grouped_gemm(batch_size):
         c_strides,
         s_strides,
         128,
-<<<<<<< HEAD
         8,
-=======
-        m,
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     )
     c = c.to(dtype)
     # c = c.T

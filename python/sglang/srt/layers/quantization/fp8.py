@@ -7,10 +7,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.nn.parameter import Parameter
-<<<<<<< HEAD
-=======
-from zmq import has
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 
 try:
     from vllm.model_executor.layers.quantization.utils.marlin_utils_fp8 import (

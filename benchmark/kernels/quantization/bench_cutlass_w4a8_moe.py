@@ -23,11 +23,7 @@ from sgl_kernel import (
     cutlass_w4a8_moe_mm,
     get_cutlass_moe_mm_data,
     sgl_per_tensor_quant_fp8,
-<<<<<<< HEAD
     silu_and_mul,
-=======
-    silu_and_mul
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 )
 
 def pack_int4_values_to_int8(int4_values_interleaved: torch.Tensor) -> torch.Tensor:
@@ -42,11 +38,6 @@ def pack_int4_values_to_int8(int4_values_interleaved: torch.Tensor) -> torch.Ten
     high_nibbles = input_tensor_int8[..., 1::2]
 
     packed_tensor = (high_nibbles << 4) | (low_nibbles & 0x0F)
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     return packed_tensor.to(torch.int8)
 
 
@@ -447,12 +438,6 @@ def cutlass_moe(
     reorder_topk_ids, src2dst, seg_indptr = run_cutlass_moe_ep_preproess(
         local_topk_ids, end_expert_id - start_expert_id + 1,
     )
-<<<<<<< HEAD
-=======
-    # reorder_topk_ids, src2dst = run_cutlass_moe_ep_preproess(
-    #     local_topk_ids, E
-    # )
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     if cal_time:
         end_preprocess = time.time()
         preprocess_duration = (end_preprocess - start_time) * 1000
@@ -496,11 +481,7 @@ def cutlass_moe(
     c2 = torch.zeros((m * topk, k), device=device, dtype=torch.half)
     cutlass_w4a8_moe_mm(c1, gateup_input, w1_q, a1_scale.float(), w1_scale,
                             expert_offsets[:-1], problem_sizes1, a_strides1,
-<<<<<<< HEAD
                             b_strides1, c_strides1, s_strides13, 128, topk)
-=======
-                            b_strides1, c_strides1, s_strides13, 128, m)
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     if cal_time:
         end_first_gemm = time.time()
         first_gemm_duration = (end_first_gemm - end_get_cutlass_moe_mm_data) * 1000
@@ -511,14 +492,6 @@ def cutlass_moe(
 
     intermediate = torch.empty((m * topk, n), device=device, dtype=torch.half)
     silu_and_mul(c1, intermediate)
-<<<<<<< HEAD
-=======
-    # torch.ops._C.silu_and_mul(intermediate, c1)
-
-    # from vllm import _custom_ops as vllm_ops
-    # intermediate_q, a2_scale = vllm_ops.scaled_fp8_quant(
-    #     intermediate, a2_scale.float(), use_per_token_if_dynamic=per_act_token)
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     intermediate_q = torch.empty(intermediate.shape, dtype=torch.float8_e4m3fn, device=device)
     sgl_per_tensor_quant_fp8(intermediate, intermediate_q, a2_scale.float(), True)
 
@@ -532,11 +505,7 @@ def cutlass_moe(
 
     cutlass_w4a8_moe_mm(c2, intermediate_q, w2_q, a2_scale.float(), w2_scale,
                             expert_offsets[:-1], problem_sizes2, a_strides2,
-<<<<<<< HEAD
                             b_strides2, c_strides2, s_strides2, 128, topk)
-=======
-                            b_strides2, c_strides2, s_strides2, 128, m)
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     if cal_time:
         end_second_gemm = time.time()
         second_gemm_duration = (end_second_gemm - end_silu_and_mul_and_scale) * 1000
@@ -595,10 +564,7 @@ def cutlass_moe(
 def benchmark(batch_size, provider):
     print(f"==========={provider}============")
     M, N, K = batch_size, 2048, 7168
-<<<<<<< HEAD
     # E = 256
-=======
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     E = 32
     local_e = 32
 
@@ -637,10 +603,7 @@ def benchmark(batch_size, provider):
     }
     quantiles = [0.5, 0.2, 0.8]
     ms, min_ms, max_ms = 0,0,0
-<<<<<<< HEAD
     cal_time = False
-=======
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     if provider == "cutlass_w4a8":
         (
             w1,
@@ -725,17 +688,12 @@ def benchmark(batch_size, provider):
                 a1_scale,
                 a2_scale,
                 expert_map,
-<<<<<<< HEAD
                 cal_time = cal_time,
-=======
-                cal_time = False,
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
                 cutlass_time_map = cutlass_time_map,
                 print_time = False,
             ),
             quantiles=quantiles,
         )
-<<<<<<< HEAD
         if cal_time:
             for key, timings in cutlass_time_map.items():
                 print(f"{key}: len {len(timings)}")            
@@ -744,15 +702,6 @@ def benchmark(batch_size, provider):
                     print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
                 else:
                     print(f"  {key}: No data collected")
-=======
-        # for key, timings in cutlass_time_map.items():
-        #     print(f"{key}: len {len(timings)}")            
-        #     if timings:  # Check if the list is not empty
-        #         avg_duration = sum(timings) / len(timings)
-        #         print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
-        #     else:
-        #         print(f"  {key}: No data collected")
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 
     if provider == "triton_ep_moe":
         (
@@ -805,17 +754,12 @@ def benchmark(batch_size, provider):
                 w1_scale_inv=w_scale_1,
                 w2_scale_inv=w_scale_2,
                 block_shape=[block_n, block_k],
-<<<<<<< HEAD
                 cal_time=cal_time,
-=======
-                cal_time=False,
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
                 triton_time_map=triton_time_map,
                 print_time=False,
             ),
             quantiles=quantiles,
         )
-<<<<<<< HEAD
         if cal_time:
             for key, timings in triton_time_map.items():
                 print(f"{key}: len {len(timings)}")
@@ -824,15 +768,6 @@ def benchmark(batch_size, provider):
                     print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
                 else:
                     print(f"  {key}: No data collected")
-=======
-        # for key, timings in triton_time_map.items():
-        #     print(f"{key}: len {len(timings)}")
-        #     if timings:  # Check if the list is not empty
-        #         avg_duration = sum(timings) / len(timings)
-        #         print(f"  {key}: {avg_duration * 1000:.4f} ms") # Multiply by 1000 for ms
-        #     else:
-        #         print(f"  {key}: No data collected")
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
     return ms, min_ms, max_ms
 
 

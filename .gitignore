@@ -2,10 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-<<<<<<< HEAD
-=======
 ._*
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 
 # C extensions
 *.so
