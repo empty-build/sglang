@@ -42,7 +42,7 @@ clear_cuda_arches(CMAKE_FLAG)
 include(FetchContent)
 
 # cutlass
-<<<<<<< HEAD
+# set(repo-cutlass_SOURCE_DIR "/sgl-workspace/cutlass_Hopper_moe_w4a8_v2")
 FetchContent_Declare(
     repo-cutlass
     GIT_REPOSITORY https://github.com/NVIDIA/cutlass
@@ -50,16 +50,6 @@ FetchContent_Declare(
     GIT_SHALLOW    OFF
 )
 FetchContent_Populate(repo-cutlass)
-=======
-set(repo-cutlass_SOURCE_DIR "/sgl-workspace/cutlass_Hopper_moe_w4a8_v2")
-# FetchContent_Declare(
-#     repo-cutlass
-#     GIT_REPOSITORY https://github.com/NVIDIA/cutlass
-#     GIT_TAG        5e497243f7ad13a2aa842143f9b10bbb23d98292
-#     GIT_SHALLOW    OFF
-# )
-# FetchContent_Populate(repo-cutlass)
->>>>>>> 3230724ba (init: w4a8精度准确版本，copy from w4a8.v0.2镜像)
 # DeepGEMM
 FetchContent_Declare(
     repo-deepgemm
