@@ -3,6 +3,7 @@ FROM ${BASE_IMAGE}
 
 ARG sglang_version=
 ARG sgl_kernel_version=
+ARG sglang_router_version=0.1.6
 ARG gdkv_sdk_version=
 ARG pris_sdk_version=
 ARG eic_sdk_version=
@@ -33,6 +34,9 @@ RUN http_proxy='' pip install "sglang[all]==${sglang_version}" --extra-index-url
 
 # sgl-kernel安装
 RUN http_proxy='' pip install sgl_kernel==${sgl_kernel_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
+
+# sglang-router安装
+RUN http_proxy='' pip install sglang_router==${sglang_router_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
 
 # gdkv sdk安装
 RUN http_proxy='' pip install hpkv==${gdkv_sdk_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
