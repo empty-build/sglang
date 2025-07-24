@@ -157,4 +157,5 @@ void dsv3_router_gemm(
           reinterpret_cast<__nv_bfloat16 const*>(mat_b.data_ptr()),
           stream);
     }
+  }
 }
