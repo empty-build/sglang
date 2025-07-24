@@ -35,7 +35,7 @@ RUN http_proxy='' pip install "sglang[all]==${sglang_version}" --extra-index-url
 # sgl-kernel安装
 RUN http_proxy='' pip install sgl_kernel==${sgl_kernel_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
 
-# sgl-router安装
+# sglang-router安装
 RUN http_proxy='' pip install sglang_router==${sglang_router_version} --extra-index-url https://scqq9isgq31i0fb8nt4eg.apigateway-cn-beijing.volceapi.com/simple/ --extra-index-url https://bytedpypi.byted.org/simple
 
 # gdkv sdk安装
