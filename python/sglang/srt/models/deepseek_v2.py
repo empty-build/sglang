@@ -1463,7 +1463,7 @@ class DeepseekV2ForCausalLM(nn.Module):
             # Only Deepseek V3/R1 can use shared experts fusion optimization now.
             if (
                 self.config.architectures[0] != architecture
-                or self.config.n_routed_experts != 256
+                or self.config.n_routed_experts not in [256, 384]
             ):
                 self.n_share_experts_fusion = 0
                 global_server_args_dict["n_share_experts_fusion"] = 0
