@@ -286,38 +286,14 @@ class W4AFp8EPMoEMethod(FusedMoEMethodBase):
         self,
         layer: torch.nn.Module,
         x: torch.Tensor,
-        router_logits: torch.Tensor,
-        top_k: int,
-        start_expert_id: int,
-        end_expert_id: int,
-        renormalize: bool,
-        expert_map: Optional[torch.Tensor] = None,
-        use_grouped_topk: bool = False,
-        topk_group: Optional[int] = None,
-        num_expert_group: Optional[int] = None,
-        num_fused_shared_experts: int = 0,
-        custom_routing_function: Optional[Callable] = None,
-        correction_bias: Optional[torch.Tensor] = None,
+        topk_output: TopKOutput,
+        *,
         activation: str = "silu",
         apply_router_weight_on_input: bool = False,
         routed_scaling_factor: Optional[float] = None,
 
     ) -> torch.Tensor:
-        # avoid circular import
-        from sglang.srt.layers.moe.topk import select_experts
-        topk_weights, topk_ids = select_experts(
-            hidden_states=x,
-            router_logits=router_logits,
-            top_k=top_k,
-            use_grouped_topk=use_grouped_topk,
-            renormalize=renormalize,
-            topk_group=stopk_group,
-            num_expert_group=num_expert_group,
-            num_fused_shared_experts=num_fused_shared_experts,
-            correction_bias=correction_bias,
-            custom_routing_function=custom_routing_function,
-            routed_scaling_factor=routed_scaling_factor,
-        )
+        topk_weights, topk_ids, _ = topk_output
         local_topk_ids = topk_ids
         if self.expert_map is not None:
             "Translate info from expert_map to topk_ids"
@@ -527,27 +503,14 @@ class W4AFp8TPMoEMethod(FusedMoEMethodBase):
         self,
         layer: torch.nn.Module,
         x: torch.Tensor,
-        router_logits: torch.Tensor,
-        top_k: int,
-        renormalize: bool,
-        use_grouped_topk: bool = False,
-        topk_group: Optional[int] = None,
-        num_expert_group: Optional[int] = None,
-        num_fused_shared_experts: int = 0,
-        custom_routing_function: Optional[Callable] = None,
-        correction_bias: Optional[torch.Tensor] = None,
+        topk_output: TopKOutput,
+        *,
         activation: str = "silu",
         apply_router_weight_on_input: bool = False,
         routed_scaling_factor: Optional[float] = None,
     ) -> torch.Tensor:
-        # avoid circular import
-        from sglang.srt.layers.moe.topk import select_experts
-
+        topk_weights, topk_ids, _ = topk_output
         assert activation == "silu", "Only SiLU activation is supported."
-        assert (
-            num_fused_shared_experts == 0
-        ), "Shared experts fusing not supported for W4A8 TP MoE mode, consider add --disable-shared-experts-fusion to avoid it"
-
         topk_weights, topk_ids = select_experts(
             hidden_states=x,
             router_logits=router_logits,
