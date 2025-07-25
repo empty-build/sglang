@@ -90,8 +90,7 @@ class Sampler(nn.Module):
                         )
                     else:
                         logits.div_(sampling_info.temperatures)
-                        batch_next_token_ids = (
-                            top_k_top_p_sampling_from_logits_flashinfer(
+                        batch_next_token_ids = top_k_top_p_sampling_from_logits_flashinfer(
                                 logits,
                                 sampling_info.top_ks,
                                 sampling_info.top_ps,
