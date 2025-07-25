@@ -118,7 +118,7 @@ void dispatch_w4a8_moe_mm_sm90(
             d_tensors, a_tensors, b_tensors, a_scales, b_scales, expert_offsets,
             problem_sizes, a_strides, b_strides, d_strides, s_strides, chunk_size);
     }
-  } } else if (n == 512 && k == 7168) {
+  } else if (n == 512 && k == 7168) {
     // group gemm 1 for tp
     if (m <= 4) {
       using Cutlass3xW4A8GemmSelected = typename JOIN_STRUCT_NAME(64, 32, 512, 2, 1, 1)::Cutlass3xW4A8Gemm;
@@ -243,12 +243,23 @@ void dispatch_w4a8_moe_mm_sm90(
           d_strides,
           s_strides,
           chunk_size);
-    } else {
-        using Cutlass3xW4A8GemmKSelected = typename JOIN_STRUCT_NAME_CO(128,32,512,1,1,1)::Cutlass3xW4A8Gemm;
-        cutlass_w4a8_group_gemm_caller<Cutlass3xW4A8GemmKSelected>(
-            d_tensors, a_tensors, b_tensors, a_scales, b_scales, expert_offsets,
-            problem_sizes, a_strides, b_strides, d_strides, s_strides, chunk_size);
     }
+  } else {
+    using Cutlass3xW4A8GemmSelected = typename JOIN_STRUCT_NAME_CO(128, 32, 512, 1, 1, 1)::Cutlass3xW4A8Gemm;
+    cutlass_w4a8_group_gemm_caller<Cutlass3xW4A8GemmSelected>(
+        d_tensors,
+        a_tensors,
+        b_tensors,
+        a_scales,
+        b_scales,
+        expert_offsets,
+        problem_sizes,
+        a_strides,
+        b_strides,
+        d_strides,
+        s_strides,
+        chunk_size);
+  }
 }
 
 }  // namespace

@@ -484,7 +484,6 @@ class W4AFp8TPMoEMethod:
             renormalize=renormalize,
             topk_group=topk_group,
             num_expert_group=num_expert_group,
-            num_fused_shared_experts=num_fused_shared_experts,
             custom_routing_function=custom_routing_function,
             correction_bias=correction_bias,
             routed_scaling_factor=routed_scaling_factor,
