@@ -14,6 +14,7 @@
 """Utilities for Huggingface Transformers."""
 
 import contextlib
+import logging
 import os
 import warnings
 from pathlib import Path
@@ -24,6 +25,7 @@ from transformers import (
     AutoConfig,
     AutoProcessor,
     AutoTokenizer,
+    GenerationConfig,
     PretrainedConfig,
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
@@ -109,6 +111,21 @@ def get_config(
         config.update({"architectures": [model_type]})
 
     return config
+
+
+def get_generation_config(
+    model: str,
+    trust_remote_code: bool,
+    revision: Optional[str] = None,
+    **kwargs,
+):
+    try:
+        return GenerationConfig.from_pretrained(
+            model, trust_remote_code=trust_remote_code, revision=revision, **kwargs
+        )
+    except OSError as e:
+        logging.info("model doesn't have generation_config.json")
+        return None
 
 
 # Models don't use the same configuration key for determining the maximum

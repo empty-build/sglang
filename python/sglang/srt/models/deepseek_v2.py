@@ -1711,7 +1711,11 @@ class DeepseekV2ForCausalLM(nn.Module):
             ckpt_up_proj_name="up_proj",
             num_experts=self.config.n_routed_experts + self.n_share_experts_fusion,
         )
-        if self.quant_config.get_name() == "w4afp8":
+
+        # Params for special naming rules in mixed-precision models, for example:
+        # model.layers.xx.mlp.experts.xx.w1.input_scale. For details,
+        # see https://huggingface.co/Barrrrry/DeepSeek-R1-W4AFP8/blob/main.
+        if self.quant_config and self.quant_config.get_name() == "w4afp8":
             expert_params_mapping += (
                 MoEImpl.make_expert_input_scale_params_mapping(
                     num_experts=self.config.n_routed_experts

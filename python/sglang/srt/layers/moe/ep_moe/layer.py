@@ -8,7 +8,7 @@ from torch.nn import Module
 torch._dynamo.config.suppress_errors = True
 from sglang.srt.layers.quantization.w4afp8 import (
     W4AFp8Config,
-    W4AFp8MoEMethod,
+    W4AFp8EPMoEMethod,
 )
 
 try:
@@ -195,7 +195,7 @@ class EPMoE(torch.nn.Module):
             self.activation_scheme = None
             self.use_w4afp8 = False
         elif isinstance(quant_config, W4AFp8Config):
-            self.quant_method: Optional[QuantizeMethodBase] = W4AFp8MoEMethod(
+            self.quant_method: Optional[QuantizeMethodBase] = W4AFp8EPMoEMethod(
                 quant_config)
             self.use_w4afp8 = True
             self.use_fp8_w8a8 = False
