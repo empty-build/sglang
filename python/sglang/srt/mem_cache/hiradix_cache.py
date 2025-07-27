@@ -111,6 +111,7 @@ class HiRadixCache(RadixCache):
             )
         if host_indices is not None:
             node.host_value = host_indices
+            assert len(node.host_value) > 0
             self.ongoing_write_through[node.id] = node
             if not write_back:
                 # no need to lock nodes if write back
@@ -388,7 +389,7 @@ class HiRadixCache(RadixCache):
                 self.cache_controller.ack_backup_queue.get()
             )
             host_node = self.ongoing_backup[ack_id]
-            if completed_tokens < len(host_node.key):
+            if completed_tokens < len(host_node.key) and completed_tokens > 0:
                 # backup is only partially successful, split the node
                 new_node = self._split_node(host_node.key, host_node, completed_tokens)
                 new_node.hash_value = hash_value
