@@ -529,9 +529,10 @@ class HiCacheController:
                             f"Prefetch operation {operation.request_id} failed to retrieve page {h}."
                         )
                         break
+                    set_from_flat_completed = operation.completed_tokens
                     if operation.increment(self.page_size):
                         self.mem_pool_host.set_from_flat_data_page(
-                            operation.host_indices[operation.completed_tokens],
+                            operation.host_indices[set_from_flat_completed],
                             page_data,
                         )
                     else:
