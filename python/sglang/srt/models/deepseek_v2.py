@@ -1486,6 +1486,8 @@ class DeepseekV2ForCausalLM(nn.Module):
                 logger.info(
                     "Deepseek V3/R1 with fp8 can use shared experts fusion optimization when SM version >=90. Shared experts fusion optimization is enabled."
                 )
+        self.n_share_experts_fusion = 0
+        global_server_args_dict["n_share_experts_fusion"] = 0
 
     def get_input_embeddings(self) -> nn.Embedding:
         return self.model.embed_tokens
