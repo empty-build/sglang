@@ -8,7 +8,7 @@ from torch.nn import Module
 from torch.nn.parameter import Parameter
 
 
-from python.sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
+from sglang.srt.layers.moe.cutlass_w4a8_moe import cutlass_w4a8_moe
 from sglang.srt.layers.linear import LinearBase, UnquantizedLinearMethod
 
 from sglang.srt.layers.quantization.base_config import (
@@ -511,19 +511,6 @@ class W4AFp8TPMoEMethod(FusedMoEMethodBase):
     ) -> torch.Tensor:
         topk_weights, topk_ids, _ = topk_output
         assert activation == "silu", "Only SiLU activation is supported."
-        topk_weights, topk_ids = select_experts(
-            hidden_states=x,
-            router_logits=router_logits,
-            top_k=top_k,
-            use_grouped_topk=use_grouped_topk,
-            renormalize=renormalize,
-            topk_group=topk_group,
-            num_expert_group=num_expert_group,
-            num_fused_shared_experts=num_fused_shared_experts,
-            custom_routing_function=custom_routing_function,
-            correction_bias=correction_bias,
-            routed_scaling_factor=routed_scaling_factor,
-        )
 
         return cutlass_w4a8_moe(
             start_expert_id=0,
