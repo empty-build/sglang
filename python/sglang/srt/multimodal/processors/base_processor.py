@@ -6,14 +6,171 @@ import os
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from functools import lru_cache
+import types
+import hashlib
 
 import numpy as np
 import torch
 from PIL import Image
 from transformers import BaseImageProcessorFast
+from transformers import (Qwen2_5_VLProcessor, BatchFeature)
+from transformers.models.qwen2_5_vl.processing_qwen2_5_vl import Qwen2_5_VLProcessorKwargs
+
 
 from sglang.srt.managers.schedule_batch import Modality, MultimodalDataItem
 from sglang.srt.utils import load_audio, load_image, load_video, logger
+
+import inspect
+
+
+def get_caller_info():
+    frame = inspect.currentframe().f_back.f_back
+    info = inspect.getframeinfo(frame)
+    infos =  f"file: {info.filename}, line: {info.lineno}"
+    # print(infos)
+    return infos
+
+
+def print_caller_info():
+    frame = inspect.currentframe().f_back.f_back
+    info = inspect.getframeinfo(frame)
+    infos =  f"file: {info.filename}, line: {info.lineno}"
+    print(infos)
+
+
+# [check] different images hold same hash_key
+def fast_image_hash(img: Image.Image, hash_type: str = "int") -> int | str:
+    small_img = img.resize((8, 8), Image.Resampling.BILINEAR).convert('L')
+    pixel_data = small_img.tobytes()
+    hash_obj = hashlib.md5(pixel_data)
+    
+    if hash_type == "int":
+        return int.from_bytes(hash_obj.digest(), byteorder='little', signed=False)
+    else:
+        return hash_obj.hexdigest()
+
+def custom_call(
+    self,
+    images = None,
+    text = None,
+    videos = None,
+    **kwargs,
+) -> BatchFeature:
+    output_kwargs = self._merge_kwargs(
+        Qwen2_5_VLProcessorKwargs,
+        tokenizer_init_kwargs=self.tokenizer.init_kwargs,** kwargs,
+    )
+
+    def print_mm_items(check_item):
+        pixel_values = check_item["pixel_values"]
+        image_grid_thw = check_item["image_grid_thw"]
+        print("check pixel_values ", pixel_values.shape, " ", pixel_values.dtype)
+        print("check image_grid_thw ", image_grid_thw.shape, " ", image_grid_thw.dtype)
+    
+    def merge_mm_items(item_a, item_b):
+        if not item_a:
+            assert item_b is not None, "at least one mm_item exist"
+            return item_b
+        merge_to_pixel= item_a["pixel_values"]
+        merge_to_grid = item_a["image_grid_thw"]
+
+        merge_from_pixel = item_b["pixel_values"]
+        merge_from_grid = item_b["image_grid_thw"]
+        item_a["pixel_values"] = torch.cat([merge_to_pixel, merge_from_pixel]) 
+        item_a["image_grid_thw"] = torch.cat([merge_to_grid, merge_from_grid])
+        return item_a 
+       
+    additional_infos = {}
+    if images is not None:
+        image_hash_keys = [ fast_image_hash(image) for image in images ]
+        cached_image_idx = []
+       
+        for image_idx in range(len(images)):
+            if image_hash_keys[image_idx] in self.image_hash_table:
+                cached_image_idx.append(image_idx)
+
+        image_inputs = None
+        send_data = []
+        split_tensors = []
+        for image_idx in range(len(images)):
+            if image_idx in cached_image_idx:
+                # take data from cached_data
+                hash_key = image_hash_keys[image_idx]
+                hashed_mm_item = self.image_hash_table[hash_key]
+                image_inputs = merge_mm_items(image_inputs, hashed_mm_item)
+                send_data.append(False)
+            else:
+                hash_key = image_hash_keys[image_idx]
+                process_images = [images[image_idx]]
+                new_generate_item = self.image_processor(images= process_images, videos=None, **output_kwargs["images_kwargs"])
+                self.image_hash_table[hash_key] = new_generate_item
+                image_inputs = merge_mm_items(image_inputs, new_generate_item)
+                send_data.append(True)
+                # only add new tensors for send
+                split_tensors.append(new_generate_item["pixel_values"].to("cpu"))
+                
+
+        image_grid_thw = image_inputs["image_grid_thw"]
+        additional_infos["hash_keys"] = image_hash_keys
+        additional_infos["send_data"] = send_data
+        additional_infos["split_tensors"] = split_tensors 
+        print("hit cache image nums : {}, new dealed image nums : {} ".format(len(cached_image_idx), len(images) - len(cached_image_idx)))
+    else:
+        image_inputs = {}
+        image_grid_thw = None
+        
+    if videos is not None:
+        videos_inputs = self.image_processor(images=None, videos=videos,** output_kwargs["images_kwargs"])
+        video_grid_thw = videos_inputs["video_grid_thw"]
+
+        fps = output_kwargs["videos_kwargs"].pop("fps", 2.0)
+        if isinstance(fps, (int, float)):
+            second_per_grid_ts = [self.image_processor.temporal_patch_size / fps] * len(video_grid_thw)
+        elif hasattr(fps, "__len__") and len(fps) == len(video_grid_thw):
+            second_per_grid_ts = [self.image_processor.temporal_patch_size / tmp for tmp in fps]
+        else:
+            raise ValueError(
+                f"The length of fps ({len(fps) if hasattr(fps, '__len__') else fps}) must be equal to the length of video_grid_thw ({len(video_grid_thw)}) or fps should be a single number."
+            )
+        videos_inputs.update({"second_per_grid_ts": second_per_grid_ts})
+
+    else:
+        videos_inputs = {}
+        video_grid_thw = None
+
+    if not isinstance(text, list):
+        text = [text]
+
+    if image_grid_thw is not None:
+        merge_length = self.image_processor.merge_size **2
+        index = 0
+        for i in range(len(text)):
+            while self.image_token in text[i]:
+                text[i] = text[i].replace(
+                    self.image_token,
+                    "<|placeholder|>" * (image_grid_thw[index].prod() // merge_length),
+                    1,
+                )
+                index += 1
+            text[i] = text[i].replace("<|placeholder|>", self.image_token)
+
+    if video_grid_thw is not None:
+        merge_length = self.image_processor.merge_size** 2
+        index = 0
+        for i in range(len(text)):
+            while self.video_token in text[i]:
+                text[i] = text[i].replace(
+                    self.video_token,
+                    "<|placeholder|>" * (video_grid_thw[index].prod() // merge_length),
+                    1,
+                )
+                index += 1
+            text[i] = text[i].replace("<|placeholder|>", self.video_token)
+
+    text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"])
+
+    return BatchFeature(data={** text_inputs, **image_inputs,** videos_inputs, **additional_infos})
 
 
 @dataclasses.dataclass
@@ -211,16 +368,42 @@ class BaseMultimodalProcessor(ABC):
             processor.image_processor, BaseImageProcessorFast
         ):
             kwargs["device"] = "cuda"
+        # get_function_definition_location(processor.__call__)
+        
+        if not hasattr(processor, "image_hash_table"):
+            processor.image_hash_table = {}
+        
+        processor.__call__ = types.MethodType(custom_call, processor)
+        
         result = processor.__call__(
             text=[input_text],
             padding=True,
             return_tensors="pt",
             **kwargs,
         )
-        if "pixel_values" in result and isinstance(
-            result["pixel_values"], torch.Tensor
-        ):
-            result["pixel_values"] = result["pixel_values"].to("cpu")
+        
+        # split data here 
+        send_items = {}
+        assert "split_tensors" in result, "need split_tensors in result"
+        send_items["split_tensors"] = result["split_tensors"]
+        result.pop("split_tensors")
+
+        assert "send_data" in result, "need send_data in result"
+        send_items["send_data"] = result["send_data"]
+        result.pop("send_data")
+
+        assert "hash_keys" in result, "need hash_keys in result"
+        send_items["hash_keys"] = result["hash_keys"]
+        result.pop("hash_keys")
+
+        # if "pixel_values" in result and isinstance(
+        #     result["pixel_values"], torch.Tensor
+        # ) and result["send_data"]:
+        #     print(":::H2D:::")
+        #     result["pixel_values"] = result["pixel_values"].to("cpu")
+        # else:
+        #     result["pixel_values"] = result["hash_key"]
+        result["pixel_values"] = send_items
         return result
 
     @abstractmethod
@@ -481,6 +664,7 @@ class BaseMultimodalProcessor(ABC):
             return result = [(2,4),(6,7)]
         """
         mask = input_ids == mm_token_id
+
         start_positions = (mask & ~torch.roll(mask, 1)).nonzero(as_tuple=True)[0]
         end_positions = (mask & ~torch.roll(mask, -1)).nonzero(as_tuple=True)[0]
 
@@ -494,6 +678,45 @@ class BaseMultimodalProcessor(ABC):
         indices_end = (input_ids == mm_end_id).nonzero(as_tuple=True)[0] - 1
 
         return list(zip(indices_start.tolist(), indices_end.tolist()))
+
+    @staticmethod
+    def _extract_processor_features(
+        items: List[dict], attr_name: str
+    ) -> Optional[torch.Tensor]:
+        """
+        Helper function to concat extracted attributes from processor output.
+        """
+        values = [value for item in items if (value := item.get(attr_name)) is not None]
+        return torch.cat(values) if values else None
+
+    # When we assume that all the items have the same attributes
+    def _extract_processor_features_from_all_attributes(
+        self, items: List[dict]
+    ) -> dict:
+        values = {}
+        # Verify all items have the same keys
+        first_keys = set(items[0].keys())
+        for item in items[1:]:
+            if set(item.keys()) != first_keys:
+                raise ValueError(
+                    f"All items must have the same attributes. "
+                    f"First item has {first_keys}, but found {set(item.keys())}"
+                )
+
+        # Process each attribute
+        for k, v in items[0].items():
+            if isinstance(v, list):
+                values[k] = self._extract_processor_features(items, k)
+            else:
+                # Verify all items have the same value for non-list attributes
+                for item in items[1:]:
+                    if item[k] != v:
+                        raise ValueError(
+                            f"All items must have the same value for attribute {k}. "
+                            f"First item has {v}, but found {item[k]}"
+                        )
+                values[k] = v
+        return values
 
     def collect_mm_items_from_processor_output(
         self, data_dict: dict
