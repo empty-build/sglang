@@ -67,6 +67,8 @@ from sglang.srt.sampling.sampling_params import SamplingParams
 from sglang.srt.server_args import ServerArgs
 from sglang.srt.utils import flatten_nested_list, support_triton
 
+import hashlib
+
 if TYPE_CHECKING:
     from sglang.srt.speculative.eagle_utils import EagleDraftInput, EagleVerifyInput
     from sglang.srt.speculative.spec_info import SpeculativeAlgorithm
@@ -886,6 +888,9 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
     # hicache pointer for synchronizing data loading from CPU to GPU
     hicache_consumer_index: int = 0
 
+
+    mminput_cache = {}
+
     @classmethod
     def init_new(
         cls,
@@ -1249,13 +1254,56 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
             if input_embeds
             else None
         )
+
         for mm_input in multimodal_inputs:
             if mm_input is None:
                 continue
             for mm_item in mm_input.mm_items:
-                pixel_values = getattr(mm_item, "feature", None)
-                if isinstance(pixel_values, torch.Tensor):
-                    mm_item.feature = pixel_values.to(self.device, non_blocking=True)
+                pixel_values = getattr(mm_item, "pixel_values", None)
+                # hash_key = mm_item.send_hash
+
+                real_pixel_values = []
+             
+                if isinstance(pixel_values, int):
+                    hash_key = pixel_values
+                elif isinstance(pixel_values, list):
+                    hash_key = pixel_values[1]
+                    pixel_values = pixel_values[0]
+                elif isinstance(pixel_values, dict):
+                    send_datas = pixel_values["send_data"]
+                    hash_keys = pixel_values["hash_keys"]
+                    split_tensors = pixel_values["split_tensors"]
+                    
+                    take_idx = 0
+                    for send_idx in range(len(send_datas)):
+                        if send_datas[send_idx]:
+                            real_pixel_values.append(split_tensors[take_idx].to(self.device, non_blocking = True))
+                            self.mminput_cache[hash_keys[send_idx]] = real_pixel_values[-1]
+                            take_idx+=1
+                        else:
+                            real_pixel_values.append(self.mminput_cache[hash_keys[send_idx]])
+
+
+                mm_item.pixel_values = torch.cat(real_pixel_values)                        
+
+                #[TODO] fix bug here, why in cache but isinstance(pixel_values, torch.Tensor)
+                # if isinstance(pixel_values, torch.Tensor) and (hash_key not in self.mminput_cache.keys()):
+                    
+                #     print(hash_key, "^^^", self.mminput_cache.keys())
+                #     mm_item.pixel_values = pixel_values.to(
+                #         self.device, non_blocking=True
+                #     )
+                    
+                #     self.mminput_cache[hash_key] = mm_item.pixel_values
+                #     # print(mm_item.pixel_values)
+                #     # print(hash_key, "^^^", self.mminput_cache.keys())
+                #     print(":::NOT HIT CACHE:::")
+                # else:
+                #     # raise RuntimeError("shenmejbadongxi") 
+                #     # assert mm_item.send_hash == pixel_values, " not cached mm_input"
+                #     # assert pixel_values in self.mminput_cache, "not cached mm_input"
+                #     print(":::HIT CACHE::::")
+                #     mm_item.pixel_values = self.mminput_cache[hash_key]                  
         self.multimodal_inputs = multimodal_inputs
         self.token_type_ids = token_type_ids_tensor
         self.seq_lens_sum = sum(seq_lens)
