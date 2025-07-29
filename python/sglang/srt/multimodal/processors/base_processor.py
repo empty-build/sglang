@@ -177,14 +177,14 @@ def custom_call_latest(
                 # take data from cached_data
                 hash_key = image_hash_keys[image_idx]
                 hashed_mm_item = copy.deepcopy(self.image_hash_table[hash_key])
-                print_mm_items(hashed_mm_item)
+                # print_mm_items(hashed_mm_item)
                 image_inputs = merge_mm_items(image_inputs, hashed_mm_item)
                 send_data.append(False)
             else:
                 hash_key = image_hash_keys[image_idx]
                 process_images = [images[image_idx]]
                 new_generate_item = self.image_processor(images= process_images, **output_kwargs["images_kwargs"])
-                print_mm_items(new_generate_item)
+                # print_mm_items(new_generate_item)
                 self.image_hash_table[hash_key] =  copy.deepcopy(new_generate_item)
                 image_inputs = merge_mm_items(image_inputs, new_generate_item)
                 take_to_idx.append(image_inputs["pixel_values"].shape[0])
