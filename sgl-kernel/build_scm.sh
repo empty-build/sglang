@@ -17,7 +17,7 @@ if [ -z "$PYTHON_VERSION" ]; then
 fi
 
 if [ -z "$CUDA_VERSION" ]; then
-    CUDA_VERSION="12.4"
+    CUDA_VERSION="12.6"
 fi
 
 ROOT_PATH=$(pwd)
