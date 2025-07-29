@@ -130,17 +130,6 @@ class Sampler(nn.Module):
                     f"Invalid sampling backend: {global_server_args_dict['sampling_backend']}"
                 )
 
-            if return_logprob:
-                if (
-                    global_server_args_dict["sampling_backend"] == "flashinfer"
-                    and not sampling_info.need_min_p_sampling
-                ):
-                    probs = torch.softmax(logits, dim=-1)
-                    logprobs = torch.log(probs).clamp(min=torch.finfo(probs.dtype).min)
-                else:
-                    # clamp to avoid -inf
-                    logprobs = torch.log(probs).clamp(min=torch.finfo(probs.dtype).min)
-
         # Attach logprobs to logits_output (in-place modification)
         if return_logprob:
             if any(x > 0 for x in top_logprobs_nums):

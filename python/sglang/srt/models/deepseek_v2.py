@@ -1463,7 +1463,7 @@ class DeepseekV2ForCausalLM(nn.Module):
             # Only Deepseek V3/R1 can use shared experts fusion optimization now.
             if (
                 self.config.architectures[0] != architecture
-                or self.config.n_routed_experts not in [256, 384]
+                or self.config.n_routed_experts != 256
             ):
                 self.n_share_experts_fusion = 0
                 global_server_args_dict["n_share_experts_fusion"] = 0
@@ -1478,7 +1478,7 @@ class DeepseekV2ForCausalLM(nn.Module):
             if (
                 torch.cuda.get_device_capability("cuda") >= (9, 0)
                 and self.config.architectures[0] == architecture
-                and self.config.n_routed_experts in [256, 384]
+                and self.config.n_routed_experts == 256
                 and (not (global_server_args_dict["enable_deepep_moe"] or global_server_args_dict["enable_ep_moe"]))
             ):
                 self.n_share_experts_fusion = self.tp_size
@@ -1486,8 +1486,6 @@ class DeepseekV2ForCausalLM(nn.Module):
                 logger.info(
                     "Deepseek V3/R1 with fp8 can use shared experts fusion optimization when SM version >=90. Shared experts fusion optimization is enabled."
                 )
-        self.n_share_experts_fusion = 0
-        global_server_args_dict["n_share_experts_fusion"] = 0
 
     def get_input_embeddings(self) -> nn.Embedding:
         return self.model.embed_tokens
