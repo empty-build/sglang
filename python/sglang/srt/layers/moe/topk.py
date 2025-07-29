@@ -25,10 +25,6 @@ from sglang.srt.utils import get_compiler_backend, is_cuda, is_hip
 _is_cuda = is_cuda()
 _is_hip = is_hip()
 
-# Maximum VPT (Values Per Thread) supported by moe_fused_gate kernel
-# This should match MAX_VPT in moe_fused_gate.cu
-MAX_VPT_SUPPORTED = 384
-
 if _is_cuda:
     from sgl_kernel import moe_fused_gate
 
@@ -227,8 +223,8 @@ def biased_grouped_topk(
     if (
         _is_cuda
         and gating_output.shape[1] // num_expert_group
-        <= MAX_VPT_SUPPORTED # moe_fused_gate kernel ensure that num_experts/num_expert_group does not exceed MAX_VPT now.
-        #and is_power_of_two(correction_bias.shape[0])
+        <= 32  # moe_fused_gate kernel ensure that num_experts/num_expert_group does not exceed MAX_VPT=32 now. And when kernel can handle MAX_VPT > 32, we can remove this assertion.
+        and is_power_of_two(correction_bias.shape[0])
     ):
         return moe_fused_gate(
             gating_output,
