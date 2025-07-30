@@ -331,8 +331,10 @@ setopt HIST_FIND_NO_DUPS
 setopt INC_APPEND_HISTORY
 EOF
 
-RUN set -euxo ; \
-    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+# use pip install from pypi
+# RUN set -euxo ; \
+#     curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+RUN pip install rust-just
 
 # Set workspace directory
 WORKDIR /sgl-workspace/sglang
