@@ -20,6 +20,7 @@ def check_if_use_flexprefill(forward_batch: ForwardBatch) -> bool:
     return (
         forward_batch.batch_size == 1
         and forward_batch.seq_lens_sum > FLEXPREFILL_THRESHOLD
+        and forward_batch.input_ids.shape[0] > FLEXPREFILL_THRESHOLD
         and get_bool_env_var("SGL_USE_FLEXPREFILL")
     )
 
