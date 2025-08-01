@@ -1101,3 +1101,18 @@ class LoRAUpdateResult:
 
 
 LoadLoRAAdapterReqOutput = UnloadLoRAAdapterReqOutput = LoRAUpdateResult
+
+
+class EnableEICReqInput:
+    pass
+
+
+@dataclass
+class DisableEICReqInput:
+    pass
+
+
+@dataclass
+class EICSwitchOutput:
+    success: bool
+    message: str

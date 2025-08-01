@@ -1,5 +1,10 @@
 ARG CUDA_VERSION=12.6.1
-FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+FROM iaas-gpu-cn-beijing.cr.volces.com/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+
+# 编译之前，将源统一设置成内网的
+RUN sed -i 's/archive.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list
+
 
 ARG BUILD_TYPE=all
 ARG DEEPEP_COMMIT=b6ce310bb0b75079682d09bc2ebc063a074fbd58
@@ -35,6 +40,9 @@ RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
  && ln -sf /usr/bin/python3 /usr/bin/python \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get clean
+
+# 设置pip源为内网
+RUN python3 -m pip config set global.index-url https://bytedpypi.byted.org/simple
 
 # GDRCopy installation
 RUN mkdir -p /tmp/gdrcopy && cd /tmp \
@@ -86,7 +94,7 @@ RUN wget https://developer.download.nvidia.com/compute/redist/nvshmem/3.3.9/sour
 # Python tools
 RUN python3 -m pip install --no-cache-dir \
     datamodel_code_generator \
-    mooncake_transfer_engine==0.3.4.post2 \
+    mooncake_transfer_engine==0.3.5 \
     pre-commit \
     pytest \
     black \
@@ -323,8 +331,16 @@ setopt HIST_FIND_NO_DUPS
 setopt INC_APPEND_HISTORY
 EOF
 
-RUN set -euxo ; \
-    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+# use pip install from pypi
+# RUN set -euxo ; \
+#     curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+RUN pip install rust-just
 
 # Set workspace directory
 WORKDIR /sgl-workspace/sglang
+
+# 将源统一还原成火山的源
+RUN pip config set global.index-url https://mirrors.ivolces.com/pypi/simple/
+RUN rm -rf /var/lib/apt/lists/* && \
+    sed -i 's/byted.org/ivolces.com/g' /etc/apt/sources.list.d/* && \
+    sed -i 's/byted.org/ivolces.com/g' /etc/apt/sources.list

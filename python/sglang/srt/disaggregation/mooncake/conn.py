@@ -171,10 +171,9 @@ class MooncakeKVManager(BaseKVManager):
                 f"The environment variable SGLANG_DISAGGREGATION_THREAD_POOL_SIZE={transfer_thread_pool_size} must be "
                 f"greater than or equal to SGLANG_DISAGGREGATION_QUEUE_SIZE={transfer_queue_size}."
             )
+            self.thread_pool_size = transfer_thread_pool_size // transfer_queue_size
             self.executors = [
-                concurrent.futures.ThreadPoolExecutor(
-                    transfer_thread_pool_size // transfer_queue_size
-                )
+                concurrent.futures.ThreadPoolExecutor(self.thread_pool_size)
                 for _ in range(transfer_queue_size)
             ]
             for queue, executor in zip(self.transfer_queues, self.executors):
@@ -268,30 +267,51 @@ class MooncakeKVManager(BaseKVManager):
             for layer_id in range(num_layers)
         ]
 
-        # Worker function for processing a single layer
-        def process_layer(src_ptr: int, dst_ptr: int, item_len: int) -> int:
+        # Group by transfer chunk size
+        src_addr_list_large_chunk, src_addr_list_small_chunk = [], []
+        dst_addr_list_large_chunk, dst_addr_list_small_chunk = [], []
+        length_list_large_chunk, length_list_small_chunk = [], []
+
+        for src_ptr, dst_ptr, item_len in layers_params:
             for prefill_index, decode_index in zip(prefill_kv_blocks, dst_kv_blocks):
                 src_addr = src_ptr + int(prefill_index[0]) * item_len
                 dst_addr = dst_ptr + int(decode_index[0]) * item_len
                 length = item_len * len(prefill_index)
+                if length > get_int_env_var("SGLANG_DISAGGREGATION_LARGE_CHUNK", 20480):
+                    src_addr_list_large_chunk.append(src_addr)
+                    dst_addr_list_large_chunk.append(dst_addr)
+                    length_list_large_chunk.append(length)
+                else:
+                    src_addr_list_small_chunk.append(src_addr)
+                    dst_addr_list_small_chunk.append(dst_addr)
+                    length_list_small_chunk.append(length)
 
-                status = self.engine.transfer_sync(
-                    mooncake_session_id, src_addr, dst_addr, length
-                )
-                if status != 0:
-                    return status
-            return 0
-
-        futures = [
+        large_chunks_transfer_futures = [
             executor.submit(
-                process_layer,
-                src_ptr,
-                dst_ptr,
-                item_len,
+                self.engine.batch_transfer_sync,
+                mooncake_session_id,
+                src_addr_list_large_chunk,
+                dst_addr_list_large_chunk,
+                length_list_large_chunk,
             )
-            for (src_ptr, dst_ptr, item_len) in layers_params
         ]
 
+        num_small_chunks = len(length_list_small_chunk)
+        micro_batch_size = max(
+            num_small_chunks // self.thread_pool_size, self.thread_pool_size
+        )
+        small_chunks_transfer_futures = [
+            executor.submit(
+                self.engine.batch_transfer_sync,
+                mooncake_session_id,
+                src_addr_list_small_chunk[i : i + micro_batch_size],
+                dst_addr_list_small_chunk[i : i + micro_batch_size],
+                length_list_small_chunk[i : i + micro_batch_size],
+            )
+            for i in range(0, num_small_chunks, micro_batch_size)
+        ]
+
+        futures = large_chunks_transfer_futures + small_chunks_transfer_futures
         for future in concurrent.futures.as_completed(futures):
             status = future.result()
             if status != 0:
