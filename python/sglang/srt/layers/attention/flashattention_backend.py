@@ -655,6 +655,7 @@ class FlashAttentionBackend(AttentionBackend):
                     )
 
         if check_if_use_flexprefill(forward_batch):
+
             out = flex_prefill_attention(
                 q.view(
                     forward_batch.batch_size, -1, layer.tp_q_head_num, layer.head_dim

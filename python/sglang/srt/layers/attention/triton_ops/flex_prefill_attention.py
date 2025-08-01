@@ -13,17 +13,14 @@ from sglang.srt.utils import get_bool_env_var, get_device_sm
 
 FLEXPREFILL_DEFAULT_BLOCK_SIZE = 128
 FLEXPREFILL_DEFAULT_MIN_BUDGET = 1024
-FLEXPREFILL_THRESHOLD = max(
-    2 * FLEXPREFILL_DEFAULT_BLOCK_SIZE,
-    math.ceil(FLEXPREFILL_DEFAULT_MIN_BUDGET / FLEXPREFILL_DEFAULT_BLOCK_SIZE)
-    * FLEXPREFILL_DEFAULT_BLOCK_SIZE,
-)
+FLEXPREFILL_THRESHOLD = 16384
 
 
 def check_if_use_flexprefill(forward_batch: ForwardBatch) -> bool:
     return (
         forward_batch.batch_size == 1
         and forward_batch.seq_lens_sum > FLEXPREFILL_THRESHOLD
+        and forward_batch.input_ids.shape[0] > FLEXPREFILL_THRESHOLD
         and get_bool_env_var("SGL_USE_FLEXPREFILL")
     )
 
@@ -275,7 +272,23 @@ def torch_column_count_cumsum(x: torch.Tensor, num_columns: int) -> torch.Tensor
             )
     return y
 
-
+@triton.autotune(
+    configs=[
+        # Basic configurations
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=4),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=8),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 128}, num_warps=8),
+        
+        # More configurations with different num_stages
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=4),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=8, num_stages=4),
+    ],
+    key=['Q_LEN', 'K_LEN', 'QK_HEAD_DIM', 'V_HEAD_DIM'],
+)
 @triton.jit
 def block_wise_prefill_attention_kernel(
     q_ptr,  # shape: [batch_size, seq_len, num_heads, head_dim]
@@ -549,11 +562,11 @@ def triton_block_wise_prefill_attention(
         idx_bins.stride(0),
         idx_bins.stride(1),
         idx_bins.stride(2),
-        BLOCK_SIZE_Q=block_size,
-        BLOCK_SIZE_K=block_size,
-        BLOCK_SIZE_D=BLOCK_SIZE_D,
-        num_warps=num_warps,
-        num_stages=num_stages,
+        # BLOCK_SIZE_Q=block_size,
+        # BLOCK_SIZE_K=block_size,
+        # BLOCK_SIZE_D=BLOCK_SIZE_D,
+        # num_warps=num_warps,
+        # num_stages=num_stages,
     )
     return o
 
