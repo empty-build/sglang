@@ -3,20 +3,11 @@ name: PR Test (H20)
 on:
   push:
     branches: [ main ]
-    paths:
-      - "python/sglang/srt/models/deepseek*"
-      - "python/sglang/srt/layers/moe/**"
-      - ".github/workflows/pr-test-h20.yml"
   pull_request:
     branches: [ main ]
-    paths:
-      - "python/sglang/srt/models/deepseek*"
-      - "python/sglang/srt/layers/moe/**"
-      - ".github/workflows/pr-test-h20.yml"
   workflow_dispatch:
     inputs:
       version:
-        description: "FlashInfer version"
         required: true
         type: choice
         default: 'release'
@@ -29,10 +20,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect file changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            src:
+              - "python/sglang/srt/models/deepseek*"
+              - "python/sglang/srt/layers/moe/**"
+              - ".github/workflows/pr-test-h20.yml"
+
+jobs:
   unit-test-deepep-8-gpu:
     if: (github.repository == 'sgl-project/sglang' || github.event_name == 'pull_request') &&
-        github.event.pull_request.draft == false
-    runs-on: h20-8
+        github.event.pull_request.draft == false &&
+        needs.check-changes.outputs.src == 'true'
+    runs-on: 8-gpu-h20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
