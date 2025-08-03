@@ -39,6 +39,7 @@ jobs:
               - ".github/workflows/pr-test-h20.yml"
 
   unit-test-deepep-8-gpu:
+    needs: [check-changes]
     if: (github.repository == 'sgl-project/sglang' || github.event_name == 'pull_request') &&
         github.event.pull_request.draft == false &&
         needs.check-changes.outputs.src == 'true'
@@ -57,11 +58,12 @@ jobs:
           cd test/srt
           python3 run_suite.py --suite per-commit-8-gpu-deepep
 
-  finish:
-    if: always()
+  pr-test-finish:
     needs: [
+      check-changes,
       unit-test-deepep-8-gpu,
     ]
+    if: needs.check-changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check all dependent job statuses
