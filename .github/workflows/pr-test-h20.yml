@@ -16,7 +16,7 @@ on:
           - 'nightly'
 
 concurrency:
-  group: pr-test-${{ github.ref }}
+  group: pr-test-h20-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
