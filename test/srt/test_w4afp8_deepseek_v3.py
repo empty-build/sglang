@@ -6,6 +6,7 @@ import requests
 from sglang.srt.utils import kill_process_tree
 from sglang.test.few_shot_gsm8k import run_eval as run_eval_few_shot_gsm8k
 from sglang.test.test_utils import (
+    DEFAULT_DEEPSEEK_W4AFP8_MODEL_FOR_TEST,
     DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
     DEFAULT_URL_FOR_TEST,
     CustomTestCase,
@@ -15,14 +16,13 @@ from sglang.test.test_utils import (
     write_github_step_summary,
 )
 
-DEEPSEEK_R1_W4AFP8_MODEL_PATH = "Barrrrry/DeepSeek-R1-W4AFP8"
 
 class TestDeepseekV3W4afp8(CustomTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = DEEPSEEK_R1_W4AFP8_MODEL_PATH
+        cls.model = DEFAULT_DEEPSEEK_W4AFP8_MODEL_FOR_TEST
         cls.base_url = DEFAULT_URL_FOR_TEST
-        other_args = ["--trust-remote-code", "--tp", "8","--enable-ep-moe"]
+        other_args = ["--trust-remote-code", "--tp", "8", "--enable-ep-moe"]
         cls.process = popen_launch_server(
             cls.model,
             cls.base_url,
@@ -53,7 +53,7 @@ class TestDeepseekV3W4afp8(CustomTestCase):
 class TestDeepseekV3W4Afp8Mtp(CustomTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = DEEPSEEK_R1_W4AFP8_MODEL_PATH
+        cls.model = DEFAULT_DEEPSEEK_W4AFP8_MODEL_FOR_TEST
         cls.base_url = DEFAULT_URL_FOR_TEST
         other_args = [
             "--tp",
@@ -85,11 +85,9 @@ class TestDeepseekV3W4Afp8Mtp(CustomTestCase):
     def tearDownClass(cls):
         kill_process_tree(cls.process.pid)
 
-    def test_a_gsm8k(
+    def test_gsm8k(
         self,
-    ):  # Append an "a" to make this test run first (alphabetically) to warm up the server
-        requests.get(self.base_url + "/flush_cache")
-
+    ):
         args = SimpleNamespace(
             num_shots=5,
             data_path=None,
@@ -116,6 +114,7 @@ class TestDeepseekV3W4Afp8Mtp(CustomTestCase):
             )
             self.assertGreater(metrics["accuracy"], 0.935)
             self.assertGreater(avg_spec_accept_length, 2.9)
+
 
 if __name__ == "__main__":
     unittest.main()
