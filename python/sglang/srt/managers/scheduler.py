@@ -2244,7 +2244,10 @@ def run_scheduler_process(
     # Config the process
     kill_itself_when_parent_died()
     setproctitle.setproctitle(f"sglang::scheduler{prefix.replace(' ', '_')}")
-    faulthandler.enable()
+    try:
+        faulthandler.enable()
+    except Exception as e:
+        logger.warning(f"Failed to enable faulthandler: {e}")
     parent_process = psutil.Process().parent()
 
     # [For Router] if env var "SGLANG_DP_RANK" exist, set dp_rank to the value of the env var
