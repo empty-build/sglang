@@ -88,12 +88,7 @@ def operate_substrings(original_str, target_sub, indices, replace_str=""):
     for idx in indices:
         if idx < 0 or idx >= len(positions):
             raise ValueError(f"invalid {idx} idx can only be 0 ~ {len(positions)-1}")
-    seen = set()
-    unique_indices = []
-    for idx in indices:
-        if idx not in seen:
-            seen.add(idx)
-            unique_indices.append(idx)
+    unique_indices = sorted(list(set(indices)))
 
     result = original_str
     offset = 0
