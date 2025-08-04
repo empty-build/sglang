@@ -28,6 +28,10 @@ QWEN2_VL_PATCH_SIZE = 196.0
 QWEN2_PER_TOKEN_PATCH_NUM = 4
 QWEN2_PATCH_SIZE = 14
 
+VISION_START_TOKEN = (151652,)
+IMG_PAD_TOKEN = 151655
+VISION_END_TOKEN = 151653
+
 
 def fast_image_hash(img: Image.Image, hash_type: str = "int") -> int | str:
     small_img = img.resize((8, 8), Image.Resampling.BILINEAR).convert("L")
@@ -114,6 +118,34 @@ def operate_substrings(original_str, target_sub, indices, replace_str=""):
         offset += delta
 
     return result
+
+
+def get_img_height_in_tensor(img: Image):
+    ret = int((img.size[0] * img.size[1]) / QWEN2_VL_PATCH_SIZE)
+    if ret < 1:
+        raise ValueError("invalid image height")
+    return ret
+
+
+def insert_input_ids(input_ids, target_id, forbid_id_before_target, insert_ids):
+    target_positions = (input_ids[0] == target_id).nonzero().squeeze(dim=1)
+    for pos in target_positions:
+        if pos == 0 or input_ids[0][pos - 1] != forbid_id_before_target:
+            new_length = len(input_ids[0]) + len(insert_ids) - 1
+            new_tensor = torch.empty(
+                1,
+                new_length,
+                dtype=input_ids.dtype,
+                device=input_ids.device,
+            )
+            new_tensor[0][:pos] = input_ids[0][:pos]
+            new_tensor[0][pos : pos + len(insert_ids)] = torch.tensor(
+                insert_ids, dtype=input_ids.dtype, device=input_ids.device
+            )
+            new_tensor[0][pos + len(insert_ids) :] = input_ids[0][pos + 1 :]
+            return new_tensor
+
+    return input_ids
 
 
 @dataclasses.dataclass
@@ -334,37 +366,13 @@ class BaseMultimodalProcessor(ABC):
 
         if cache_mm_image_items and is_qwen2_processor:
 
-            def get_img_height_in_tensor(img: Image):
-                ret = int((img.size[0] * img.size[1]) / QWEN2_VL_PATCH_SIZE)
-                if ret < 1:
-                    raise ValueError("invalid image height")
-                return ret
-
-            def insert_input_ids(
-                input_ids, target_id, forbid_id_before_target, insert_ids
-            ):
-                target_positions = (input_ids[0] == target_id).nonzero().squeeze(dim=1)
-                for pos in target_positions:
-                    if pos == 0 or input_ids[0][pos - 1] != forbid_id_before_target:
-                        new_length = len(input_ids[0]) + len(insert_ids) - 1
-                        new_tensor = torch.empty(
-                            1,
-                            new_length,
-                            dtype=input_ids.dtype,
-                            device=input_ids.device,
-                        )
-                        new_tensor[0][:pos] = input_ids[0][:pos]
-                        new_tensor[0][pos : pos + len(insert_ids)] = torch.tensor(
-                            insert_ids, dtype=input_ids.dtype, device=input_ids.device
-                        )
-                        new_tensor[0][pos + len(insert_ids) :] = input_ids[0][pos + 1 :]
-                        return new_tensor
-
-                return input_ids
-
             to_replace_str = "<|vision_start|><|image_pad|><|vision_end|>"
             repalce_str = "<|vision_end|>"
-            v_start_token, img_pad_token, v_end_token = 151652, 151655, 151653
+            v_start_token, img_pad_token, v_end_token = (
+                VISION_START_TOKEN,
+                IMG_PAD_TOKEN,
+                VISION_END_TOKEN,
+            )
 
             img_hash_keys = []
             img_heights = []
