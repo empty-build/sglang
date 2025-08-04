@@ -473,7 +473,7 @@ class BaseMultimodalProcessor(ABC):
                     use_cache_mark.append(True)
             # result["pixel_values"] = torch.concat(tensor_lists, dim = 0)
             send_pixel_values = (
-                torch.concat(tensor_lists, dim=0) if len(tensor_lists) > 0 else {}
+                torch.concat(tensor_lists, dim=0) if len(tensor_lists) > 0 else None
             )
             proxy_pixel_values = {}
             proxy_pixel_values["send_data"] = send_pixel_values
