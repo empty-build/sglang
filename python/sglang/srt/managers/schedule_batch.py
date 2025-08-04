@@ -900,6 +900,8 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
     # hicache pointer for synchronizing data loading from CPU to GPU
     hicache_consumer_index: int = 0
 
+    mminput_cache = {}
+
     @classmethod
     def init_new(
         cls,
