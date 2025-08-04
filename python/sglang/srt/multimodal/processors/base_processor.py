@@ -377,7 +377,7 @@ class BaseMultimodalProcessor(ABC):
             remove_image_idx = []
             processed_img_heights = []
             for img_idx in range(len(images)):
-                hash_key = fast_image_hash(images[img_idx])
+                hash_key = image_to_int(images[img_idx])
                 img_hash_keys.append(hash_key)
                 img_height = get_img_height_in_tensor(images[img_idx])
                 img_token_num = int(img_height / QWEN2_PER_TOKEN_PATCH_NUM)
