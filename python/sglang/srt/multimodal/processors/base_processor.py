@@ -353,7 +353,7 @@ class BaseMultimodalProcessor(ABC):
         ):
             kwargs["device"] = "cuda"
 
-        cache_mm_image_items = get_bool_env_var("CACHE_MM_IMAGE")
+        cache_mm_image_items = get_bool_env_var("SGL_CACHE_MM_IMAGE")
         is_qwen2_processor = isinstance(
             processor.image_processor,
             transformers.models.qwen2_vl.image_processing_qwen2_vl_fast.Qwen2VLImageProcessorFast,
@@ -377,7 +377,7 @@ class BaseMultimodalProcessor(ABC):
             remove_image_idx = []
             processed_img_heights = []
             for img_idx in range(len(images)):
-                hash_key = fast_image_hash(images[img_idx])
+                hash_key = image_to_int(images[img_idx])
                 img_hash_keys.append(hash_key)
                 img_height = get_img_height_in_tensor(images[img_idx])
                 img_token_num = int(img_height / QWEN2_PER_TOKEN_PATCH_NUM)

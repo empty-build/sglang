@@ -250,7 +250,7 @@ class TestQwen2_5_AI_AGENT(TestOpenAIVisionServer):
 
         env_1["CUDA_VISIBLE_DEVICES"] = "0"
         env_2["CUDA_VISIBLE_DEVICES"] = "1"
-        env_2["CACHE_MM_IMAGE"] = "1"
+        env_2["SGL_CACHE_MM_IMAGE"] = "1"
 
         logging.info("launch server without mm_item_cache")
         cls.process = popen_launch_server(
