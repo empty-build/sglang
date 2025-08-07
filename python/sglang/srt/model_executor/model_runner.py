@@ -133,6 +133,7 @@ UNBALANCED_MODEL_LOADING_TIMEOUT_S = 300
 
 logger = logging.getLogger(__name__)
 
+from sglang.jack_utils import hcdprint
 
 class RankZeroFilter(logging.Filter):
     """Filter that only allows INFO level logs from rank 0, but allows all other levels from any rank."""
@@ -447,6 +448,8 @@ class ModelRunner:
                         "MLA optimization not supported on CPU except for intel_amx backend."
                     )
 
+        hcdprint(f"[horenc] ModelRunner:model_specific_adjustment(): "
+            f"server_args.attention_backend = {server_args.attention_backend}")
         if (
             server_args.attention_backend == "fa3"
             and server_args.kv_cache_dtype == "fp8_e5m2"
@@ -637,6 +640,9 @@ class ModelRunner:
         monkey_patch_vllm_parallel_state(reverse=True)
         monkey_patch_isinstance_for_vllm_base_layer(reverse=True)
 
+        hcdprint(f"[horenc] ModelRunner:load_model(): self.server_args.attention_backend = {self.server_args.attention_backend}")
+        hcdprint(f"[horenc] ModelRunner:load_model(): self.server_args.kv_cache_dtype = {self.server_args.kv_cache_dtype}")
+        hcdprint(f"[horenc] ModelRunner:load_model(): self.server_args.quantization_param_path = {self.server_args.quantization_param_path}")
         if self.server_args.kv_cache_dtype == "fp8_e4m3":
             if self.server_args.quantization_param_path is not None:
                 if callable(getattr(self.model, "load_kv_cache_scales", None)):
@@ -1066,6 +1072,9 @@ class ModelRunner:
         max_num_reqs: Optional[int] = None,
         max_total_tokens: Optional[int] = None,
     ):
+        hcdprint(f"[horenc] ModelRunner:init_memory_pool(): "
+                f"self.server_args.attention_backend = "
+                f"{self.server_args.attention_backend}")
         if self.server_args.kv_cache_dtype == "auto":
             self.kv_cache_dtype = self.dtype
         elif self.server_args.kv_cache_dtype == "fp8_e5m2":
@@ -1080,6 +1089,12 @@ class ModelRunner:
                 self.kv_cache_dtype = torch.float8_e4m3fn
         elif self.server_args.kv_cache_dtype == "fp4_e2m1":
             self.kv_cache_dtype = torch.float4_e2m1fn_x2
+            #horenc jack
+            # self.kv_cache_dtype = torch.float4_e2m1 #horenc jack
+            # self.kv_cache_dtype = torch.float4_e2m1fn_x2 #horenc jack
+
+
+                
         else:
             raise ValueError(
                 f"Unsupported kv_cache_dtype: {self.server_args.kv_cache_dtype}."
@@ -1173,6 +1188,7 @@ class ModelRunner:
             assert self.is_draft_worker
 
         if self.server_args.attention_backend == "ascend" and not self.use_mla_backend:
+            hcdprint(f"[horenc] self.token_to_kv_pool = AscendTokenToKVPoo XXX")
             self.token_to_kv_pool = AscendTokenToKVPool(
                 self.max_total_num_tokens,
                 page_size=self.page_size,
@@ -1184,6 +1200,7 @@ class ModelRunner:
                 enable_memory_saver=self.server_args.enable_memory_saver,
             )
         elif self.server_args.attention_backend == "ascend" and self.use_mla_backend:
+            hcdprint(f"[horenc] self.token_to_kv_pool = AscendMLAPagedTokenToKVPool XXX")
             self.token_to_kv_pool = AscendMLAPagedTokenToKVPool(
                 self.max_total_num_tokens,
                 page_size=self.page_size,
@@ -1197,6 +1214,7 @@ class ModelRunner:
                 end_layer=self.end_layer,
             )
         elif self.use_mla_backend:
+            hcdprint(f"[horenc] self.token_to_kv_pool = MLATokenToKVPool XXX")
             self.token_to_kv_pool = MLATokenToKVPool(
                 self.max_total_num_tokens,
                 page_size=self.page_size,
@@ -1210,6 +1228,7 @@ class ModelRunner:
                 end_layer=self.end_layer,
             )
         elif self.server_args.enable_double_sparsity:
+            hcdprint(f"[horenc] self.token_to_kv_pool = DoubleSparseTokenToKVPool XXX")
             self.token_to_kv_pool = DoubleSparseTokenToKVPool(
                 self.max_total_num_tokens,
                 page_size=self.page_size,
@@ -1225,6 +1244,7 @@ class ModelRunner:
             )
         else:
             if self.is_hybrid:
+                hcdprint(f"[horenc] self.token_to_kv_pool = SWAKVPool XXX")
                 self.token_to_kv_pool = SWAKVPool(
                     size=self.full_max_total_num_tokens,
                     size_swa=self.swa_max_total_num_tokens,
@@ -1239,6 +1259,7 @@ class ModelRunner:
                     device=self.device,
                 )
             else:
+                hcdprint(f"[horenc] self.token_to_kv_pool = MHATokenToKVPool OOO")
                 self.token_to_kv_pool = MHATokenToKVPool(
                     self.max_total_num_tokens,
                     page_size=self.page_size,
@@ -1257,6 +1278,7 @@ class ModelRunner:
         if self.token_to_kv_pool_allocator is None:
             if self.page_size == 1:
                 if self.is_hybrid:
+                    hcdprint(f"[horenc] self.token_to_kv_pool_allocator = SWATokenToKVPoolAllocator XXX")
                     self.token_to_kv_pool_allocator = SWATokenToKVPoolAllocator(
                         self.full_max_total_num_tokens,
                         self.swa_max_total_num_tokens,
@@ -1265,6 +1287,7 @@ class ModelRunner:
                         kvcache=self.token_to_kv_pool,
                     )
                 else:
+                    hcdprint(f"[horenc] self.token_to_kv_pool_allocator = TokenToKVPoolAllocator OOO")
                     self.token_to_kv_pool_allocator = TokenToKVPoolAllocator(
                         self.max_total_num_tokens,
                         dtype=self.kv_cache_dtype,
@@ -1273,6 +1296,7 @@ class ModelRunner:
                     )
             else:
                 if _is_npu:
+                    hcdprint(f"[horenc] self.token_to_kv_pool_allocator = AscendPagedTokenToKVPoolAllocator XXX")
                     self.token_to_kv_pool_allocator = AscendPagedTokenToKVPoolAllocator(
                         self.max_total_num_tokens,
                         page_size=self.page_size,
@@ -1281,6 +1305,7 @@ class ModelRunner:
                         kvcache=self.token_to_kv_pool,
                     )
                 else:
+                    hcdprint(f"[horenc] self.token_to_kv_pool_allocator = PagedTokenToKVPoolAllocator XXX")
                     self.token_to_kv_pool_allocator = PagedTokenToKVPoolAllocator(
                         self.max_total_num_tokens,
                         page_size=self.page_size,
@@ -1360,6 +1385,10 @@ class ModelRunner:
                 "prefill_attention_backend": self.prefill_attention_backend_str,
             }
         )
+        # After creation
+        hcdprint(f"[horenc] ModelRunner:_get_attention_backend(): global_server_args_dict.update "
+            f"decode = {global_server_args_dict['decode_attention_backend']}, "
+            f"prefill = {global_server_args_dict['prefill_attention_backend']}")
         return attn_backend
 
     def _get_attention_backend_from_str(self, backend_str: str):

@@ -47,6 +47,7 @@ _is_npu = is_npu()
 if not _is_npu:
     from sgl_kernel.kvcacheio import transfer_kv_per_layer, transfer_kv_per_layer_mla
 
+from sglang.jack_utils import hcdprint
 
 class ReqToTokenPool:
     """A memory pool that maps a request to its token locations."""
@@ -228,6 +229,16 @@ class MHATokenToKVPool(KVCache):
         )
         self.mem_usage = (k_size + v_size) / GB
 
+        # [horenc]
+        # 預建 FP4 lookup table
+        hcdprint(f"[horenc] init FP4_VALUES table in class MHATokenToKVPool:__init__()")
+        self.FP4_VALUES = torch.tensor([
+                -6.0, -3.0, -2.0, -1.0,
+                -0.5, -0.25, -0.125, -0.0,
+                0.0,  0.125, 0.25, 0.5,
+                1.0, 2.0, 3.0, 6.0
+        ], dtype=torch.float32, device=self.device) # set device for CUDA graph
+
     def _create_buffers(self):
         with self.memory_saver_adapter.region(GPU_MEMORY_TYPE_KV_CACHE):
             with (
@@ -235,10 +246,15 @@ class MHATokenToKVPool(KVCache):
                 if self.enable_custom_mem_pool
                 else nullcontext()
             ):
+                hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): TODO WIP")
+                hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): self.store_dtype = {self.store_dtype}")
                 if self.store_dtype == torch.float4_e2m1fn_x2:
+                    hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
+                        
+                        f"force torch.uint8 + dividiveby2 for matching fp4 shape[42, 8, 64] (ori:[42, 8, 128])")
                     self.k_buffer = [
                         torch.zeros(
-                            (self.size + self.page_size, self.head_num, self.head_dim),
+                            (self.size + self.page_size, self.head_num, self.head_dim // 2),
                             dtype=torch.uint8,
                             device=self.device,
                         )
@@ -246,13 +262,13 @@ class MHATokenToKVPool(KVCache):
                     ]
                     self.v_buffer = [
                         torch.zeros(
-                            (self.size + self.page_size, self.head_num, self.head_dim),
+                            (self.size + self.page_size, self.head_num, self.head_dim // 2),
                             dtype=torch.uint8,
                             device=self.device,
                         )
                         for _ in range(self.layer_num)
                     ]
-                else:
+                else: # origin
                     # [size, head_num, head_dim] for each layer
                     # The padded slot 0 is used for writing dummy outputs from padded tokens.
                     self.k_buffer = [
@@ -413,13 +429,21 @@ class MHATokenToKVPool(KVCache):
         return self.k_buffer[layer_id - self.start_layer]
 
     def get_key_buffer(self, layer_id: int):
+        # hcdprint(f"[horenc] going to hack MHATokenToKVPool get_key_buffer()")
         # note: get_key_buffer is hooked with synchronization for layer-wise KV cache loading
         # it is supposed to be used only by attention backend not for information purpose
         # same applies to get_value_buffer and get_kv_buffer
         if self.layer_transfer_counter is not None:
             self.layer_transfer_counter.wait_until(layer_id - self.start_layer)
 
-        return self._get_key_buffer(layer_id)
+        if self.store_dtype != torch.float4_e2m1fn_x2:
+            # ori
+            return self._get_key_buffer(layer_id)
+        else:
+            # new - horenc
+            # return self.dequantize_fp4_to_bf16(self._get_key_buffer(layer_id))
+            # # new - horenc 250806
+            return self.dequantize_fp4_e2m1_to_bf16(self._get_key_buffer(layer_id))
 
     def _get_value_buffer(self, layer_id: int):
         # for internal use of referencing
@@ -428,12 +452,49 @@ class MHATokenToKVPool(KVCache):
         return self.v_buffer[layer_id - self.start_layer]
 
     def get_value_buffer(self, layer_id: int):
+        # hcdprint(f"[horenc] going to hack MHATokenToKVPool get_value_buffer()")
         if self.layer_transfer_counter is not None:
             self.layer_transfer_counter.wait_until(layer_id - self.start_layer)
-        return self._get_value_buffer(layer_id)
+        if self.store_dtype != torch.float4_e2m1fn_x2:
+            # ori
+            return self._get_value_buffer(layer_id)
+        else:
+            # # new - horenc
+            # return self.dequantize_fp4_to_bf16(self._get_value_buffer(layer_id))
+            # # new - horenc 250806
+            return self.dequantize_fp4_e2m1_to_bf16(self._get_value_buffer(layer_id))
 
     def get_kv_buffer(self, layer_id: int):
+        # hcdprint(f"[horenc] MHATokenToKVPool:get_kv_buffer() some attention do not enter here like torch_native_backend")
         return self.get_key_buffer(layer_id), self.get_value_buffer(layer_id)
+
+    def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
+        tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0).view(-1)
+        distances = torch.abs(tensor_f32.unsqueeze(1) - self.FP4_VALUES.to(tensor_f32.device))  # [N,16]
+        indices = distances.argmin(dim=1).to(torch.uint8)  # [N]
+
+        # 補偶數長度
+        if indices.numel() % 2 != 0:
+            indices = torch.cat([indices, torch.zeros(1, dtype=torch.uint8, device=indices.device)])
+
+        packed = indices.view(-1, 2)
+        packed_uint8 = (packed[:, 0] & 0x0F) | ((packed[:, 1] & 0x0F) << 4)  # pack兩個4bit成1byte
+        new_shape = list(tensor_bf16.shape)
+        new_shape[-1] = new_shape[-1] // 2  # 尾維度/2
+        return packed_uint8.view(*new_shape)
+
+    def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
+        fp4_values = self.FP4_VALUES.to(tensor_uint8.device)
+        flat = tensor_uint8.flatten()
+        low_nibble = flat & 0x0F
+        high_nibble = (flat >> 4) & 0x0F
+        # indices = torch.stack([low_nibble, high_nibble], dim=1).flatten()
+        indices = torch.stack([low_nibble, high_nibble], dim=1).flatten().to(torch.long)
+        values = fp4_values[indices].view(-1)
+        # reshape回原始tensor shape尾維*2
+        orig_shape = list(tensor_uint8.shape)
+        orig_shape[-1] *= 2
+        return values.view(*orig_shape).to(torch.bfloat16)
 
     def set_kv_buffer(
         self,
@@ -451,29 +512,73 @@ class MHATokenToKVPool(KVCache):
             layer_id = layer_id_override
         else:
             layer_id = layer.layer_id
+        hcdprint(f"[horenc] MHATokenToKVPool cache_k.dtype = {cache_k.dtype}")
+        hcdprint(f"[horenc] MHATokenToKVPool self.dtype = {self.dtype}")
+        hcdprint(f"[horenc] MHATokenToKVPool k_scale = {k_scale}")
         if cache_k.dtype != self.dtype:
             if k_scale is not None:
                 cache_k.div_(k_scale)
             if v_scale is not None:
                 cache_v.div_(v_scale)
-            cache_k = cache_k.to(self.dtype)
-            cache_v = cache_v.to(self.dtype)
+            if self.dtype != torch.float4_e2m1fn_x2:
+            # origin
+                cache_k = cache_k.to(self.dtype)
+                cache_v = cache_v.to(self.dtype)
+            else:
+                # new - yichen's quant
+                # hcdprint(f"[horenc] hack .to -> scaled_fp4_quant()")
+                # hcdprint(f"[horenc] cache_k.shape: {list(cache_k.shape)}")
+                # from sgl_kernel import scaled_fp4_quant
+                # input_global_scale_k = torch.tensor(1.0, dtype=cache_k.dtype, device=cache_k.device)
+                # input_global_scale_v = torch.tensor(1.0, dtype=cache_v.dtype, device=cache_v.device)
+                # # # input_scale = torch.ones_like(cache_k)
+                # cache_k_fp4, scale_k = scaled_fp4_quant(cache_k, input_global_scale_k)
+                # cache_v_fp4, scale_v = scaled_fp4_quant(cache_v, input_global_scale_v)
+                # print(f"[yichen] cache_k.shape {cache_k.shape}")
+                # print(f"[yichen] cache_k_fp4.shape {cache_k_fp4.shape}")
+                # print(f"[yichen] scale_k.shape {scale_k.shape}")
+                # print(f"[yichen] scale_k {scale_k}")
+                
+                # new 250805 - higher accuracy function
+                # cache_k_fp4 = self.quantize_bf16_to_fp4_e2m1(cache_k)
+                # cache_v_fp4 = self.quantize_bf16_to_fp4_e2m1(cache_v)
+                # print(f"[horen] cache_k_fp4.shape {cache_k_fp4.shape}")
 
-        if self.store_dtype != self.dtype:
+                # new 250809 - test
+                cache_k = self.quantize_bf16_to_fp4_e2m1(cache_k)
+                cache_v = self.quantize_bf16_to_fp4_e2m1(cache_v)
+
+        hcdprint(f"[horenc] self.store_dtype = {self.store_dtype}")
+        if self.store_dtype != self.dtype: # TODO [horenc] is this correct?
+            # origin - test
             cache_k = cache_k.view(self.store_dtype)
             cache_v = cache_v.view(self.store_dtype)
+            # 因為uint8所以這邊別按照self.store_dtype(fp4)來搞比較好? 但好像又沒差...最後cache_k_fp4 還是得保證是4bit存進去的
+            # cache_k_fp4 = cache_k_fp4.view(self.store_dtype)
+            # cache_v_fp4 = cache_v_fp4.view(self.store_dtype)
 
         if get_is_capture_mode() and self.alt_stream is not None:
             # Overlap the copy of K and V cache for small batch size
             current_stream = self.device_module.current_stream()
             self.alt_stream.wait_stream(current_stream)
+            # origin - test
             self.k_buffer[layer_id - self.start_layer][loc] = cache_k
+            # new
+            # self.k_buffer[layer_id - self.start_layer][loc] = cache_k_fp4
             with self.device_module.stream(self.alt_stream):
+                # origin - test
                 self.v_buffer[layer_id - self.start_layer][loc] = cache_v
+                # new
+                # self.v_buffer[layer_id - self.start_layer][loc] = cache_v_fp4
             current_stream.wait_stream(self.alt_stream)
         else:
+            # origin - test
             self.k_buffer[layer_id - self.start_layer][loc] = cache_k
             self.v_buffer[layer_id - self.start_layer][loc] = cache_v
+            # new
+            # self.k_buffer[layer_id - self.start_layer][loc] = cache_k_fp4
+            # self.v_buffer[layer_id - self.start_layer][loc] = cache_v_fp4
+
 
     def move_kv_cache(self, tgt_loc: torch.Tensor, src_loc: torch.Tensor):
         copy_all_layer_kv_cache[(len(self.data_ptrs),)](
