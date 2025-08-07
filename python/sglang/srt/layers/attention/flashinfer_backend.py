@@ -79,6 +79,7 @@ class FlashInferAttnBackend(AttentionBackend):
     ):
         super().__init__()
 
+        print(f"[horenc] class FlashInferAttnBackend:__init__():")
         # Parse constants
         self.decode_use_tensor_cores = should_use_tensor_core(
             kv_cache_dtype=model_runner.kv_cache_dtype,
@@ -456,8 +457,9 @@ class FlashInferAttnBackend(AttentionBackend):
         forward_batch: ForwardBatch,
         save_kv_cache=True,
     ):
+        # [horenc] 拿此層的what?
         prefill_wrapper_paged = self.forward_metadata.prefill_wrappers[
-            self._get_wrapper_idx(layer)
+            self._get_wrapper_idx(layer) #層
         ]
         cache_loc = (
             forward_batch.out_cache_loc
@@ -468,7 +470,9 @@ class FlashInferAttnBackend(AttentionBackend):
         logits_soft_cap = layer.logit_cap
 
         q = q.contiguous()
-        if not self.forward_metadata.use_ragged:
+        # print(f"[horenc] Flashinfer:forward_extend(): self.forward_metadata.use_ragged "
+        #         f"= {self.forward_metadata.use_ragged}")
+        if not self.forward_metadata.use_ragged: # horenc llama3+kv8 XXX
             if k is not None:
                 assert v is not None
                 if save_kv_cache:
@@ -486,13 +490,19 @@ class FlashInferAttnBackend(AttentionBackend):
                 k_scale=layer.k_scale,
                 v_scale=layer.v_scale,
             )
-        else:
+        else:  # horenc llama3+kv8 OOO
             causal = True
             if layer.attn_type == AttentionType.ENCODER_ONLY:
                 save_kv_cache = False
                 causal = False
 
-            if self.forward_metadata.extend_no_prefix:
+            print(f"[horenc] Flashinfer:forward_extend(): self.forward_metadata.extend_no_prefix "
+                    f"= {self.forward_metadata.extend_no_prefix} "
+                )
+            print(f"[horenc] Flashinfer:forward_extend(): "
+                    f"self.prefill_wrapper_ragged = {self.prefill_wrapper_ragged} "
+                )
+            if self.forward_metadata.extend_no_prefix: # horenc llama3+kv8 OOO
                 # NOTE: FlashInfer currently has limitations with head_dim = 32 or other dimensions
                 # The FlashInfer head_dim limitation itself is tracked here:
                 # https://github.com/flashinfer-ai/flashinfer/issues/1048
@@ -529,6 +539,15 @@ class FlashInferAttnBackend(AttentionBackend):
                     layer, cache_loc, k, v, layer.k_scale, layer.v_scale
                 )
 
+            # print(f"[horenc] Flashinfer:forward_extend(): save_kv_cache "
+            #         f"= {save_kv_cache} "
+            #         f"q = {q} "
+            #         f"k = {k} "
+            #         f"v = {v} "
+            #         f"layer.k_scale = {layer.k_scale} "
+            #         f"layer.v_scale = {layer.v_scale}"
+            # )
+
         return o.view(-1, layer.tp_q_head_num * layer.head_dim)
 
     def forward_decode(
@@ -540,6 +559,15 @@ class FlashInferAttnBackend(AttentionBackend):
         forward_batch: ForwardBatch,
         save_kv_cache=True,
     ):
+        # print(f"[horenc] Flashinfer:forward_decode(): save_kv_cache "
+        #         f"= {save_kv_cache} "
+        #         f"q = {q} "
+        #         f"k = {k} "
+        #         f"v = {v} "
+        #         f"layer.k_scale = {layer.k_scale} "
+        #         f"layer.v_scale = {layer.v_scale}"
+        #     )
+
         decode_wrapper = self.forward_metadata.decode_wrappers[
             self._get_wrapper_idx(layer)
         ]
@@ -555,6 +583,10 @@ class FlashInferAttnBackend(AttentionBackend):
                 forward_batch.token_to_kv_pool.set_kv_buffer(
                     layer, cache_loc, k, v, layer.k_scale, layer.v_scale
                 )
+
+        print(f"[horenc] Flashinfer:forward_decode(): decode_wrapper "
+                 f"= {decode_wrapper} "
+            )
 
         # Call the wrapped function
         o = decode_wrapper.forward(
@@ -1039,6 +1071,7 @@ class FlashInferMultiStepDraftBackend:
     ):
         from sglang.srt.speculative.eagle_utils import generate_draft_decode_kv_indices
 
+        print(f"[horenc] class FlashInferMultiStepDraftBackend:__init__()")
         self.topk = topk
         self.speculative_num_steps = speculative_num_steps
         self.generate_draft_decode_kv_indices = generate_draft_decode_kv_indices

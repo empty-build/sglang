@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from sglang.srt.model_executor.model_runner import ModelRunner
     from sglang.srt.speculative.eagle_utils import EagleDraftInput, EagleVerifyInput
 
+from sglang.jack_utils import hcdprint
 
 @dataclass
 class ForwardMetadata:
@@ -688,6 +689,7 @@ class TritonAttnBackend(AttentionBackend):
         save_kv_cache=True,
         sinks=None,
     ):
+        hcdprint(f"[horenc] triton_backend forward_extend")
         # TODO: reuse the buffer across layers
         if layer.qk_head_dim != layer.v_head_dim:
             o = q.new_empty((q.shape[0], layer.tp_q_head_num * layer.v_head_dim))
@@ -695,6 +697,7 @@ class TritonAttnBackend(AttentionBackend):
             o = torch.empty_like(q)
 
         if save_kv_cache:
+            hcdprint(f"\t[horenc] triton_backend forward_extend PREFILL - set_kv_buffer")
             forward_batch.token_to_kv_pool.set_kv_buffer(
                 layer, forward_batch.out_cache_loc, k, v
             )
@@ -714,6 +717,7 @@ class TritonAttnBackend(AttentionBackend):
             kv_indptr = self.forward_metadata.kv_indptr
             kv_indices = self.forward_metadata.kv_indices
 
+        hcdprint(f"\t[horenc] triton_backend PREFILL - get_key_buffer(), get_value_buffer()")
         self.extend_attention_fwd(
             q.view(-1, layer.tp_q_head_num, layer.qk_head_dim),
             k.contiguous(),
@@ -745,6 +749,7 @@ class TritonAttnBackend(AttentionBackend):
         save_kv_cache=True,
         sinks=None,
     ):
+        hcdprint(f"[horenc] triton_backend forward_decode")
         # During torch.compile, there is a bug in rotary_emb that causes the
         # output value to have a 3D tensor shape. This reshapes the output correctly.
         q = q.reshape(-1, layer.tp_q_head_num * layer.qk_head_dim)
@@ -756,6 +761,7 @@ class TritonAttnBackend(AttentionBackend):
             o = torch.empty_like(q)
 
         if save_kv_cache:
+            hcdprint(f"\t[horenc] triton_backend DECODE - set_kv_buffer")
             forward_batch.token_to_kv_pool.set_kv_buffer(
                 layer, forward_batch.out_cache_loc, k, v
             )
@@ -767,6 +773,7 @@ class TritonAttnBackend(AttentionBackend):
             kv_indptr = self.forward_metadata.kv_indptr
             kv_indices = self.forward_metadata.kv_indices
 
+        hcdprint(f"\t[horenc] triton_backend DECODE - get_key_buffer(), get_value_buffer()")
         self.decode_attention_fwd(
             q.view(-1, layer.tp_q_head_num, layer.qk_head_dim),
             forward_batch.token_to_kv_pool.get_key_buffer(layer.layer_id),
