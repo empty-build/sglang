@@ -35,6 +35,12 @@ class InternVLImageProcessor(BaseMultimodalProcessor):
         self.num_image_token = int(
             (image_size // patch_size) ** 2 * (hf_config.downsample_ratio**2)
         )
+
+        print(
+            "check {}. {}. {}".format(
+                image_size, patch_size, hf_config.downsample_ratio
+            )
+        )
         if hasattr(self._processor, "tokenizer"):
             tokenizer = self._processor.tokenizer
         else:
@@ -193,6 +199,8 @@ class InternVLImageProcessor(BaseMultimodalProcessor):
 
         def process_image_internvl(image, input_size=448, max_num=12):
             transform = InternVLImageProcessor.build_transform(input_size=input_size)
+            print(image)
+            print(type(image))
             images = InternVLImageProcessor.dynamic_preprocess(
                 image, image_size=input_size, use_thumbnail=True, max_num=max_num
             )
@@ -209,6 +217,7 @@ class InternVLImageProcessor(BaseMultimodalProcessor):
                 raw_image = process_image_internvl(image)
                 pixel_value = [raw_image.to(torch.bfloat16)]
                 pixel_values += pixel_value
+                print(raw_image.shape)
                 num_patches = raw_image.shape[0]
                 num_patches_list += [num_patches]
 
@@ -219,6 +228,8 @@ class InternVLImageProcessor(BaseMultimodalProcessor):
         pixel_values = torch.cat(pixel_values, dim=0)
 
         for idx, num_patches in enumerate(num_patches_list):
+            print("self.num_image_token {}".format(self.num_image_token))
+            print("num_patches {} ".format(num_patches))
             image_tokens = (
                 self.IMG_START_TOKEN
                 + self.IMG_CONTEXT_TOKEN * self.num_image_token * num_patches
@@ -229,6 +240,7 @@ class InternVLImageProcessor(BaseMultimodalProcessor):
         input_ids = self.tokenizer(input_text, return_tensors="pt")[
             "input_ids"
         ].flatten()
+        print("len()", len(input_ids.tolist()))
         image_offsets = self.get_mm_items_offset(
             input_ids=input_ids,
             mm_token_id=self.mm_tokens.image_token_id,

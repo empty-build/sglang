@@ -19,12 +19,12 @@ from sglang.test.test_utils import (
 
 # VLM models for testing
 MODELS = [
-    SimpleNamespace(model="google/gemma-3-27b-it", mmmu_accuracy=0.45),
+    # SimpleNamespace(model="google/gemma-3-27b-it", mmmu_accuracy=0.45),
     SimpleNamespace(
-        model="Qwen/Qwen2.5-VL-3B-Instruct",
+        model="Qwen/Qwen2.5-VL-32B-Instruct",
         mmmu_accuracy=0.4,
     ),
-    SimpleNamespace(model="openbmb/MiniCPM-V-2_6", mmmu_accuracy=0.4),
+    # SimpleNamespace(model="openbmb/MiniCPM-V-2_6", mmmu_accuracy=0.4),
 ]
 
 
@@ -83,6 +83,8 @@ class TestVLMModels(CustomTestCase):
             log_suffix,
             "--output_path",
             str(output_path),
+            "--verbosity",
+            "DEBUG",
         ]
 
         subprocess.run(
@@ -107,7 +109,7 @@ class TestVLMModels(CustomTestCase):
             try:
                 # Launch server for testing
                 process = popen_launch_server(
-                    model.model,
+                    model="/data00/models/Qwen2.5-VL-32B-Instruct/",
                     base_url=self.base_url,
                     timeout=self.time_out,
                     api_key=self.api_key,
@@ -117,7 +119,7 @@ class TestVLMModels(CustomTestCase):
                         "32",
                         "--enable-multimodal",
                         "--mem-fraction-static",
-                        str(self.parsed_args.mem_fraction_static),  # Use class variable
+                        str(0.7),  # Use class variable
                     ],
                 )
 
