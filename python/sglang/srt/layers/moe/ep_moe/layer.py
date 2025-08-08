@@ -485,6 +485,8 @@ class EPMoE(torch.nn.Module):
                 self.w13_input_scale,
                 self.w2_input_scale,
             )
+            if self.routed_scaling_factor is not None:
+                output *= self.routed_scaling_factor
             return output
 
         if self.grouped_gemm_runner is None:
