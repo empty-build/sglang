@@ -27,6 +27,7 @@ except ImportError:
 
     apply_fp8_marlin_linear = prepare_fp8_layer_for_marlin = dummy_func
 
+DECODE_BATCH_SIZE = 256
 
 from sglang.srt.distributed import get_tensor_model_parallel_world_size
 from sglang.srt.layers.amx_utils import _amx_process_weight_after_loading
@@ -1030,11 +1031,13 @@ class Fp8MoEMethod(FusedMoEMethodBase):
             if ret is not None:
                 return ret
 
+        is_large_M = x.shape[0] > DECODE_BATCH_SIZE
         if (
             get_bool_env_var("SGLANG_CUTLASS_MOE")
             and self.cutlass_fp8_supported
             and self.block_quant
             and (is_sm100_supported() or is_sm90_supported())
+            and is_large_M
         ):
             from sglang.srt.layers.moe.cutlass_moe import cutlass_fused_experts_fp8
 
