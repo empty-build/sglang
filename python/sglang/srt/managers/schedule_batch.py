@@ -886,7 +886,6 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
     # hicache pointer for synchronizing data loading from CPU to GPU
     hicache_consumer_index: int = 0
 
-
     mminput_cache = {}
 
     @classmethod
@@ -1257,58 +1256,49 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
                 continue
             for mm_item in mm_input.mm_items:
                 pixel_values = getattr(mm_item, "feature", None)
-                
-                if isinstance(pixel_values, int):
-                    hash_key = pixel_values
-                    pixel_values = self.mminput_cache[hash_key]
-                    mm_item.feature = pixel_values  
-                elif isinstance(pixel_values, list):
-                    hash_key = pixel_values[1]
-                    pixel_values = pixel_values[0]
-                    self.mminput_cache[hash_key] = pixel_values.to(self.device, non_blocking= True)
-                    mm_item.feature = self.mminput_cache[hash_key]
-                elif isinstance(pixel_values, dict):
-                    send_datas = pixel_values["send_data"]
+
+                # proxy_pixel_values["send_data"] = send_pixel_values
+                # proxy_pixel_values["use_cache_mark"] = use_cache_mark
+                # proxy_pixel_values["hash_keys"] = img_hash_keys
+                # proxy_pixel_values["img_heights"] = processed_img_heights
+                if isinstance(pixel_values, dict):
+                    use_cache_marks = pixel_values["use_cache_mark"]
                     hash_keys = pixel_values["hash_keys"]
-                    split_tensors = pixel_values["split_tensors"]
-                    take_to_idx = pixel_values["take_to_idx"]
-                    
+                    split_tensors = pixel_values["send_data"]
+                    take_to_idx = pixel_values["img_heights"]
+                    delete_keys = pixel_values["delete_keys"]
+
                     real_pixel_values = []
                     take_start_idx = 0
                     take_end_idx = 0
                     take_idx = 0
-                    for send_idx in range(len(send_datas)):
-                        if int(send_datas[send_idx].item()):
-                            take_start_idx = take_end_idx
-                            take_end_idx = int(take_to_idx[take_idx])
-                            real_pixel_values.append(split_tensors[take_start_idx:take_end_idx].to(self.device, non_blocking = True))
-                            self.mminput_cache[hash_keys[send_idx].item()] = real_pixel_values[-1]
-                            take_idx+=1
+                    for send_idx in range(len(use_cache_marks)):
+                        if use_cache_marks[send_idx]:
+                            # if use_cache_marks but already hashed, means that data has been cleaned, in this case,
+                            real_pixel_values.append(
+                                self.mminput_cache[hash_keys[send_idx]]
+                            )
+
                         else:
-                            real_pixel_values.append(self.mminput_cache[hash_keys[send_idx].item()])
+                            take_start_idx = take_end_idx
+                            take_end_idx = take_start_idx + take_to_idx[take_idx]
+                            real_pixel_values.append(
+                                split_tensors[take_start_idx:take_end_idx].to(
+                                    self.device, non_blocking=True
+                                )
+                            )
+                            self.mminput_cache[hash_keys[send_idx]] = real_pixel_values[
+                                -1
+                            ]
+                            take_idx += 1
+
+                    for delete_key in delete_keys:
+                        self.mminput_cache.pop(delete_key)
 
                     mm_item.feature = torch.cat(real_pixel_values)
-                elif isinstance(pixel_values, torch.Tensor):  
-                    mm_item.feature = pixel_values.to(self.device, non_blocking=True)                   
+                elif isinstance(pixel_values, torch.Tensor):
+                    mm_item.feature = pixel_values.to(self.device, non_blocking=True)
 
-                #[TODO] fix bug here, why in cache but isinstance(pixel_values, torch.Tensor)
-                # if isinstance(pixel_values, torch.Tensor) and (hash_key not in self.mminput_cache.keys()):
-                    
-                #     #print(hash_key, "^^^", self.mminput_cache.keys())
-                #     mm_item.pixel_values = pixel_values.to(
-                #         self.device, non_blocking=True
-                #     )
-                    
-                #     self.mminput_cache[hash_key] = mm_item.pixel_values
-                #     # #print(mm_item.pixel_values)
-                #     # #print(hash_key, "^^^", self.mminput_cache.keys())
-                #     #print(":::NOT HIT CACHE:::")
-                # else:
-                #     # raise RuntimeError("shenmejbadongxi") 
-                #     # assert mm_item.send_hash == pixel_values, " not cached mm_input"
-                #     # assert pixel_values in self.mminput_cache, "not cached mm_input"
-                #     #print(":::HIT CACHE::::")
-                #     mm_item.pixel_values = self.mminput_cache[hash_key]                  
         self.multimodal_inputs = multimodal_inputs
         self.token_type_ids = token_type_ids_tensor
         self.seq_lens_sum = sum(seq_lens)

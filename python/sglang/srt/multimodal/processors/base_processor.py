@@ -1,376 +1,102 @@
 import concurrent
 import concurrent.futures
 import dataclasses
+import hashlib
+import inspect
 import multiprocessing as mp
 import os
 import re
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
-from functools import lru_cache
 import types
-import hashlib
+from abc import ABC, abstractmethod
+from functools import lru_cache
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from PIL import Image
-from transformers import BaseImageProcessorFast
-from transformers import (Qwen2_5_VLProcessor, BatchFeature)
-from transformers.models.qwen2_5_vl.processing_qwen2_5_vl import Qwen2_5_VLProcessorKwargs
 import transformers
-import re
+from PIL import Image
+from transformers import BaseImageProcessorFast, BatchFeature, Qwen2_5_VLProcessor
+from transformers.models.qwen2_5_vl.processing_qwen2_5_vl import (
+    Qwen2_5_VLProcessorKwargs,
+)
 
 from sglang.srt.managers.schedule_batch import Modality, MultimodalDataItem
-from sglang.srt.utils import load_audio, load_image, load_video, logger
+from sglang.srt.utils import (
+    get_bool_env_var,
+    load_audio,
+    load_image,
+    load_video,
+    logger,
+)
 
-import inspect
+CACHED_IMAGE_MAX_NUM = 64
+QWEN2_VL_PATCH_SIZE = 196.0
+QWEN2_PER_TOKEN_PATCH_NUM = 4
+QWEN2_PATCH_SIZE = 14
 
-
-def is_version_4_53_x():
-    version = transformers.__version__
-    pattern = r'^4\.53\.\d+$'
-    return bool(re.match(pattern, version))
-
-def get_caller_info():
-    frame = inspect.currentframe().f_back.f_back
-    info = inspect.getframeinfo(frame)
-    infos =  f"file: {info.filename}, line: {info.lineno}"
-    # #print(infos)
-    return infos
-
-
-def print_caller_info():
-    frame = inspect.currentframe().f_back.f_back
-    info = inspect.getframeinfo(frame)
-    infos =  f"file: {info.filename}, line: {info.lineno}"
-    #print(infos)
+QWEN2_IMG_START, QWEN2_IMG_PAD, QWEN2_IMG_END = 151652, 151655, 151653
 
 
 # [check] different images hold same hash_key
-# def fast_image_hash(img: Image.Image, hash_type: str = "int") -> int | str:
-#     small_img = img.resize((8, 8), Image.Resampling.BILINEAR).convert('L')
-#     pixel_data = small_img.tobytes()
-#     hash_obj = hashlib.md5(pixel_data)
-    
-#     if hash_type == "int":
-#         return int.from_bytes(hash_obj.digest(), byteorder='little', signed=False)
-#     else:
-#         return hash_obj.hexdigest()
-    
+def fast_image_hash(img: Image.Image, hash_type: str = "int") -> int | str:
+    small_img = img.resize((8, 8), Image.Resampling.BILINEAR).convert("L")
+    pixel_data = small_img.tobytes()
+    hash_obj = hashlib.md5(pixel_data)
+
+    if hash_type == "int":
+        return int.from_bytes(hash_obj.digest(), byteorder="little", signed=False)
+    else:
+        return hash_obj.hexdigest()
+
+
 # [check] different images hold same hash_key
 def fast_image_hash(img: Image.Image, hash_type: str = "float") -> int | str | float:
-    small_img = img.resize((8, 8), Image.Resampling.BILINEAR).convert('L')
+    small_img = img.resize((8, 8), Image.Resampling.BILINEAR).convert("L")
     pixel_data = small_img.tobytes()
 
     hash_obj = hashlib.blake2b(pixel_data, digest_size=8)
-    
+
     if hash_type == "int":
-        return int.from_bytes(hash_obj.digest(), byteorder='little', signed=False)
+        return int.from_bytes(hash_obj.digest(), byteorder="little", signed=False)
     elif hash_type == "float":
-        return float(int.from_bytes(hash_obj.digest(), byteorder='little', signed=False))
+        return float(
+            int.from_bytes(hash_obj.digest(), byteorder="little", signed=False)
+        )
     else:
-        return hash_obj.hexdigest()    
+        return hash_obj.hexdigest()
 
 
-def custom_call_latest(
-    self,
-    images = None,
-    text = None,
-    videos = None,
-    **kwargs,
-) -> BatchFeature:
-    """
-    Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
-    and `kwargs` arguments to Qwen2TokenizerFast's [`~Qwen2TokenizerFast.__call__`] if `text` is not `None` to encode
-    the text. To prepare the vision inputs, this method forwards the `vision_infos` and `kwrags` arguments to
-    Qwen2VLImageProcessor's [`~Qwen2VLImageProcessor.__call__`] if `vision_infos` is not `None`.
-
-    Args:
-        images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[torch.Tensor]`):
-            The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or PyTorch
-            tensor. Both channels-first and channels-last formats are supported.
-        text (`str`, `list[str]`, `list[list[str]]`):
-            The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
-            (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
-            `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-        videos (`np.ndarray`, `torch.Tensor`, `list[np.ndarray]`, `list[torch.Tensor]`):
-            The image or batch of videos to be prepared. Each video can be a 4D NumPy array or PyTorch
-            tensor, or a nested list of 3D frames. Both channels-first and channels-last formats are supported.
-        return_tensors (`str` or [`~utils.TensorType`], *optional*):
-            If set, will return tensors of a particular framework. Acceptable values are:
-            - `'tf'`: Return TensorFlow `tf.constant` objects.
-            - `'pt'`: Return PyTorch `torch.Tensor` objects.
-            - `'np'`: Return NumPy `np.ndarray` objects.
-            - `'jax'`: Return JAX `jnp.ndarray` objects.
-
-    Returns:
-        [`BatchFeature`]: A [`BatchFeature`] with the following fields:
-
-        - **input_ids** -- List of token ids to be fed to a model. Returned when `text` is not `None`.
-        - **attention_mask** -- List of indices specifying which tokens should be attended to by the model (when
-            `return_attention_mask=True` or if *"attention_mask"* is in `self.model_input_names` and if `text` is not
-            `None`).
-        - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
-        - **pixel_values_videos** -- Pixel values of videos to be fed to a model. Returned when `videos` is not `None`.
-        - **image_grid_thw** -- List of image 3D grid in LLM. Returned when `images` is not `None`.
-        - **video_grid_thw** -- List of video 3D grid in LLM. Returned when `videos` is not `None`.
-        - **second_per_grid_ts** -- List of video seconds per time grid. Returned when `videos` is not `None`.
-    """
-    output_kwargs = self._merge_kwargs(
-        Qwen2_5_VLProcessorKwargs,
-        tokenizer_init_kwargs=self.tokenizer.init_kwargs,
-        **kwargs,
-    )
-    
-    import copy
-    
-    def copy_mm_item(item_from):
-        
-        copy_from_pixel = item_from["pixel_values"]
-        copy_from_grid = item_from["image_grid_thw"]
-        copy_to_pixel = copy_from_pixel.clone()
-        copy_to_grid =  copy_from_grid.clone()
-        return {"pixel_values":copy_to_pixel, "image_grid_thw":copy_to_grid}
+def image_to_int(img: Image.Image) -> int:
+    img_bytes = img.tobytes()
+    hash_obj = hashlib.md5(img_bytes)
+    hash_bytes = hash_obj.digest()
+    return int.from_bytes(hash_bytes, byteorder="big")
 
 
-    def print_mm_items(check_item):
-        pixel_values = check_item["pixel_values"]
-        image_grid_thw = check_item["image_grid_thw"]
-        print("================[check pixel_values]=============== ", pixel_values.shape, " ", pixel_values.dtype)
-        print("================[check image_grid_thw]================= ", image_grid_thw.shape, " ", image_grid_thw.dtype)
-    
-    def merge_mm_items(item_a, item_b):
-        if not item_a:
-            assert item_b is not None, "at least one mm_item exist"
-            return item_b
-        merge_to_pixel= item_a["pixel_values"]
-        merge_to_grid = item_a["image_grid_thw"]
+class FIFOHashTable:
+    def __init__(self, max_size: int):
+        self.max_size = max_size
+        self.hash_map = {}
+        self.order = []
 
-        merge_from_pixel = item_b["pixel_values"]
-        merge_from_grid = item_b["image_grid_thw"]
-        if merge_from_pixel.shape[1] != merge_to_pixel.shape[1]:
-            logger.info("can not merge diffferent image item")
-            return None
+    def add(self, key: int, value):
+        if key in self.hash_map:
+            self.order.remove(key)
+        self.hash_map[key] = value
+        self.order.append(key)
+        if len(self.hash_map) > self.max_size:
+            oldest_key = self.order.pop(0)
+            return oldest_key
+        return None
 
-        item_a["pixel_values"] = torch.cat([merge_to_pixel, merge_from_pixel]) 
-        item_a["image_grid_thw"] = torch.cat([merge_to_grid, merge_from_grid])
-        return item_a
-    
-    image_inputs = videos_inputs = {}
-    additional_infos = {}
-    if images is not None:
-        # image_inputs = self.image_processor(images=images, **output_kwargs["images_kwargs"])
-        # image_grid_thw = image_inputs["image_grid_thw"]
-        image_hash_keys = [ fast_image_hash(image) for image in images ]
-        cached_image_idx = []
+    def get(self, key: int):
+        return self.hash_map.get(key)
 
-        for image_idx in range(len(images)):
-            if image_hash_keys[image_idx] in self.image_hash_table:
-                cached_image_idx.append(image_idx)
-        
-        #print("cached_image_idx,", cached_image_idx)
-        image_inputs = None
-        send_data = []
-        split_tensors = []
-        take_to_idx = []
-        for image_idx in range(len(images)):
-            if image_idx in cached_image_idx :
-                # take data from cached_data
-                hash_key = image_hash_keys[image_idx]
-                hashed_mm_item = copy.deepcopy(self.image_hash_table[hash_key])
-                # print_mm_items(hashed_mm_item)
-                image_inputs = merge_mm_items(image_inputs, hashed_mm_item)
-                send_data.append(False)
-            else:
-                hash_key = image_hash_keys[image_idx]
-                process_images = [images[image_idx]]
-                new_generate_item = self.image_processor(images= process_images, **output_kwargs["images_kwargs"])
-                # print_mm_items(new_generate_item)
-                self.image_hash_table[hash_key] =  copy.deepcopy(new_generate_item)
-                image_inputs = merge_mm_items(image_inputs, new_generate_item)
-                take_to_idx.append(image_inputs["pixel_values"].shape[0])
-                send_data.append(True)
-                split_tensors.append(new_generate_item["pixel_values"].to("cpu"))
-                
+    def size(self):
+        return len(self.hash_map)
 
-        image_grid_thw = image_inputs["image_grid_thw"]
-        additional_infos["hash_keys"] =  torch.Tensor(image_hash_keys)
-        additional_infos["send_data"] =  torch.Tensor(send_data)
-        if len(split_tensors) != 0:
-          additional_infos["split_tensors"] =  torch.cat(split_tensors)
-        else:
-          additional_infos["split_tensors"] =  torch.zeros(1)
-        logger.info("hit cache image nums : {}, new processing image nums : {} ".format(len(cached_image_idx), len(images) - len(cached_image_idx)))
-        additional_infos["take_to_idx"] = torch.Tensor(take_to_idx)
-
-    if videos is not None:
-        fps = output_kwargs["videos_kwargs"].get("fps", 2.0)
-        videos_inputs = self.video_processor(videos=videos, **output_kwargs["videos_kwargs"])
-        video_grid_thw = videos_inputs["video_grid_thw"]
-
-        if isinstance(fps, (int, float)):
-            second_per_grid_ts = [self.video_processor.temporal_patch_size / fps] * len(video_grid_thw)
-        elif hasattr(fps, "__len__") and len(fps) == len(video_grid_thw):
-            second_per_grid_ts = [self.video_processor.temporal_patch_size / tmp for tmp in fps]
-        else:
-            raise ValueError(
-                f"The length of fps ({len(fps) if hasattr(fps, '__len__') else fps}) must be equal to the length of video_grid_thw ({len(video_grid_thw)}) or fps should be a single number."
-            )
-        videos_inputs.update({"second_per_grid_ts": second_per_grid_ts})
-
-    if not isinstance(text, list):
-        text = [text]
-
-    text = text.copy()  # below lines change text in-place
-    if images is not None:
-        merge_length = self.image_processor.merge_size**2
-        index = 0
-        for i in range(len(text)):
-            while self.image_token in text[i]:
-                num_image_tokens = image_grid_thw[index].prod() // merge_length
-                text[i] = text[i].replace(self.image_token, "<|placeholder|>" * num_image_tokens, 1)
-                index += 1
-            text[i] = text[i].replace("<|placeholder|>", self.image_token)
-
-    if videos is not None:
-        merge_length = self.video_processor.merge_size**2
-        index = 0
-        for i in range(len(text)):
-            while self.video_token in text[i]:
-                num_video_tokens = video_grid_thw[index].prod() // merge_length
-                text[i] = text[i].replace(self.video_token, "<|placeholder|>" * num_video_tokens, 1)
-                index += 1
-            text[i] = text[i].replace("<|placeholder|>", self.video_token)
-
-    return_tensors = output_kwargs["text_kwargs"].pop("return_tensors", None)
-    return_mm_token_type_ids = output_kwargs["text_kwargs"].pop("return_mm_token_type_ids", None)
-    text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"])
-    self._check_special_mm_tokens(text, text_inputs, modalities=["image", "video"])
-    if return_mm_token_type_ids:
-        array_ids = np.array(text_inputs["input_ids"])
-        mm_token_type_ids = np.zeros_like(text_inputs["input_ids"])
-        mm_token_type_ids[array_ids == self.image_token_id] = 1
-        text_inputs["mm_token_type_ids"] = mm_token_type_ids.tolist()
-    return BatchFeature(data={**text_inputs, **image_inputs, **videos_inputs, **additional_infos}, tensor_type=return_tensors)
-
-def custom_call(
-    self,
-    images = None,
-    text = None,
-    videos = None,
-    **kwargs,
-) -> BatchFeature:
-    output_kwargs = self._merge_kwargs(
-        Qwen2_5_VLProcessorKwargs,
-        tokenizer_init_kwargs=self.tokenizer.init_kwargs,** kwargs,
-    )
-
-    def print_mm_items(check_item):
-        pixel_values = check_item["pixel_values"]
-        image_grid_thw = check_item["image_grid_thw"]
-
-    def merge_mm_items(item_a, item_b):
-        if not item_a:
-            assert item_b is not None, "at least one mm_item exist"
-            return item_b
-        merge_to_pixel= item_a["pixel_values"]
-        merge_to_grid = item_a["image_grid_thw"]
-
-        merge_from_pixel = item_b["pixel_values"]
-        merge_from_grid = item_b["image_grid_thw"]
-        item_a["pixel_values"] = torch.cat([merge_to_pixel, merge_from_pixel]) 
-        item_a["image_grid_thw"] = torch.cat([merge_to_grid, merge_from_grid])
-        return item_a 
-       
-    additional_infos = {}
-    if images is not None:
-        image_hash_keys = [ fast_image_hash(image) for image in images ]
-        cached_image_idx = []
-       
-        for image_idx in range(len(images)):
-            if image_hash_keys[image_idx] in self.image_hash_table:
-                cached_image_idx.append(image_idx)
-
-        image_inputs = None
-        send_data = []
-        split_tensors = []
-        for image_idx in range(len(images)):
-            if image_idx in cached_image_idx:
-                # take data from cached_data
-                hash_key = image_hash_keys[image_idx]
-                hashed_mm_item = self.image_hash_table[hash_key]
-                image_inputs = merge_mm_items(image_inputs, hashed_mm_item)
-                send_data.append(False)
-            else:
-                hash_key = image_hash_keys[image_idx]
-                process_images = [images[image_idx]]
-                new_generate_item = self.image_processor(images= process_images, videos=None, **output_kwargs["images_kwargs"])
-                self.image_hash_table[hash_key] = new_generate_item
-                image_inputs = merge_mm_items(image_inputs, new_generate_item)
-                send_data.append(True)
-                # only add new tensors for send
-                split_tensors.append(new_generate_item["pixel_values"].to("cpu"))
-                
-
-        image_grid_thw = image_inputs["image_grid_thw"]
-        additional_infos["hash_keys"] = image_hash_keys
-        additional_infos["send_data"] = send_data
-        additional_infos["split_tensors"] = split_tensors 
-        #print("hit cache image nums : {}, new dealed image nums : {} ".format(len(cached_image_idx), len(images) - len(cached_image_idx)))
-    else:
-        image_inputs = {}
-        image_grid_thw = None
-        
-    if videos is not None:
-        videos_inputs = self.image_processor(images=None, videos=videos,** output_kwargs["images_kwargs"])
-        video_grid_thw = videos_inputs["video_grid_thw"]
-
-        fps = output_kwargs["videos_kwargs"].pop("fps", 2.0)
-        if isinstance(fps, (int, float)):
-            second_per_grid_ts = [self.image_processor.temporal_patch_size / fps] * len(video_grid_thw)
-        elif hasattr(fps, "__len__") and len(fps) == len(video_grid_thw):
-            second_per_grid_ts = [self.image_processor.temporal_patch_size / tmp for tmp in fps]
-        else:
-            raise ValueError(
-                f"The length of fps ({len(fps) if hasattr(fps, '__len__') else fps}) must be equal to the length of video_grid_thw ({len(video_grid_thw)}) or fps should be a single number."
-            )
-        videos_inputs.update({"second_per_grid_ts": second_per_grid_ts})
-
-    else:
-        videos_inputs = {}
-        video_grid_thw = None
-
-    if not isinstance(text, list):
-        text = [text]
-
-    if image_grid_thw is not None:
-        merge_length = self.image_processor.merge_size **2
-        index = 0
-        for i in range(len(text)):
-            while self.image_token in text[i]:
-                text[i] = text[i].replace(
-                    self.image_token,
-                    "<|placeholder|>" * (image_grid_thw[index].prod() // merge_length),
-                    1,
-                )
-                index += 1
-            text[i] = text[i].replace("<|placeholder|>", self.image_token)
-
-    if video_grid_thw is not None:
-        merge_length = self.image_processor.merge_size** 2
-        index = 0
-        for i in range(len(text)):
-            while self.video_token in text[i]:
-                text[i] = text[i].replace(
-                    self.video_token,
-                    "<|placeholder|>" * (video_grid_thw[index].prod() // merge_length),
-                    1,
-                )
-                index += 1
-            text[i] = text[i].replace("<|placeholder|>", self.video_token)
-
-    text_inputs = self.tokenizer(text, **output_kwargs["text_kwargs"])
-
-    return BatchFeature(data={** text_inputs, **image_inputs,** videos_inputs, **additional_infos})
+    def erase(self, key: int):
+        self.hash_map.pop(key)
 
 
 @dataclasses.dataclass
@@ -547,12 +273,15 @@ class BaseMultimodalProcessor(ABC):
         # TODO: pass from processors
         self.FEATURE_NAMES = ["pixel_values", "pixel_values_videos", "audio_features"]
 
+        self.hash_table = FIFOHashTable(CACHED_IMAGE_MAX_NUM)
+
     def process_mm_data(
         self, input_text, images=None, videos=None, audios=None, **kwargs
     ):
         """
         process multimodal data with transformers AutoProcessor
         """
+        # print(images[0].size)
         if images:
             kwargs["images"] = images
         if videos:
@@ -568,38 +297,214 @@ class BaseMultimodalProcessor(ABC):
             processor.image_processor, BaseImageProcessorFast
         ):
             kwargs["device"] = "cuda"
-        # get_function_definition_location(processor.__call__)
-        
-        if is_version_4_53_x() :
-            if not hasattr(processor, "image_hash_table"):
-                processor.image_hash_table = {}
-            processor.__call__ = types.MethodType(custom_call_latest, processor)
+
+        cache_mm_image_items = get_bool_env_var("SGL_CACHE_MM_IMAGE")
+
+        def operate_substrings(original_str, target_sub, indices, replace_str=""):
+
+            positions = []
+            start = 0
+            target_len = len(target_sub)
+            while True:
+                pos = original_str.find(target_sub, start)
+                if pos == -1:
+                    break
+                positions.append(pos)
+                start = pos + target_len
+
+            for idx in indices:
+                if idx < 0 or idx >= len(positions):
+                    raise ValueError(
+                        f"invalid {idx} idx can only be 0 ~ {len(positions)-1}"
+                    )
+            seen = set()
+            unique_indices = []
+            for idx in indices:
+                if idx not in seen:
+                    seen.add(idx)
+                    unique_indices.append(idx)
+
+            result = original_str
+            offset = 0
+            replace_len = len(replace_str)
+            delta = replace_len - target_len
+
+            for idx in unique_indices:
+                original_pos = positions[idx]
+                current_pos = original_pos + offset
+
+                if replace_str:
+                    result = (
+                        result[:current_pos]
+                        + replace_str
+                        + result[current_pos + target_len :]
+                    )
+                else:
+                    result = result[:current_pos] + result[current_pos + target_len :]
+
+                offset += delta
+
+            return result
+
+        if cache_mm_image_items and isinstance(
+            processor.image_processor,
+            transformers.models.qwen2_vl.image_processing_qwen2_vl_fast.Qwen2VLImageProcessorFast,
+        ):
+
+            def get_img_height_in_tensor(img: Image):
+                ret = int((img.size[0] * img.size[1]) / QWEN2_VL_PATCH_SIZE)
+                if ret < 1:
+                    raise ValueError("invalid image height")
+                return ret
+
+            def insert_input_ids(
+                input_ids, target_id, forbid_id_before_target, insert_ids
+            ):
+
+                target_positions = (input_ids[0] == target_id).nonzero().squeeze(dim=1)
+
+                for pos in target_positions:
+                    if pos == 0 or input_ids[0][pos - 1] != forbid_id_before_target:
+                        new_length = len(input_ids[0]) + len(insert_ids) - 1
+                        new_tensor = torch.empty(
+                            1,
+                            new_length,
+                            dtype=input_ids.dtype,
+                            device=input_ids.device,
+                        )
+                        new_tensor[0][:pos] = input_ids[0][:pos]
+                        new_tensor[0][pos : pos + len(insert_ids)] = torch.tensor(
+                            insert_ids, dtype=input_ids.dtype, device=input_ids.device
+                        )
+                        new_tensor[0][pos + len(insert_ids) :] = input_ids[0][pos + 1 :]
+                        return new_tensor
+
+                return input_ids
+
+            to_replace_str = "<|vision_start|><|image_pad|><|vision_end|>"
+            repalce_str = "<|vision_end|>"
+            v_start_token, img_pad_token, v_end_token = (
+                QWEN2_IMG_START,
+                QWEN2_IMG_PAD,
+                QWEN2_IMG_END,
+            )
+
+            img_hash_keys = []
+            img_heights = []
+            new_processed_imgs = []
+            new_processed_img_idxes = []
+            img_token_nums = []
+            remove_image_idx = []
+            processed_img_heights = []
+            for img_idx in range(len(images)):
+                hash_key = fast_image_hash(images[img_idx])
+                img_hash_keys.append(hash_key)
+                img_height = get_img_height_in_tensor(images[img_idx])
+                img_token_num = int(img_height / QWEN2_PER_TOKEN_PATCH_NUM)
+
+                if img_token_num < 1:
+                    raise ValueError("invalid img token num")
+
+                if self.hash_table.get(hash_key) is None:
+                    new_processed_img_idxes.append(img_idx)
+                    new_processed_imgs.append(images[img_idx])
+                else:
+                    remove_image_idx.append(img_idx)
+
+                img_heights.append(img_height)
+                img_token_nums.append(img_token_num)
+            processed_text = operate_substrings(
+                input_text, to_replace_str, remove_image_idx, repalce_str
+            )
+            kwargs["images"] = (
+                new_processed_imgs if len(new_processed_imgs) != 0 else None
+            )
+            # print("new processed image nums : {}".format(len(new_processed_imgs)))
             result = processor.__call__(
-                text=[input_text],
+                text=[processed_text],
                 padding=True,
                 return_tensors="pt",
                 **kwargs,
             )
+            # resume data from hashed
 
-            send_items = {}
-            assert "split_tensors" in result, "need split_tensors in result"
-            send_items["split_tensors"] = result["split_tensors"]
-            result.pop("split_tensors")
+            if "pixel_values" in result:
+                result["pixel_values"] = result["pixel_values"].to("cpu")
 
-            assert "send_data" in result, "need send_data in result"
-            send_items["send_data"] = result["send_data"]
-            result.pop("send_data")
+            start_height = 0
+            end_height = 0
+            tensor_lists = []
+            image_grid_thw_lists = []
+            use_cache_mark = []
+            delete_keys = []
+            for img_idx in range(len(images)):
+                # cache Tensor
+                if img_idx in new_processed_img_idxes:
+                    img_height = img_heights[img_idx]
+                    processed_img_heights.append(img_height)
+                    start_height = end_height
+                    end_height = start_height + img_height
 
-            assert "hash_keys" in result, "need hash_keys in result"
-            send_items["hash_keys"] = result["hash_keys"]
-            result.pop("hash_keys")
-            result["pixel_values"] = send_items
-
-            assert "take_to_idx" in result, "need take_to_idx in result"
-            send_items["take_to_idx"] = result["take_to_idx"]
-            result.pop("take_to_idx")
-            result["pixel_values"] = send_items
+                    to_cache_tensor = result["pixel_values"][start_height:end_height]
+                    delete_key = self.hash_table.add(
+                        img_hash_keys[img_idx], to_cache_tensor
+                    )
+                    if delete_key:
+                        delete_keys.append(delete_key)
+                    tensor_lists.append(to_cache_tensor)
+                    image_grid_thw_lists.append(
+                        [
+                            1,
+                            int(images[img_idx].size[1] // QWEN2_PATCH_SIZE),
+                            int(images[img_idx].size[0] // QWEN2_PATCH_SIZE),
+                        ]
+                    )
+                    use_cache_mark.append(False)
+                # add input ids and insert tensor
+                else:
+                    cached_tensor = self.hash_table.get(img_hash_keys[img_idx])
+                    assert isinstance(
+                        cached_tensor, torch.Tensor
+                    ), "invalid cached_tensor"
+                    # tensor_lists.append(cached_tensor)
+                    insert_cached_ids = (
+                        [v_start_token]
+                        + img_token_nums[img_idx] * [img_pad_token]
+                        + [v_end_token]
+                    )
+                    result["input_ids"] = insert_input_ids(
+                        result["input_ids"],
+                        v_end_token,
+                        img_pad_token,
+                        insert_cached_ids,
+                    )
+                    image_grid_thw_lists.append(
+                        [
+                            1,
+                            int(images[img_idx].size[1] // QWEN2_PATCH_SIZE),
+                            int(images[img_idx].size[0] // QWEN2_PATCH_SIZE),
+                        ]
+                    )
+                    use_cache_mark.append(True)
+            # result["pixel_values"] = torch.concat(tensor_lists, dim = 0)
+            send_pixel_values = (
+                torch.concat(tensor_lists, dim=0) if len(tensor_lists) > 0 else {}
+            )
+            proxy_pixel_values = {}
+            proxy_pixel_values["send_data"] = send_pixel_values
+            proxy_pixel_values["use_cache_mark"] = use_cache_mark
+            proxy_pixel_values["hash_keys"] = img_hash_keys
+            proxy_pixel_values["img_heights"] = processed_img_heights
+            proxy_pixel_values["delete_keys"] = delete_keys
+            result["image_grid_thw"] = torch.Tensor(image_grid_thw_lists).to(
+                torch.int32
+            )
+            result["pixel_values"] = proxy_pixel_values
+            # delete after new tensor was generated
+            for delete_key in delete_keys:
+                self.hash_table.erase(delete_key)
         else:
+            # print(input_text)
             result = processor.__call__(
                 text=[input_text],
                 padding=True,
@@ -610,8 +515,8 @@ class BaseMultimodalProcessor(ABC):
             if "pixel_values" in result and isinstance(
                 result["pixel_values"], torch.Tensor
             ):
+
                 result["pixel_values"] = result["pixel_values"].to("cpu")
-        # #print("result-----> ", result)
 
         return result
 
