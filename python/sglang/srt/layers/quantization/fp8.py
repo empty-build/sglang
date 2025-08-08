@@ -27,7 +27,7 @@ except ImportError:
 
     apply_fp8_marlin_linear = prepare_fp8_layer_for_marlin = dummy_func
 
-DECODE_BATCH_SIZE = 256
+DECODE_BATCH_SIZE = 0
 
 from sglang.srt.distributed import get_tensor_model_parallel_world_size
 from sglang.srt.layers.amx_utils import _amx_process_weight_after_loading

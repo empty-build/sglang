@@ -11,21 +11,22 @@ from sglang.srt.layers.moe.fused_moe_triton.fused_moe import fused_experts
 
 
 def get_model_config(tp_size: int):
-    config = AutoConfig.from_pretrained(
-        "deepseek-ai/deepseek-R1", trust_remote_code=True
-    )
-    E = config.n_routed_experts
-    topk = config.num_experts_per_tok
-    intermediate_size = config.moe_intermediate_size
+    # config = AutoConfig.from_pretrained(
+    #     "deepseek-ai/deepseek-R1", trust_remote_code=True
+    # )
+    # E = config.n_routed_experts
+    # topk = config.num_experts_per_tok
+    # intermediate_size = config.moe_intermediate_size
+    intermediate_size = 1536
     shard_intermediate_size = 2 * intermediate_size // tp_size
 
     return {
-        "num_experts": E,
-        "topk": topk,
-        "hidden_size": config.hidden_size,
+        "num_experts": 128,
+        "topk": 8,
+        "hidden_size": 4096,
         "shard_intermediate_size": shard_intermediate_size,
-        "dtype": config.torch_dtype,
-        "block_shape": config.quantization_config["weight_block_size"],
+        "dtype": torch.bfloat16,
+        "block_shape": [128, 128],
     }
 
 
@@ -147,15 +148,19 @@ def run_test(tp_size, batch_size, model_config, check=False):
         problem_sizes1,
         problem_sizes2,
     )
-
+    print(
+        "w1_scale.shape : {} ws_scale.shape : {}".format(w1_scale.shape, w2_scale.shape)
+    )
+    print(
+        "x.shape :{}, w1.shape: {}, w2.shape : {}".format(x.shape, w1.shape, w2.shape)
+    )
     # Note: Triton expects non-transposed weights
     triton_lambda = lambda: fused_experts(
         x,
         w1,
         w2,
-        topk_weights,
-        topk_ids,
-        inplace=False,  # Use False for benchmarking to avoid side effects if run multiple times
+        (topk_weights, topk_ids, "chishi"),
+        inplace=False,
         activation="silu",  # Assuming SiLU activation common in MoEs
         use_fp8_w8a8=True,
         w1_scale=w1_scale,
@@ -174,12 +179,12 @@ def run_test(tp_size, batch_size, model_config, check=False):
     quantiles = [0.5, 0.2, 0.8]
     print(f"Benchmarking Cutlass fused_experts...")
     cutlass_ms, cutlass_min, cutlass_max = triton.testing.do_bench_cudagraph(
-        cutlass_lambda, rep=1000, quantiles=quantiles
+        cutlass_lambda, rep=100, quantiles=quantiles
     )
 
     print(f"Benchmarking Triton fused_experts...")
     triton_ms, triton_min, triton_max = triton.testing.do_bench_cudagraph(
-        triton_lambda, rep=1000, quantiles=quantiles
+        triton_lambda, rep=100, quantiles=quantiles
     )
     print(
         f"Cutlass fused_experts time: {cutlass_ms:.3f} ms (median) [{cutlass_min:.3f} - {cutlass_max:.3f}]"
@@ -221,8 +226,7 @@ def run_test(tp_size, batch_size, model_config, check=False):
                 x,
                 w1,  # Original shape
                 w2,  # Original shape
-                topk_weights,
-                topk_ids,
+                (topk_weights, topk_ids, "chishi"),
                 inplace=False,  # Important: Use False to get output tensor
                 activation="silu",
                 use_fp8_w8a8=True,
@@ -252,7 +256,7 @@ def run_test(tp_size, batch_size, model_config, check=False):
         print("Correctness check passed.")
 
 
-def main(tp_size=8, batch_sizes=[1, 4, 8, 16, 32, 64, 128, 256, 512], check=False):
+def main(tp_size=4, batch_sizes=[1, 4, 8, 16, 32, 64, 128, 256, 512], check=False):
     model_config = get_model_config(tp_size)
     print("Model Config:", model_config)
     for batch_size in batch_sizes:
@@ -261,7 +265,7 @@ def main(tp_size=8, batch_sizes=[1, 4, 8, 16, 32, 64, 128, 256, 512], check=Fals
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tp-size", type=int, default=8, help="Tensor Parallel size")
+    parser.add_argument("--tp-size", type=int, default=4, help="Tensor Parallel size")
     parser.add_argument(
         "--batch-sizes",
         type=int,

@@ -163,13 +163,14 @@ def cutlass_fused_experts_fp8(
         rep_a1_scales = shuffle_rows(a1_scale, a_map, (m * topk, int(k / 128)))
     else:
         # rep_a = shuffle_rows(a, a_map, (m * topk, k))
-        # rep_a_q, rep_a1_scales = per_token_group_quant_fp8_hopper_moe_mn_major(
-        #     rep_a, expert_offsets, problem_sizes1, 128
-        # )
-
-        a_q, a1_scales = per_token_group_quant_fp8_hopper_moe_mn_major(
-            a, expert_offsets, problem_sizes1, 128
+        rep_a, unpermute_map = permute(a, topk_ids)
+        rep_a_q, rep_a1_scales = per_token_group_quant_fp8_hopper_moe_mn_major(
+            rep_a, expert_offsets, problem_sizes1, 128
         )
+
+        # a_q, a1_scales = per_token_group_quant_fp8_hopper_moe_mn_major(
+        #     a, expert_offsets, problem_sizes1, 128
+        # )
         w1_scale = w1_scale.contiguous()
 
     c1 = torch.empty((m * topk, n * 2), device=device, dtype=out_dtype)
