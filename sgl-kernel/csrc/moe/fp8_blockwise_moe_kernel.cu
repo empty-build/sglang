@@ -471,8 +471,8 @@ struct MmaConfig1 {
 #define GENERATE_SM90_FP8_PP_CONFIG(M, N, K, A, B, C) \
 struct JOIN_STRUCT_PP_NAME(M, N, K, A, B, C) { \
   using ElementA = cutlass::float_e4m3_t; \
-  using MmaTileShape = Shape<cute::Int<M>, cute::Int<N>, cute::Int<K>; \
-  using ClusterShape = Shape<cute::Int<A>, cute::Int<B>, cute::Int<C>; \
+  using MmaTileShape = Shape<cute::Int<M>, cute::Int<N>, cute::Int<K>>; \
+  using ClusterShape = Shape<cute::Int<A>, cute::Int<B>, cute::Int<C>>; \
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpongFP8BlockScaledAccum;\
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedPingpong;\
   using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;\
@@ -484,8 +484,8 @@ struct JOIN_STRUCT_PP_NAME(M, N, K, A, B, C) { \
 #define GENERATE_SM90_FP8_CO_CONFIG(M, N, K, A, B, C) \
 struct JOIN_STRUCT_CO_NAME(M, N, K, A, B, C) { \
   using ElementA = cutlass::float_e4m3_t; \
-  using MmaTileShape = Shape<cute::Int<M>, cute::Int<N>, cute::Int<K>; \
-  using ClusterShape = Shape<cute::Int<A>, cute::Int<B>, cute::Int<C>; \
+  using MmaTileShape = Shape<cute::Int<M>, cute::Int<N>, cute::Int<K>>; \
+  using ClusterShape = Shape<cute::Int<A>, cute::Int<B>, cute::Int<C>>; \
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8BlockScaledAccum;\
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;\
   using ScaleConfig = cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128>;\
