@@ -3615,7 +3615,7 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
         
     }
     }
-  }
+  } else {
 
   if (at::cuda::getCurrentDeviceProperties()->multiProcessorCount == 78 && a.size(1) > 128) {
     // For H20 with K > 128, use Pingpong Schedule
@@ -3682,6 +3682,7 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
         expert_offsets,
         workspace);
   }
+}
 }
 
 /**
