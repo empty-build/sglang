@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Cutlass W4A8 MoE kernel."""
+import os
 from typing import Optional
 
 import torch
 from sgl_kernel import (
+    apply_shuffle_mul_sum,
     cutlass_w4a8_moe_mm,
     get_cutlass_w4a8_moe_mm_data,
+    prepare_moe_input,
     sgl_per_tensor_quant_fp8,
+    shuffle_rows,
     silu_and_mul,
 )
 
@@ -15,6 +19,9 @@ from sglang.srt.layers.moe.ep_moe.kernels import (
     pre_reorder_triton_kernel_for_cutlass_moe,
     run_cutlass_moe_ep_preproess,
 )
+
+# Environment variable to control using CUDA vs Triton token reordering
+USE_CUDA_MOE = os.environ.get("CUDA_MOE", "0") == "1"
 
 
 def cutlass_w4a8_moe(
@@ -115,45 +122,73 @@ def cutlass_w4a8_moe(
 
     device = a.device
 
-    _, src2dst, _ = run_cutlass_moe_ep_preproess(
-        local_topk_ids,
-        num_experts,
-    )
-
     gateup_input = torch.empty(
         (m * topk, k),
         device=device,
         dtype=torch.float8_e4m3fn,
     )
 
-    pre_reorder_triton_kernel_for_cutlass_moe[(m,)](
-        a,
-        gateup_input,
-        src2dst,
-        local_topk_ids,
-        a1_scale,
-        total_num_experts,
-        topk,
-        k,
-        BLOCK_SIZE=512,
-    )
-
-    # NOTE: a_map and c_map are not used in the get_cutlass_w4a8_moe_mm_data kernel,
-    # they are kept to allow for a quick switch of the permutation logic
-    # from the current triton kernel implementation to the cutlass-based one if needed.
+    # Create permutation tensors
     a_map = torch.empty((local_topk_ids.numel()), dtype=torch.int32, device=device)
     c_map = torch.empty((local_topk_ids.numel()), dtype=torch.int32, device=device)
-    get_cutlass_w4a8_moe_mm_data(
-        local_topk_ids,
-        expert_offsets,
-        problem_sizes1,
-        problem_sizes2,
-        a_map,
-        c_map,
-        num_experts,
-        n,
-        k,
-    )
+
+    if USE_CUDA_MOE:
+        # CUDA Path: Use prepare_moe_input + shuffle_rows (reusing FP4/FP8 infrastructure)
+        # Note: Set CUDA_MOE=1 environment variable to enable this optimized path
+        prepare_moe_input(
+            local_topk_ids,
+            expert_offsets,
+            problem_sizes1,
+            problem_sizes2,
+            a_map,
+            c_map,
+            num_experts,
+            n,
+            k,
+        )
+
+        # First quantize the input with scaling if needed
+        if a1_scale is not None:
+            sgl_per_tensor_quant_fp8(a, gateup_input, a1_scale.float(), True)
+            # Then shuffle the quantized tensor
+            shuffle_rows(gateup_input, a_map, gateup_input)
+        else:
+            # Create temporary float8 tensor and shuffle
+            temp_input = torch.empty_like(gateup_input)
+            temp_input.copy_(a.to(torch.float8_e4m3fn))
+            shuffle_rows(temp_input, a_map, gateup_input)
+        src2dst = None  # Not needed for CUDA path
+    else:
+        # Original Triton Path: Use run_cutlass_moe_ep_preproess + triton kernels
+        _, src2dst, _ = run_cutlass_moe_ep_preproess(
+            local_topk_ids,
+            num_experts,
+        )
+
+        pre_reorder_triton_kernel_for_cutlass_moe[(m,)](
+            a,
+            gateup_input,
+            src2dst,
+            local_topk_ids,
+            a1_scale,
+            total_num_experts,
+            topk,
+            k,
+            BLOCK_SIZE=512,
+        )
+
+        # For Triton path, still populate a_map/c_map for CUTLASS MM data
+        get_cutlass_w4a8_moe_mm_data(
+            local_topk_ids,
+            expert_offsets,
+            problem_sizes1,
+            problem_sizes2,
+            a_map,
+            c_map,
+            num_experts,
+            n,
+            k,
+        )
 
     c1 = torch.empty((m * topk, n * 2), device=device, dtype=torch.half)
     c2 = torch.zeros((m * topk, k), device=device, dtype=torch.half)
@@ -199,17 +234,23 @@ def cutlass_w4a8_moe(
     )
 
     output = torch.empty_like(a)
-    post_reorder_triton_kernel[(m,)](
-        c2,
-        output,
-        src2dst,
-        topk_ids_,
-        topk_weights,
-        start_expert_id,
-        end_expert_id,
-        topk,
-        k,
-        0,
-        BLOCK_SIZE=512,
-    )
+    
+    if USE_CUDA_MOE:
+        # CUDA Path: Use apply_shuffle_mul_sum for post-reordering
+        apply_shuffle_mul_sum(c2, output, c_map, topk_weights.to(a.dtype))
+    else:
+        # Original Triton Path: Use post_reorder_triton_kernel
+        post_reorder_triton_kernel[(m,)](
+            c2,
+            output,
+            src2dst,
+            topk_ids_,
+            topk_weights,
+            start_expert_id,
+            end_expert_id,
+            topk,
+            k,
+            0,
+            BLOCK_SIZE=512,
+        )
     return output
