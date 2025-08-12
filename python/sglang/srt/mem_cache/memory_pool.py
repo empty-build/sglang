@@ -44,6 +44,7 @@ GB = 1024 * 1024 * 1024
 _is_cuda = is_cuda()
 
 from sglang.jack_utils import hcdprint
+# from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
 
 class ReqToTokenPool:
     """A memory pool that maps a request to its token locations."""
@@ -292,29 +293,58 @@ class MHATokenToKVPool(KVCache):
                 if self.store_dtype == torch.float4_e2m1fn_x2:
                     hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
                         f"force torch.uint8 + dividiveby2 for matching fp4 shape[42, 8, 64] (ori:[42, 8, 128])")
+                    # self.k_buffer = [
+                    #     torch.zeros( # TODO change this 3D to 1D
+                    #         (self.size + self.page_size, self.head_num, self.head_dim // 2), # 3D
+                    #         dtype=torch.uint8,
+                    #         device=self.device,
+                    #     )
+                    #     # TODO: Change to something like this torch.zeros( MNK),  dtype=torch.uint8,device=self.device,)
+                    #     for _ in range(self.layer_num)
+                    # ]
+                    #     # loc now = 3D, TODO: change it to 1D
+                    #     # [layer_id][loc] => [loc]==[ self.size + self.page_size, 2D(head), 3D(dim)]
+                    #     # self.size + self.page_size = M
+                    #     # self.head_num = N
+                    #     # self.head_dim = K
+                    #     # Use yichen's formula to calculate 1D's k/v buffer size
+                    # self.v_buffer = [
+                    #     torch.zeros(
+                    #         (self.size + self.page_size, self.head_num, self.head_dim // 2),
+                    #         dtype=torch.uint8,
+                    #         device=self.device,
+                    #     )
+                    #     for _ in range(self.layer_num)
+                    # ]
+
+                    # hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
+                    #     f"Milestone2 layout")
+                    # special layout: 1D kv buffer
+                    m = self.size + self.page_size
+                    n = self.head_num
+                    k = self.head_dim
+                    # TODO1: assert % 32 = 0
+                    # TODO2: change 32 to var
+                    buffer_size = ((m * n * k) // 2) + ((m * n * k) // 32) + (1 + (8 * 3))
+                    print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
+                        f"Milestone2 layout: m={m}, n={n}, k={k}, per-layer buffer_size = {buffer_size}")
                     self.k_buffer = [
-                        torch.zeros( # TODO change this 3D to 1D
-                            (self.size + self.page_size, self.head_num, self.head_dim // 2), # 3D
-                            dtype=torch.uint8,
+                        torch.zeros(
+                            buffer_size, # 1D
+                            dtype=torch.uint8, 
                             device=self.device,
                         )
-                        # TODO: Change to something like this torch.zeros( MNK),  dtype=torch.uint8,device=self.device,)
                         for _ in range(self.layer_num)
                     ]
-                        # loc now = 3D, TODO: change it to 1D
-                        # [layer_id][loc] => [loc]==[ self.size + self.page_size, 2D(head), 3D(dim)]
-                        # self.size + self.page_size = M
-                        # self.head_num = N
-                        # self.head_dim = K
-                        # Use yichen's formula to calculate 1D's k/v buffer size
                     self.v_buffer = [
                         torch.zeros(
-                            (self.size + self.page_size, self.head_num, self.head_dim // 2),
+                            buffer_size, # 1D
                             dtype=torch.uint8,
                             device=self.device,
                         )
                         for _ in range(self.layer_num)
                     ]
+
                 else: # origin
                     # [size, head_num, head_dim] for each layer
                     # The padded slot 0 is used for writing dummy outputs from padded tokens.
@@ -452,10 +482,21 @@ class MHATokenToKVPool(KVCache):
             # ori
             return self._get_key_buffer(layer_id)
         else:
-            # new - horenc
-            # return self.dequantize_fp4_to_bf16(self._get_key_buffer(layer_id))
             # # new - horenc 250806
-            return self.dequantize_fp4_e2m1_to_bf16(self._get_key_buffer(layer_id))
+            # return self.dequantize_fp4_e2m1_to_bf16(self._get_key_buffer(layer_id))
+            from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
+            # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_key_buffer(layer_id), 32)
+            print(f"\t [horenc]   layer_id = {layer_id}")
+            print(f"\t [horenc]   bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
+            print(f"\t [horenc]   bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
+            dequantized_cache_k = MXFP4QuantizeUtil.dequantize_packed(
+                                        quantized_data=self._get_key_buffer(layer_id),
+                                        dtype=torch.bfloat16,
+                                        block_sizes=[32]
+                                    )
+            print(f"\t [horenc]   af-Dequantized k shape {dequantized_cache_k.shape}")
+            print(f"\t [horenc]   af-Dequantized k dtype: {dequantized_cache_k.dtype}")
+            return dequantized_cache_k
 
     def _get_value_buffer(self, layer_id: int):
         # for internal use of referencing
@@ -471,10 +512,21 @@ class MHATokenToKVPool(KVCache):
             # ori
             return self._get_value_buffer(layer_id)
         else:
-            # # new - horenc
-            # return self.dequantize_fp4_to_bf16(self._get_value_buffer(layer_id))
             # # new - horenc 250806
-            return self.dequantize_fp4_e2m1_to_bf16(self._get_value_buffer(layer_id))
+            # return self.dequantize_fp4_e2m1_to_bf16(self._get_value_buffer(layer_id))
+            from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
+            # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_value_buffer(layer_id), 32)
+            print(f"\t [horenc]   layer_id = {layer_id}")
+            print(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
+            print(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
+            dequantized_cache_v = MXFP4QuantizeUtil.dequantize_packed(
+                                        quantized_data=self._get_value_buffer(layer_id),
+                                        dtype=torch.bfloat16,
+                                        block_sizes=[32]
+                                    )
+            print(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
+            print(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
+            return dequantized_cache_v
 
     def get_kv_buffer(self, layer_id: int):
         # hcdprint(f"[horenc] MHATokenToKVPool:get_kv_buffer() some attention do not enter here like torch_native_backend")
@@ -529,69 +581,6 @@ class MHATokenToKVPool(KVCache):
         return values.contiguous().view(*new_shape).to(torch.bfloat16)
 
 
-    # # ----------------------
-    # # Working kernel
-    # # ----------------------
-    # # numel = tensor_bf16.numel()
-    # # print(f"[DEBUG] Max numel seen: {numel}")  # 先看最大值
-    # @torch.inference_mode()
-    # def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
-    #     shape = tensor_bf16.shape
-    #     # 取出最後一維
-    #     last_dim = shape[-1]
-
-    #     # 保證最後一維是偶數
-    #     assert last_dim % 2 == 0, "最後維度必須是偶數"
-
-    #     # 先轉float並clamp，然後reshape成 [..., last_dim]
-    #     tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0)
-
-    #     # reshape成 (N, last_dim) 方便計算，其中 N = 所有前面維度展平
-    #     tensor_2d = tensor_f32.view(-1, last_dim)  # [N, last_dim]
-
-    #     # 對每個元素找最近 FP4 值
-    #     distances = torch.abs(tensor_2d.unsqueeze(2) - self.FP4_VALUES_expand)  # [N, last_dim, 16]
-
-    #     indices = distances.argmin(dim=2).to(torch.uint8)  # [N, last_dim]
-
-    #     # 補偶數長度 (理論上last_dim是偶數，不過保險)
-    #     if indices.shape[1] % 2 != 0:
-    #         pad = torch.zeros((indices.shape[0], 1), dtype=torch.uint8, device=indices.device)
-    #         indices = torch.cat([indices, pad], dim=1)
-
-    #     # pack 每兩個4bit變成1byte
-    #     packed = indices.view(indices.shape[0], -1, 2)
-    #     packed_uint8 = (packed[..., 0] & 0x0F) | ((packed[..., 1] & 0x0F) << 4)  # [N, last_dim//2]
-
-    #     # reshape回原本前面維度 + 尾維除2
-    #     new_shape = list(shape[:-1]) + [last_dim // 2]
-
-    #     return packed_uint8.view(*new_shape)
-
-    # @torch.inference_mode()
-    # def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
-    #     shape = tensor_uint8.shape
-    #     last_dim = shape[-1]
-
-    #     # flatten前面所有維度，保留最後一維
-    #     tensor_2d = tensor_uint8.view(-1, last_dim)  # [N, last_dim]
-
-    #     low_nibble = tensor_2d & 0x0F  # [N, last_dim]
-    #     high_nibble = (tensor_2d >> 4) & 0x0F  # [N, last_dim]
-
-    #     # concat成 [N, last_dim*2]
-    #     indices = torch.cat([low_nibble.unsqueeze(-1), high_nibble.unsqueeze(-1)], dim=-1).view(tensor_2d.shape[0], -1).to(torch.long)  # [N, last_dim*2]
-
-    #     # 查表
-    #     values = self.FP4_VALUES[indices]  # [N, last_dim*2]
-
-    #     # reshape回原始 shape，最後維度*2
-    #     new_shape = list(shape[:-1]) + [last_dim * 2]
-
-    #     return values.view(*new_shape).to(torch.bfloat16)
-    
-
-
     def set_kv_buffer(
         self,
         layer: RadixAttention,
@@ -611,6 +600,7 @@ class MHATokenToKVPool(KVCache):
         hcdprint(f"[horenc] MHATokenToKVPool cache_k.dtype = {cache_k.dtype}")
         hcdprint(f"[horenc] MHATokenToKVPool self.dtype = {self.dtype}")
         hcdprint(f"[horenc] MHATokenToKVPool k_scale = {k_scale}")
+        # print(f"\t [horenc]  Quantized k/v check")
         if cache_k.dtype != self.dtype:
             if k_scale is not None:
                 cache_k.div_(k_scale)
@@ -624,27 +614,20 @@ class MHATokenToKVPool(KVCache):
                 # new - yichen's quant
                 # hcdprint(f"[horenc] hack .to -> scaled_fp4_quant()")
                 # hcdprint(f"[horenc] cache_k.shape: {list(cache_k.shape)}")
-                # from sgl_kernel import scaled_fp4_quant
-                # input_global_scale_k = torch.tensor(1.0, dtype=cache_k.dtype, device=cache_k.device)
-                # input_global_scale_v = torch.tensor(1.0, dtype=cache_v.dtype, device=cache_v.device)
-                # # # input_scale = torch.ones_like(cache_k)
-                # cache_k_fp4, scale_k = scaled_fp4_quant(cache_k, input_global_scale_k)
-                # cache_v_fp4, scale_v = scaled_fp4_quant(cache_v, input_global_scale_v)
-                # print(f"[yichen] cache_k.shape {cache_k.shape}")
-                # print(f"[yichen] cache_k_fp4.shape {cache_k_fp4.shape}")
-                # print(f"[yichen] scale_k.shape {scale_k.shape}")
-                # print(f"[yichen] scale_k {scale_k}")
-                
-                # new 250805 - higher accuracy function
-                # cache_k_fp4 = self.quantize_bf16_to_fp4_e2m1(cache_k)
-                # cache_v_fp4 = self.quantize_bf16_to_fp4_e2m1(cache_v)
-                # print(f"[horen] cache_k_fp4.shape {cache_k_fp4.shape}")
+                # new 250809 - working
+                # cache_k = self.quantize_bf16_to_fp4_e2m1(cache_k)
+                # cache_v = self.quantize_bf16_to_fp4_e2m1(cache_v)
 
-                # new 250809 - test
-                cache_k = self.quantize_bf16_to_fp4_e2m1(cache_k)
-                cache_v = self.quantize_bf16_to_fp4_e2m1(cache_v)
-
-
+                from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
+                print(f"\t [horenc]   layer_id ({layer_id}) - self.start_layer ({self.start_layer})  = {layer_id - self.start_layer}, loc = {loc}")
+                print(f"\t [horenc]   bf-Quantize k/v shape: {cache_k.shape}")
+                print(f"\t [horenc]   bf-Quantize k/v dtype: {cache_k.dtype}")
+                cache_k = MXFP4QuantizeUtil.quantize_packed(cache_k, 32)
+                cache_v = MXFP4QuantizeUtil.quantize_packed(cache_v, 32)
+                print(f"\t [horenc]   af-Quantized k/v shape: {cache_k.shape}")
+                print(f"\t [horenc]   af-Quantized k/v dtype: {cache_k.dtype}")
+                print(f"\t [horenc]   self.k_buffer[layer_id - self.start_layer].shape = {self.k_buffer[layer_id - self.start_layer].shape}")
+                print(f"\t [horenc]   self.k_buffer[layer_id - self.start_layer][loc].shape = {self.k_buffer[layer_id - self.start_layer][loc].shape}")
         # print("[debug] cache_k.shape =", cache_k.shape)
         # print("[debug] target shape =", self.k_buffer[layer_id - self.start_layer][loc].shape)
             

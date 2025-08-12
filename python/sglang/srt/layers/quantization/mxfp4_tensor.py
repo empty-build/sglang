@@ -23,6 +23,55 @@ class MXFP4QuantizeUtil:
     E2M1_values = [0, 0.5, 1, 1.5, 2, 3, 4, 6]
     E2M1_bounds = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5])
 
+    # @classmethod
+    # def quantize(cls, input: torch.Tensor, block_size: int | None) -> tuple:
+    #     """Converting a tensor to a quantized format based on MXFP4 quantization. Only E4M3 is supported.
+    #     Args:
+    #         input (torch.Tensor): The input tensor to be quantized.
+    #         block_sizes (dict | None): The block sizes for quantization.
+    #     """
+
+    #     def cast_fp4(x):
+    #         sign = torch.sign(x)
+    #         sign_bit = (2 - sign) // 2
+    #         ord_ = torch.sum(
+    #             (x.abs().unsqueeze(-1) - cls.E2M1_bounds.to(x.device)) > 0, dim=-1
+    #         )
+    #         fp4_val = (sign_bit * 0b1000 + ord_).to(torch.uint8)
+    #         return fp4_val
+
+    #     def fuse_uint4_to_uint8(x):
+    #         # If the last dimension is odd, pad with zeros
+    #         # If this behavior is not desired, please modify the code accordingly
+    #         left_side = x[..., 0::2]  # Even indices (0, 2, 4...)
+    #         right_side = x[..., 1::2]  # Odd indices (1, 3, 5...)
+    #         new_data = (
+    #             right_side.clone() << 4
+    #         )  # Put odd indices (higher addresses) in high bits
+    #         new_data[
+    #             ..., : left_side.shape[-1]
+    #         ] += left_side  # Put even indices in low bits
+    #         return new_data
+
+    #     if block_size is None:
+    #         block_size = 32
+
+    #     original_shape = input.shape
+    #     original_dtype = input.dtype
+    #     input = input.view(-1, block_size)
+    #     # get scales
+    #     input_amax = input.abs().max(dim=-1, keepdim=True).values
+    #     descale = input_amax / cls.E2M1_max
+    #     min_value = torch.tensor(-127.0, device=descale.device)
+    #     e8m0_scale = torch.ceil(torch.maximum(torch.log2(descale), min_value))
+
+    #     input = (input / torch.exp2(e8m0_scale)).view(original_shape)
+    #     input_q = cast_fp4(input)
+    #     input_q = fuse_uint4_to_uint8(input_q)
+    #     e8m0_scale = (e8m0_scale + 127).to(torch.uint8)
+    #     # return cls(original_shape, original_dtype, input_q), e8m0_scale
+    #     return input_q, e8m0_scale
+
     @classmethod
     def quantize(cls, input: torch.Tensor, block_size: int | None) -> tuple:
         """Converting a tensor to a quantized format based on MXFP4 quantization. Only E4M3 is supported.
@@ -56,20 +105,29 @@ class MXFP4QuantizeUtil:
         if block_size is None:
             block_size = 32
 
-        original_shape = input.shape
-        original_dtype = input.dtype
-        input = input.view(-1, block_size)
-        # get scales
-        input_amax = input.abs().max(dim=-1, keepdim=True).values
+        # Flatten safely (handles non-contiguous tensors)
+        flat = input.reshape(-1)
+        total_elems = flat.numel()
+        # Pad to multiple of block_size so each block is full
+        pad_len = (block_size - (total_elems % block_size)) % block_size
+        if pad_len:
+            pad = torch.zeros(pad_len, dtype=flat.dtype, device=flat.device)
+            flat = torch.cat([flat, pad], dim=0)
+        # Split into blocks
+        blocks = flat.view(-1, block_size)
+        # Per-block scale
+        input_amax = blocks.abs().max(dim=-1, keepdim=True).values
         descale = input_amax / cls.E2M1_max
         min_value = torch.tensor(-127.0, device=descale.device)
         e8m0_scale = torch.ceil(torch.maximum(torch.log2(descale), min_value))
-
-        input = (input / torch.exp2(e8m0_scale)).view(original_shape)
-        input_q = cast_fp4(input)
-        input_q = fuse_uint4_to_uint8(input_q)
-        e8m0_scale = (e8m0_scale + 127).to(torch.uint8)
-        return cls(original_shape, original_dtype, input_q), e8m0_scale
+        # Scale and quantize to FP4
+        scaled_blocks = blocks / torch.exp2(e8m0_scale)
+        fp4_blocks = cast_fp4(scaled_blocks)
+        # Pack each block's 32 nibbles into 16 bytes
+        q_bytes = fuse_uint4_to_uint8(fp4_blocks)
+        # Store E8M0 scale as uint8 per block
+        e8m0_scale = (e8m0_scale + 127).to(torch.uint8).view(-1)
+        return q_bytes, e8m0_scale
 
     @classmethod
     def dequantize(cls, quantized_data, dtype: torch.dtype, scale, block_sizes):
@@ -131,3 +189,88 @@ class MXFP4QuantizeUtil:
 
         # Reshape back to the original shape
         return x_float.reshape(original_shape).to(dtype)
+
+    @classmethod
+    def quantize_packed(cls, input: torch.Tensor, block_size: int | None) -> torch.Tensor:
+       
+        def pack_quantized_data(quantized_tensor: torch.Tensor, 
+                                scale: torch.Tensor, 
+                                original_shape: tuple) -> torch.Tensor:            
+            shape_size = len(original_shape)
+            # Always use uint64 (8 bytes per dimension);
+            metadata_size = 1 + shape_size * 8
+            scale_size = scale.numel()
+            quantized_size = quantized_tensor.numel()
+            total_size = metadata_size + scale_size + quantized_size
+            
+            # Pre-allocate result tensor
+            packed = torch.empty(total_size, dtype=torch.uint8, device=quantized_tensor.device)
+            packed[0] = shape_size  # Number of dimensions (uint8)
+
+            # Convert shape to uint64 and pack directly
+            shape_tensor = torch.tensor(original_shape, dtype=torch.uint64, device=quantized_tensor.device)
+            shape_bytes = shape_tensor.view(torch.uint8)
+            packed[1:metadata_size] = shape_bytes
+            
+            # Fill scale data
+            scale_start = metadata_size
+            scale_end = scale_start + scale_size
+            packed[scale_start:scale_end] = scale.flatten()
+            
+            # Fill quantized data
+            quantized_start = scale_end
+            packed[quantized_start:] = quantized_tensor.flatten()
+            
+            return packed
+        
+        input_q, e8m0_scale = cls.quantize(input, block_size)
+        return pack_quantized_data(
+            input_q, e8m0_scale, input.shape
+        )
+    
+    @classmethod
+    def dequantize_packed(cls, quantized_data, dtype: torch.dtype, block_sizes): 
+        
+        def unpack_quantized_data(packed_tensor: torch.Tensor, block_size) -> tuple:
+            # Extract metadata efficiently
+            shape_size = int(packed_tensor[0].item())
+            metadata_size = 1 + shape_size * 8
+            
+            # Extract shape values (always uint64)
+            shape_start = 1
+            shape_end = metadata_size
+            # Clone to ensure storage_offset == 0 for safe view to uint64
+            shape_bytes = packed_tensor[shape_start:shape_end].clone()
+            
+            # Convert bytes back to shape tensor (uint64)
+            shape_tensor = shape_bytes.view(torch.uint64)
+            original_shape = tuple(shape_tensor.tolist())
+            
+            # Calculate sizes
+            total_elements = torch.prod(torch.tensor(original_shape)).item()
+            num_blocks = (total_elements + block_size - 1) // block_size
+
+            # Extract data using slicing
+            scale_start = metadata_size
+            scale_end = scale_start + num_blocks
+
+            # Jack convert
+            scale_start = int(scale_start)
+            scale_end = int(scale_end)
+            num_blocks = int(num_blocks)
+
+            quantized_start = scale_end
+            
+            scale = packed_tensor[scale_start:scale_end]
+            quantized_flat = packed_tensor[quantized_start:]
+            
+            # Reshape
+            quantized_tensor = quantized_flat.view(num_blocks, 16)
+            
+            return quantized_tensor, scale, original_shape
+
+        block_size = block_sizes[-1]
+        quantized_data, scale, original_shape = unpack_quantized_data(quantized_data, block_size)
+        dequantized_tensor = cls.dequantize(quantized_data, dtype, scale, block_sizes)
+        dequantized_tensor = dequantized_tensor.view(original_shape)
+        return dequantized_tensor
