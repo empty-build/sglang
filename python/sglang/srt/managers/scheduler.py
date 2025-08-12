@@ -612,6 +612,11 @@ class Scheduler(
                     ChunkCacheClass = EICSWAChunkCache
                 else:
                     ChunkCacheClass = EICChunkCache
+                tp_cache_group = (
+                    self.attn_tp_cpu_group
+                    if server_args.enable_dp_attention
+                    else self.tp_cpu_group
+                )
                 self.tree_cache = ChunkCacheClass(
                     req_to_token_pool=self.req_to_token_pool,
                     token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
