@@ -160,6 +160,47 @@ class KVCache(abc.ABC):
         raise NotImplementedError()
 
 
+# Quant: bf16 → packed uint8 (fp4)
+@triton.jit
+def _quant_fp4_kernel(x_ptr, out_ptr, n_elements, table_ptr):
+    pid = tl.program_id(0)
+    idx = pid * 2
+    if idx + 1 < n_elements:
+        v0 = tl.cast(tl.load(x_ptr + idx), tl.float32)
+        v1 = tl.cast(tl.load(x_ptr + idx + 1), tl.float32)
+
+        v0 = tl.maximum(tl.minimum(v0, 6.0), -6.0)
+        v1 = tl.maximum(tl.minimum(v1, 6.0), -6.0)
+
+        table = tl.load(table_ptr + tl.arange(0, 16))
+        diff0 = tl.abs(v0 - table)
+        diff1 = tl.abs(v1 - table)
+        idx0 = tl.argmin(diff0, axis=0).to(tl.uint8)
+        idx1 = tl.argmin(diff1, axis=0).to(tl.uint8)
+
+        packed = (idx0 & 0x0F) | ((idx1 & 0x0F) << 4)
+        tl.store(out_ptr + pid, packed)
+
+# Dequant: packed uint8 (fp4) → bf16
+@triton.jit
+def _dequant_fp4_kernel(x_ptr, out_ptr, n_elements, table_ptr):
+    pid = tl.program_id(0)
+    offsets = pid + tl.arange(0, 1)  # 生成长度为 1 的 vector
+    mask = offsets < n_elements
+    byte_val = tl.load(x_ptr + offsets, mask=mask, other=0)[0]
+
+    idx0 = byte_val & 0x0F
+    idx1 = (byte_val >> 4) & 0x0F
+
+    v0 = tl.cast(tl.load(table_ptr + idx0), tl.bfloat16)
+    v1 = tl.cast(tl.load(table_ptr + idx1), tl.bfloat16)
+
+    out_idx = pid * 2
+    tl.store(out_ptr + out_idx, v0)
+    tl.store(out_ptr + out_idx + 1, v1)
+
+
+
 class MHATokenToKVPool(KVCache):
 
     def __init__(
@@ -214,14 +255,30 @@ class MHATokenToKVPool(KVCache):
         self.mem_usage = (k_size + v_size) / GB
 
         # [horenc]
-        # 預建 FP4 lookup table
+        # 預建 FP4 lookup table # FP4 值（已排序）與 thresholds（相鄰中點）
         hcdprint(f"[horenc] init FP4_VALUES table in class MHATokenToKVPool:__init__()")
+
+        self._max_elems = 10_000_000_00  # 這裡你可以改成你模型的最大 tensor 大小
+
         self.FP4_VALUES = torch.tensor([
                 -6.0, -3.0, -2.0, -1.0,
                 -0.5, -0.25, -0.125, -0.0,
                 0.0,  0.125, 0.25, 0.5,
                 1.0, 2.0, 3.0, 6.0
         ], dtype=torch.float32, device=self.device) # set device for CUDA graph
+        # # Perf pre-do: thresholds 長度為 15：介於相鄰兩個 quant level 的中點
+        # fp = self.FP4_VALUES
+        # self.FP4_THRESHOLDS = ((fp[:-1] + fp[1:]) / 2.0).to(self.device)  # shape [15]
+        
+        # self.FP4_THRESHOLDS = ((self.FP4_VALUES[:-1] + self.FP4_VALUES[1:]) / 2.0)
+        self.FP4_VALUES_expand = self.FP4_VALUES.unsqueeze(0)  # [1,16]
+
+        
+        # # 預分配 buffer
+        # self._indices_buf = torch.empty(self._max_elems, dtype=torch.uint8, device=device)
+        # self._packed_buf = torch.empty((self._max_elems + 1) // 2, dtype=torch.uint8, device=device)
+        # self._dequant_buf = torch.empty(self._max_elems, dtype=torch.float32, device=device)
+
 
     def _create_buffers(self):
         with self.memory_saver_adapter.region(GPU_MEMORY_TYPE_KV_CACHE):
@@ -234,16 +291,22 @@ class MHATokenToKVPool(KVCache):
                 hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): self.store_dtype = {self.store_dtype}")
                 if self.store_dtype == torch.float4_e2m1fn_x2:
                     hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
-                        
                         f"force torch.uint8 + dividiveby2 for matching fp4 shape[42, 8, 64] (ori:[42, 8, 128])")
                     self.k_buffer = [
-                        torch.zeros(
-                            (self.size + self.page_size, self.head_num, self.head_dim // 2),
+                        torch.zeros( # TODO change this 3D to 1D
+                            (self.size + self.page_size, self.head_num, self.head_dim // 2), # 3D
                             dtype=torch.uint8,
                             device=self.device,
                         )
+                        # TODO: Change to something like this torch.zeros( MNK),  dtype=torch.uint8,device=self.device,)
                         for _ in range(self.layer_num)
                     ]
+                        # loc now = 3D, TODO: change it to 1D
+                        # [layer_id][loc] => [loc]==[ self.size + self.page_size, 2D(head), 3D(dim)]
+                        # self.size + self.page_size = M
+                        # self.head_num = N
+                        # self.head_dim = K
+                        # Use yichen's formula to calculate 1D's k/v buffer size
                     self.v_buffer = [
                         torch.zeros(
                             (self.size + self.page_size, self.head_num, self.head_dim // 2),
@@ -417,33 +480,117 @@ class MHATokenToKVPool(KVCache):
         # hcdprint(f"[horenc] MHATokenToKVPool:get_kv_buffer() some attention do not enter here like torch_native_backend")
         return self.get_key_buffer(layer_id), self.get_value_buffer(layer_id)
 
+
+    # # ----------------------
+    # # Optimize - pytorch
+    # # ----------------------
+    @torch.inference_mode()
     def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
-        tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0).view(-1)
-        distances = torch.abs(tensor_f32.unsqueeze(1) - self.FP4_VALUES.to(tensor_f32.device))  # [N,16]
-        indices = distances.argmin(dim=1).to(torch.uint8)  # [N]
+        shape = tensor_bf16.shape
+        last_dim = shape[-1]
+        assert last_dim % 2 == 0, "最後維度必須是偶數"
 
-        # 補偶數長度
-        if indices.numel() % 2 != 0:
-            indices = torch.cat([indices, torch.zeros(1, dtype=torch.uint8, device=indices.device)])
+        tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0)
+        tensor_2d = tensor_f32.view(-1, last_dim)  # [N, last_dim]
 
-        packed = indices.view(-1, 2)
-        packed_uint8 = (packed[:, 0] & 0x0F) | ((packed[:, 1] & 0x0F) << 4)  # pack兩個4bit成1byte
-        new_shape = list(tensor_bf16.shape)
-        new_shape[-1] = new_shape[-1] // 2  # 尾維度/2
-        return packed_uint8.view(*new_shape)
+        # 距離計算
+        distances = torch.abs(tensor_2d.unsqueeze(-1) - self.FP4_VALUES_expand)  # [N, last_dim, 16]
+        indices = distances.argmin(dim=-1).to(torch.uint8)  # [N, last_dim]
 
+        # pack 兩個4bit成1byte, 避免 concat, 直接用切片操作
+        # [N, last_dim//2], 直接取奇偶位組合
+        packed_uint8 = (indices[:, 0::2] & 0x0F) | ((indices[:, 1::2] & 0x0F) << 4)
+
+        new_shape = list(shape[:-1]) + [last_dim // 2]
+        return packed_uint8.contiguous().view(*new_shape)
+
+    @torch.inference_mode()
     def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
-        fp4_values = self.FP4_VALUES.to(tensor_uint8.device)
-        flat = tensor_uint8.flatten()
-        low_nibble = flat & 0x0F
-        high_nibble = (flat >> 4) & 0x0F
-        # indices = torch.stack([low_nibble, high_nibble], dim=1).flatten()
-        indices = torch.stack([low_nibble, high_nibble], dim=1).flatten().to(torch.long)
-        values = fp4_values[indices].view(-1)
-        # reshape回原始tensor shape尾維*2
-        orig_shape = list(tensor_uint8.shape)
-        orig_shape[-1] *= 2
-        return values.view(*orig_shape).to(torch.bfloat16)
+        shape = tensor_uint8.shape
+        last_dim = shape[-1]
+
+        tensor_2d = tensor_uint8.view(-1, last_dim)  # [N, last_dim]
+
+        low_nibble = tensor_2d & 0x0F  # [N, last_dim]
+        high_nibble = (tensor_2d >> 4) & 0x0F  # [N, last_dim]
+
+        # 利用拼接的新維度，交錯合併 (interleave) 兩個 nibble
+        # 預先建立空 tensor, 並利用索引賦值避免 concat 和 stack 開銷
+        N = tensor_2d.shape[0]
+        out_len = last_dim * 2
+        out_indices = torch.empty((N, out_len), dtype=torch.long, device=tensor_uint8.device)
+
+        out_indices[:, 0::2] = low_nibble
+        out_indices[:, 1::2] = high_nibble
+
+        values = self.FP4_VALUES[out_indices]  # [N, last_dim*2]
+
+        new_shape = list(shape[:-1]) + [last_dim * 2]
+        return values.contiguous().view(*new_shape).to(torch.bfloat16)
+
+
+    # # ----------------------
+    # # Working kernel
+    # # ----------------------
+    # # numel = tensor_bf16.numel()
+    # # print(f"[DEBUG] Max numel seen: {numel}")  # 先看最大值
+    # @torch.inference_mode()
+    # def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
+    #     shape = tensor_bf16.shape
+    #     # 取出最後一維
+    #     last_dim = shape[-1]
+
+    #     # 保證最後一維是偶數
+    #     assert last_dim % 2 == 0, "最後維度必須是偶數"
+
+    #     # 先轉float並clamp，然後reshape成 [..., last_dim]
+    #     tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0)
+
+    #     # reshape成 (N, last_dim) 方便計算，其中 N = 所有前面維度展平
+    #     tensor_2d = tensor_f32.view(-1, last_dim)  # [N, last_dim]
+
+    #     # 對每個元素找最近 FP4 值
+    #     distances = torch.abs(tensor_2d.unsqueeze(2) - self.FP4_VALUES_expand)  # [N, last_dim, 16]
+
+    #     indices = distances.argmin(dim=2).to(torch.uint8)  # [N, last_dim]
+
+    #     # 補偶數長度 (理論上last_dim是偶數，不過保險)
+    #     if indices.shape[1] % 2 != 0:
+    #         pad = torch.zeros((indices.shape[0], 1), dtype=torch.uint8, device=indices.device)
+    #         indices = torch.cat([indices, pad], dim=1)
+
+    #     # pack 每兩個4bit變成1byte
+    #     packed = indices.view(indices.shape[0], -1, 2)
+    #     packed_uint8 = (packed[..., 0] & 0x0F) | ((packed[..., 1] & 0x0F) << 4)  # [N, last_dim//2]
+
+    #     # reshape回原本前面維度 + 尾維除2
+    #     new_shape = list(shape[:-1]) + [last_dim // 2]
+
+    #     return packed_uint8.view(*new_shape)
+
+    # @torch.inference_mode()
+    # def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
+    #     shape = tensor_uint8.shape
+    #     last_dim = shape[-1]
+
+    #     # flatten前面所有維度，保留最後一維
+    #     tensor_2d = tensor_uint8.view(-1, last_dim)  # [N, last_dim]
+
+    #     low_nibble = tensor_2d & 0x0F  # [N, last_dim]
+    #     high_nibble = (tensor_2d >> 4) & 0x0F  # [N, last_dim]
+
+    #     # concat成 [N, last_dim*2]
+    #     indices = torch.cat([low_nibble.unsqueeze(-1), high_nibble.unsqueeze(-1)], dim=-1).view(tensor_2d.shape[0], -1).to(torch.long)  # [N, last_dim*2]
+
+    #     # 查表
+    #     values = self.FP4_VALUES[indices]  # [N, last_dim*2]
+
+    #     # reshape回原始 shape，最後維度*2
+    #     new_shape = list(shape[:-1]) + [last_dim * 2]
+
+    #     return values.view(*new_shape).to(torch.bfloat16)
+    
+
 
     def set_kv_buffer(
         self,
@@ -497,36 +644,26 @@ class MHATokenToKVPool(KVCache):
                 cache_k = self.quantize_bf16_to_fp4_e2m1(cache_k)
                 cache_v = self.quantize_bf16_to_fp4_e2m1(cache_v)
 
+
+        # print("[debug] cache_k.shape =", cache_k.shape)
+        # print("[debug] target shape =", self.k_buffer[layer_id - self.start_layer][loc].shape)
+            
         hcdprint(f"[horenc] self.store_dtype = {self.store_dtype}")
-        if self.store_dtype != self.dtype: # TODO [horenc] is this correct?
-            # origin - test
+        if self.store_dtype != self.dtype:
             cache_k = cache_k.view(self.store_dtype)
             cache_v = cache_v.view(self.store_dtype)
-            # 因為uint8所以這邊別按照self.store_dtype(fp4)來搞比較好? 但好像又沒差...最後cache_k_fp4 還是得保證是4bit存進去的
-            # cache_k_fp4 = cache_k_fp4.view(self.store_dtype)
-            # cache_v_fp4 = cache_v_fp4.view(self.store_dtype)
 
         if get_is_capture_mode() and self.alt_stream is not None:
             # Overlap the copy of K and V cache for small batch size
             current_stream = self.device_module.current_stream()
             self.alt_stream.wait_stream(current_stream)
-            # origin - test
             self.k_buffer[layer_id - self.start_layer][loc] = cache_k
-            # new
-            # self.k_buffer[layer_id - self.start_layer][loc] = cache_k_fp4
             with self.device_module.stream(self.alt_stream):
-                # origin - test
                 self.v_buffer[layer_id - self.start_layer][loc] = cache_v
-                # new
-                # self.v_buffer[layer_id - self.start_layer][loc] = cache_v_fp4
             current_stream.wait_stream(self.alt_stream)
         else:
-            # origin - test
             self.k_buffer[layer_id - self.start_layer][loc] = cache_k
             self.v_buffer[layer_id - self.start_layer][loc] = cache_v
-            # new
-            # self.k_buffer[layer_id - self.start_layer][loc] = cache_k_fp4
-            # self.v_buffer[layer_id - self.start_layer][loc] = cache_v_fp4
 
 
     def move_kv_cache(self, tgt_loc: torch.Tensor, src_loc: torch.Tensor):
