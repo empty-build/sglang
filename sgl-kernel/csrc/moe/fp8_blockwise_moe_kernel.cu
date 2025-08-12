@@ -509,13 +509,14 @@ void sm90_fp8_blockwise_group_mm_dispatch_shape(
     using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
   };
 
+  // [NOTE] Tuned for H20 Qwen3-235B-FP8-TP4
   GENERATE_SM90_FP8_PP_CONFIG(64, 128, 128, 1, 2, 1)
 
   int num_experts = (int)expert_offsets.size(0);
   torch::TensorOptions options_int = torch::TensorOptions().dtype(torch::kInt64).device(a.device());
   torch::Tensor problem_sizes_transpose = torch::empty(num_experts * 3, options_int);
 
-  bool tuning_kernel = getenv("SGL_TUNE_KERNEL") ? false : true;
+  bool tuning_kernel = getenv("SGL_TUNE_KERNEL") ? true : false;
 
   const std::string H20_device_type_str = "NVIDIA H20";
   bool is_h20 = isDeviceType(H20_device_type_str);
