@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Iterable, List, Optional
 
 import torch
 
+from sglang.srt.layers.moe.ep_moe.token_dispatcher import use_deepep
 from sglang.srt.managers.cache_controller import (
     CacheOperation,
     HiCacheController,
@@ -41,19 +42,6 @@ def get_content_hash(
         prev_hash = page_hash
         result.append(page_hash)
     return result
-
-
-def safe_empty_cache(cache_controller):
-    """
-    Safely empty the CUDA stream.
-    """
-    cache_controller.write_wait_event.set()
-    write_stream = cache_controller.write_stream
-    cuda_event = torch.cuda.Event()
-    cuda_event.record(write_stream)
-    cuda_event.synchronize()
-    torch.cuda.empty_cache()
-    cache_controller.write_wait_event.clear()
 
 
 class EICCacheOperation(CacheOperation):
@@ -109,17 +97,20 @@ class EICCacheController(HiCacheController):
 
         self.stop_event = threading.Event()
         self.write_wait_event = threading.Event()
-        torch.cuda.empty_cache = functools.partial(
-            safe_empty_cache, cache_controller=self
-        )
+        self.load_wait_event = threading.Event()
 
         self.write_stream = torch.cuda.Stream()
         self.load_stream = torch.cuda.Stream()
         self.device = token_to_kv_pool_allocator.device
+
+        # synchronize for write or load operation
         self.scheduler_stream = torch.get_device_module(self.device).current_stream()
         if self.device == "cpu":
             self.scheduler_stream.synchronize = lambda: None
         self.sync_before_write = self.need_sync_before_write()
+        if server_args.enable_deepep_moe:
+            self.hook_model_forward()
+            self.hook_deepep_dispatch()
 
         self.write_parallel = 1
         self.load_parallel = 1
@@ -162,11 +153,63 @@ class EICCacheController(HiCacheController):
 
         self.stop_event.clear()
         self.write_wait_event.clear()
+        self.load_wait_event.clear()
 
         for th in self.write_thread_pool:
             th.start()
         for th in self.load_thread_pool:
             th.start()
+
+    def hook_empty_cache(self):
+        """
+        Safely empty the CUDA stream.
+        """
+        original_empty_cache = torch.cuda.empty_cache
+
+        def safe_empty_cache():
+            self.write_wait_event.set()
+            write_stream = self.write_stream
+            write_event = torch.cuda.Event()
+            write_event.record(write_stream)
+            write_event.synchronize()
+            original_empty_cache()
+            self.write_wait_event.clear()
+
+        torch.cuda.empty_cache = safe_empty_cache
+
+    def hook_model_forward(self):
+        """
+        Hook the model forward to synchronize the write stream.
+        """
+        from sglang.srt.model_executor.model_runner import ModelRunner
+
+        original_forward = ModelRunner.forward
+
+        def synced_forward(*args, **kwargs):
+            self.write_wait_event.set()
+            self.write_stream.synchronize()
+            result = original_forward(*args, **kwargs)
+            self.write_wait_event.clear()
+            return result
+
+        ModelRunner.forward = synced_forward
+        logger.info("Hooked model forward with synchronized write stream.")
+
+    def hook_deepep_dispatch(self):
+        if not use_deepep:
+            return
+        from deep_ep import Buffer
+
+        original_dispatch = Buffer.internode_dispatch
+
+        def syned_dispatch(*args, **kwargs):
+            while self.load_wait_event.is_set():
+                time.sleep(0.1)
+            result = original_dispatch(*args, **kwargs)
+            return result
+
+        Buffer.internode_dispatch = syned_dispatch
+        logger.info("Hooked deepep dispatch with synchronized load.")
 
     def need_sync_before_write(self):
         return (
@@ -178,7 +221,10 @@ class EICCacheController(HiCacheController):
         """
         Write the KV cache to host memory.
         """
-        operation.data = self.mem_pool_device.get_flat_data(operation.device_indices)
+        if operation.data is None:
+            operation.data = self.mem_pool_device.get_flat_data(
+                operation.device_indices
+            )
         ret = self.mem_pool_host.transfer(operation.host_indices, operation.data)
         if not ret:
             logger.error(f"Failed to write to host memory {operation.node_ids}")
@@ -217,9 +263,12 @@ class EICCacheController(HiCacheController):
             operation.content_hash
         )
         while self.write_wait_event.is_set():
-            time.sleep(0.1)
+            time.sleep(0.01)
         logger.debug(f"write device indices: {operation.device_indices}")
-        operation.data = self.mem_pool_device.get_flat_data(operation.device_indices)
+        if operation.data is None:
+            operation.data = self.mem_pool_device.get_flat_data(
+                operation.device_indices
+            )
         ret = self.mem_pool_host.assign_page_data(
             operation.content_hash, operation.data
         )
@@ -286,6 +335,9 @@ class EICCacheController(HiCacheController):
                     continue
                 except Exception as e:
                     logger.exception("Exception in write thread: %s", e)
+                    from sglang.srt.utils import pyspy_dump_schedulers
+
+                    pyspy_dump_schedulers()
 
     def load_thread_func_direct(self):
         """
@@ -301,11 +353,16 @@ class EICCacheController(HiCacheController):
                 # self.load_cache_event.clear()
                 try:
                     operation = self.load_queue.get(block=True, timeout=1)
+                    self.load_wait_event.set()
                     self.load_from_eic(operation)
+                    self.load_wait_event.clear()
                 except Empty:
                     continue
                 except Exception as e:
                     logger.exception("Exception in load thread: %s", e)
+                    from sglang.srt.utils import pyspy_dump_schedulers
+
+                    pyspy_dump_schedulers()
 
     def host_allocate(self, size):
         """
@@ -355,16 +412,18 @@ class EICCacheController(HiCacheController):
         priority: Optional[int] = None,
         node_id: int = 0,
         content_hash: List[int] = None,
+        data_copy: bool = False,
     ) -> Optional[torch.Tensor]:
         """
         Back up KV caches from device memory to host memory.
         """
         host_indices = device_indices.clone().cpu()
-        self.write_queue.put(
-            EICCacheOperation(
-                host_indices, device_indices, node_id, content_hash, priority
-            )
+        cache_operation = EICCacheOperation(
+            host_indices, device_indices, node_id, content_hash, priority
         )
+        if data_copy:
+            cache_operation.data = self.mem_pool_device.get_flat_data(device_indices)
+        self.write_queue.put(cache_operation)
         return host_indices
 
     def load_page(
