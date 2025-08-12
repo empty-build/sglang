@@ -114,8 +114,12 @@ class TritonAttnBackend(AttentionBackend):
             "SGLANG_TRITON_DECODE_ATTN_STATIC_KV_SPLITS", "false"
         )
         self.max_kv_splits = model_runner.server_args.triton_attention_num_kv_splits
-        # self.v_head_dim = model_runner.token_to_kv_pool.get_value_buffer(0).shape[-1]
-        self.v_head_dim = model_runner.token_to_kv_pool.head_dim # horenc
+        USE_KV4_CUDA = 1
+        if USE_KV4_CUDA:
+            self.v_head_dim = model_runner.token_to_kv_pool.head_dim # horenc
+        else:
+            self.v_head_dim = model_runner.token_to_kv_pool.get_value_buffer(0).shape[-1]
+        
 
         self.forward_metadata: ForwardMetadata = None
 
