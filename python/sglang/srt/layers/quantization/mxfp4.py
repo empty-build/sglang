@@ -36,13 +36,13 @@ _is_sm100_supported = is_cuda() and is_sm100_supported()
 has_triton_kernels = is_triton_kernels_available()
 
 
-if is_flashinfer_available():
-    from flashinfer import (
-        mxfp8_quantize,
-        shuffle_matrix_a,
-        shuffle_matrix_sf_a,
-        trtllm_fp4_block_scale_moe,
-    )
+# if is_flashinfer_available():
+#     from flashinfer import (
+#         mxfp8_quantize,
+#         shuffle_matrix_a,
+#         shuffle_matrix_sf_a,
+#         trtllm_fp4_block_scale_moe,
+#     )
 
 logger = logging.getLogger(__name__)
 
