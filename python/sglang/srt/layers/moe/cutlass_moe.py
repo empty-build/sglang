@@ -129,6 +129,7 @@ def cutlass_fused_experts_fp8(
 
     if is_cuda:
         from sglang.srt.layers.quantization.fp8_kernel import (
+            per_group_transpose,
             per_token_group_quant_fp8_hopper_moe_mn_major,
             sglang_per_token_group_quant_fp8,
         )
@@ -157,20 +158,12 @@ def cutlass_fused_experts_fp8(
         k,
     )
 
-    if is_sm100_supported():
-        a_q, a1_scale = sglang_per_token_group_quant_fp8(a, 128)
-        rep_a_q = shuffle_rows(a_q, a_map, (m * topk, k))
-        rep_a1_scales = shuffle_rows(a1_scale, a_map, (m * topk, int(k / 128)))
-    else:
-        rep_a = shuffle_rows(a, a_map, (m * topk, k))
-        # rep_a, unpermute_map = permute(a, topk_ids)
-        rep_a_q, rep_a1_scales = per_token_group_quant_fp8_hopper_moe_mn_major(
-            rep_a, expert_offsets, problem_sizes1, 128
-        )
+    a_q, a1_scale = sglang_per_token_group_quant_fp8(a, 128)
+    rep_a_q = shuffle_rows(a_q, a_map, (m * topk, k))
+    rep_a1_scales = shuffle_rows(a1_scale, a_map, (m * topk, int(k / 128)))
 
-        # a_q, a1_scales = per_token_group_quant_fp8_hopper_moe_mn_major(
-        #     a, expert_offsets, problem_sizes1, 128
-        # )
+    if not is_sm100_supported():
+        rep_a1_scales = per_group_transpose(rep_a1_scales, expert_offsets)
         w1_scale = w1_scale.contiguous()
 
     c1 = torch.empty((m * topk, n * 2), device=device, dtype=out_dtype)
@@ -203,12 +196,9 @@ def cutlass_fused_experts_fp8(
     intermediate = torch.empty((m * topk, n), device=device, dtype=out_dtype)
     silu_and_mul(c1, intermediate)
 
-    if is_sm100_supported():
-        intemediate_q, a2_scale = sglang_per_token_group_quant_fp8(intermediate, 128)
-    else:
-        intemediate_q, a2_scale = per_token_group_quant_fp8_hopper_moe_mn_major(
-            intermediate, expert_offsets, problem_sizes2, 128
-        )
+    intemediate_q, a2_scale = sglang_per_token_group_quant_fp8(intermediate, 128)
+    if not is_sm100_supported():
+        a2_scale = per_group_transpose(a2_scale, expert_offsets)
         w2_scale = w2_scale.contiguous()
 
     fp8_blockwise_scaled_grouped_mm(
@@ -235,7 +225,6 @@ def cutlass_fused_experts_fp8(
     result = torch.empty((m, k), device=device, dtype=out_dtype)
     apply_shuffle_mul_sum(c2, result, c_map, topk_weights.to(out_dtype))
     return result
-    # return unpermute(c2, unpermute_map, topk_weights)
 
 
 FLOAT4_E2M1_MAX = 6.0
