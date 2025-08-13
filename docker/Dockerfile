@@ -1,5 +1,10 @@
 ARG CUDA_VERSION=12.6.1
-FROM nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+# 使用已缓存好的base镜像
+FROM hub.byted.org/iaas/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+
+# 编译之前，将源统一设置成内网的
+RUN sed -i 's/archive.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list
 
 ARG BUILD_TYPE=all
 ARG DEEPEP_COMMIT=b92d0d4860ce6866cd6d31bfbae937f9a7a3772b
@@ -20,6 +25,9 @@ RUN apt update && apt install wget -y && apt install software-properties-common 
  && update-alternatives --set python3 /usr/bin/python3.12 \
  && wget https://bootstrap.pypa.io/get-pip.py \
  && python3 get-pip.py
+
+# 在安装pip后，设置pip源为火山内网源
+RUN python3 -m pip config set global.index-url https://bytedpypi.byted.org/simple
 
 # Set timezone and install all packages
 RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
@@ -345,8 +353,16 @@ setopt HIST_FIND_NO_DUPS
 setopt INC_APPEND_HISTORY
 EOF
 
-RUN set -euxo ; \
-    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+# 使用pip安装just，加速编译流程
+#RUN set -euxo ; \
+#    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+RUN pip install rust-just
 
 # Set workspace directory
 WORKDIR /sgl-workspace/sglang
+
+# 将源统一切换成火山源
+RUN pip config set global.index-url https://mirrors.ivolces.com/pypi/simple/
+RUN rm -rf /var/lib/apt/lists/* && \
+    sed -i 's/byted.org/ivolces.com/g' /etc/apt/sources.list.d/* && \
+    sed -i 's/byted.org/ivolces.com/g' /etc/apt/sources.list
