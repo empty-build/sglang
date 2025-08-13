@@ -1,5 +1,5 @@
 ARG CUDA_VERSION=12.6.1
-FROM iaas-gpu-cn-beijing.cr.volces.com/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+FROM hub.byted.org/iaas/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
 
 # 编译之前，将源统一设置成内网的
 RUN sed -i 's/archive.ubuntu.com/mirrors.byted.org/g' /etc/apt/sources.list && \
