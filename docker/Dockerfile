@@ -190,7 +190,7 @@ RUN curl -LSso /usr/local/bin/clang-format https://github.com/muttleyxd/clang-to
 # Install clangd
 # 使用clangd的缓存包加速编译
 RUN wget https://ai-infra.tos-cn-beijing.volces.com/servingkit-build/clangd-linux-18.1.3.zip \
-    && mv clangd-linux-18.1.3.zip clangd.zip
+    && mv clangd-linux-18.1.3.zip clangd.zip \
 #RUN curl -L https://github.com/clangd/clangd/releases/download/18.1.3/clangd-linux-18.1.3.zip -o clangd.zip \
     && unzip clangd.zip \
     && cp -r clangd_18.1.3/bin/* /usr/local/bin/ \
