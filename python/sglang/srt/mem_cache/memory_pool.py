@@ -162,48 +162,6 @@ class KVCache(abc.ABC):
     def load_cpu_copy(self, kv_cache_cpu, indices):
         raise NotImplementedError()
 
-
-# Quant: bf16 → packed uint8 (fp4)
-@triton.jit
-def _quant_fp4_kernel(x_ptr, out_ptr, n_elements, table_ptr):
-    pid = tl.program_id(0)
-    idx = pid * 2
-    if idx + 1 < n_elements:
-        v0 = tl.cast(tl.load(x_ptr + idx), tl.float32)
-        v1 = tl.cast(tl.load(x_ptr + idx + 1), tl.float32)
-
-        v0 = tl.maximum(tl.minimum(v0, 6.0), -6.0)
-        v1 = tl.maximum(tl.minimum(v1, 6.0), -6.0)
-
-        table = tl.load(table_ptr + tl.arange(0, 16))
-        diff0 = tl.abs(v0 - table)
-        diff1 = tl.abs(v1 - table)
-        idx0 = tl.argmin(diff0, axis=0).to(tl.uint8)
-        idx1 = tl.argmin(diff1, axis=0).to(tl.uint8)
-
-        packed = (idx0 & 0x0F) | ((idx1 & 0x0F) << 4)
-        tl.store(out_ptr + pid, packed)
-
-# Dequant: packed uint8 (fp4) → bf16
-@triton.jit
-def _dequant_fp4_kernel(x_ptr, out_ptr, n_elements, table_ptr):
-    pid = tl.program_id(0)
-    offsets = pid + tl.arange(0, 1)  # 生成长度为 1 的 vector
-    mask = offsets < n_elements
-    byte_val = tl.load(x_ptr + offsets, mask=mask, other=0)[0]
-
-    idx0 = byte_val & 0x0F
-    idx1 = (byte_val >> 4) & 0x0F
-
-    v0 = tl.cast(tl.load(table_ptr + idx0), tl.bfloat16)
-    v1 = tl.cast(tl.load(table_ptr + idx1), tl.bfloat16)
-
-    out_idx = pid * 2
-    tl.store(out_ptr + out_idx, v0)
-    tl.store(out_ptr + out_idx + 1, v1)
-
-
-
 class MHATokenToKVPool(KVCache):
 
     def __init__(
