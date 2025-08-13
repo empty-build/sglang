@@ -118,6 +118,8 @@ global_server_args_dict = {k: getattr(ServerArgs, k) for k in GLOBAL_SERVER_ARGS
 
 logger = logging.getLogger(__name__)
 
+from sglang.jack_utils import hcdprint
+
 
 class BaseFinishReason:
     def __init__(self, is_error: bool = False):
@@ -1007,6 +1009,7 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
         out_cache_loc = self.token_to_kv_pool_allocator.alloc_extend(
             prefix_lens, seq_lens, last_loc, extend_num_tokens
         )
+        hcdprint(f"[horenc] class ScheduleBatch:alloc_paged_token_slots_extend() out_cache_loc = {out_cache_loc} XXXXXXXXX")
         if out_cache_loc is None:
             error_msg = (
                 f"Prefill out of memory. Try to lower your batch size.\n"

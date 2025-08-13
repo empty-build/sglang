@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from sglang.srt.managers.schedule_batch import ScheduleBatch
     from sglang.srt.server_args import ServerArgs
 
+from sglang.jack_utils import hcdprint
 
 class ScheduleBatchDisaggregationDecodeMixin:
 
@@ -50,6 +51,7 @@ class ScheduleBatchDisaggregationDecodeMixin:
                 offset + req.extend_input_len <= total_size
             ), f"Exceeds total size: offset={offset}, req.extend_input_len={req.extend_input_len}, total_size={total_size}"
             out_cache_loc[offset : offset + req.extend_input_len] = chunk
+            hcdprint(f"[horenc] decode_schedule_batch_minix: XXXXXX")
             offset += req.extend_input_len
 
             pre_len = len(req.prefix_indices)
