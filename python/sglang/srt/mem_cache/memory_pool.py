@@ -46,7 +46,8 @@ _is_cuda = is_cuda()
 
 from sglang.jack_utils import hcdprint
 # from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
-USE_KV4_CUDA = 1
+USE_KV4_CUDA = 0
+EXP_BIAS = 1
 
 class ReqToTokenPool:
     """A memory pool that maps a request to its token locations."""
@@ -235,12 +236,97 @@ class MHATokenToKVPool(KVCache):
             
             # self.FP4_THRESHOLDS = ((self.FP4_VALUES[:-1] + self.FP4_VALUES[1:]) / 2.0)
             self.FP4_VALUES_expand = self.FP4_VALUES.unsqueeze(0)  # [1,16]
-
             
             # # 預分配 buffer
             # self._indices_buf = torch.empty(self._max_elems, dtype=torch.uint8, device=device)
             # self._packed_buf = torch.empty((self._max_elems + 1) // 2, dtype=torch.uint8, device=device)
             # self._dequant_buf = torch.empty(self._max_elems, dtype=torch.float32, device=device)
+
+    #         self._quantize_impl = torch.compile(self._quantize_impl, mode="max-autotune", fullgraph=True)
+    #         self._dequantize_impl = torch.compile(self._dequantize_impl, mode="max-autotune", fullgraph=True)
+
+    # @torch.inference_mode()
+    # def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
+    #     return self._quantize_impl(tensor_bf16, self.FP4_VALUES_expand)
+
+    # @torch.inference_mode()
+    # def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
+    #     return self._dequantize_impl(tensor_uint8, self.FP4_VALUES)
+
+    @torch.compile
+    def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
+        """
+        tensor_bf16: [m, 8, 128], bfloat16
+        output: [m, 8, 64], uint8, 每個uint8包2個fp4_e2m1
+        """
+
+        # 轉成float32計算
+        x = tensor_bf16.to(torch.float32)  # [m,8,128]
+
+        # 先處理 sign bit
+        sign = (x < 0).to(torch.uint8)
+        abs_x = torch.abs(x)
+
+        # 處理log2 (避免log2(0))
+        eps = 1e-8
+        log2_abs = torch.log2(abs_x + eps)
+
+        # 計算 exponent bits (clamp在0~3)
+        exp_val = torch.clamp(torch.floor(log2_abs).to(torch.int32) + EXP_BIAS, 0, 3)
+
+        # 計算 mantissa bits
+        base = 2.0 ** (exp_val.to(torch.float32) - EXP_BIAS)
+        mantissa_val = abs_x / base - 1.0
+        mantissa = (mantissa_val >= 0.5).to(torch.uint8)
+
+        # 如果 x==0，全部設為0
+        zero_mask = (abs_x < eps)
+        sign[zero_mask] = 0
+        exp_val[zero_mask] = 0
+        mantissa[zero_mask] = 0
+
+        # pack bits: s e1 e0 m
+        fp4 = (sign << 3) | (exp_val << 1) | mantissa  # shape [m,8,128], uint8
+
+        # 每2個4-bit合成1個byte
+        fp4_reshaped = fp4.view(*fp4.shape[:-1], 64, 2)  # [m,8,64,2]
+
+        high = fp4_reshaped[..., 0].to(torch.uint8)
+        low = fp4_reshaped[..., 1].to(torch.uint8)
+
+        packed = (high << 4) | low  # [m,8,64]
+
+        return packed
+
+
+    @torch.compile
+    def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
+        """
+        tensor_uint8: [m,8,64], uint8
+        output: [m,8,128], bfloat16
+        """
+
+        # 拆成兩個4-bit
+        high = (tensor_uint8 >> 4) & 0xF
+        low = tensor_uint8 & 0xF
+
+        fp4 = torch.stack([high, low], dim=-1)  # [m,8,64,2]
+
+        # 轉回128維
+        fp4 = fp4.view(*tensor_uint8.shape[:-1], 128)  # [m,8,128]
+
+        # 解碼 fp4 e2m1
+        sign = (fp4 >> 3) & 0x1
+        exponent = (fp4 >> 1) & 0x3
+        mantissa = fp4 & 0x1
+
+        base = 2.0 ** (exponent.to(torch.float32) - EXP_BIAS)
+        val = base * (1.0 + mantissa.to(torch.float32) * 0.5)
+
+        val = val * (1 - 2 * sign.to(torch.float32))  # sign bit轉成正負號
+
+        return val.to(torch.bfloat16)
+
 
     def _create_buffers(self):
         with self.memory_saver_adapter.region(GPU_MEMORY_TYPE_KV_CACHE):
@@ -453,9 +539,9 @@ class MHATokenToKVPool(KVCache):
             if USE_KV4_CUDA:
                 from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                 # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_key_buffer(layer_id), 32)
-                print(f"\t [horenc]  DQ layer_id = {layer_id}")
-                print(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
-                print(f"\t [horenc]  DQ bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
+                hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}")
+                hcdprint(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
+                hcdprint(f"\t [horenc]  DQ bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
                 # myfunc = vmap(lambda t: MXFP4QuantizeUtil.dequantize_packed(
                 #                             quantized_data=t,
                 #                             dtype=torch.bfloat16,
@@ -479,17 +565,17 @@ class MHATokenToKVPool(KVCache):
                 #                             dtype=torch.bfloat16,
                 #                             block_sizes=[32]
                 #                         )
-                print(f"\t [horenc]  DQ af-Dequantized k shape {dequantized_cache_k.shape}")
-                print(f"\t [horenc]  DQ af-Dequantized k dtype: {dequantized_cache_k.dtype}")
+                hcdprint(f"\t [horenc]  DQ af-Dequantized k shape {dequantized_cache_k.shape}")
+                hcdprint(f"\t [horenc]  DQ af-Dequantized k dtype: {dequantized_cache_k.dtype}")
                 return dequantized_cache_k
             else:
                 # horenc
-                print(f"\t [horenc]  DQ layer_id = {layer_id}")
-                print(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
-                print(f"\t [horenc]  DQ bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
+                hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}")
+                hcdprint(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
+                hcdprint(f"\t [horenc]  DQ bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
                 dequantized_cache_k = self.dequantize_fp4_e2m1_to_bf16(self._get_key_buffer(layer_id))
-                print(f"\t [horenc]  DQ af-Dequantized k shape {dequantized_cache_k.shape}")
-                print(f"\t [horenc]  DQ af-Dequantized k dtype: {dequantized_cache_k.dtype}")
+                hcdprint(f"\t [horenc]  DQ af-Dequantized k shape {dequantized_cache_k.shape}")
+                hcdprint(f"\t [horenc]  DQ af-Dequantized k dtype: {dequantized_cache_k.dtype}")
                 return dequantized_cache_k
 
     def _get_value_buffer(self, layer_id: int):
@@ -509,25 +595,25 @@ class MHATokenToKVPool(KVCache):
             if USE_KV4_CUDA:
                 from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                 # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_value_buffer(layer_id), 32)
-                print(f"\t [horenc]   layer_id = {layer_id}")
-                print(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
-                print(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
+                hcdprint(f"\t [horenc]   layer_id = {layer_id}")
+                hcdprint(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
+                hcdprint(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
                 dequantized_cache_v = MXFP4QuantizeUtil.dequantize_packed(
                                             quantized_data=self._get_value_buffer(layer_id),
                                             dtype=torch.bfloat16,
                                             block_sizes=[32]
                                         )
-                print(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
-                print(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
+                hcdprint(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
+                hcdprint(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
                 return dequantized_cache_v
             else:
                 # horenc
-                print(f"\t [horenc]   layer_id = {layer_id}")
-                print(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
-                print(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
+                hcdprint(f"\t [horenc]   layer_id = {layer_id}")
+                hcdprint(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
+                hcdprint(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
                 dequantized_cache_v = self.dequantize_fp4_e2m1_to_bf16(self._get_value_buffer(layer_id))
-                print(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
-                print(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
+                hcdprint(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
+                hcdprint(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
                 return dequantized_cache_v
 
     def get_kv_buffer(self, layer_id: int):
@@ -535,52 +621,60 @@ class MHATokenToKVPool(KVCache):
         return self.get_key_buffer(layer_id), self.get_value_buffer(layer_id)
 
 
-    # # ----------------------
-    # # Optimize - pytorch
-    # # ----------------------
-    @torch.inference_mode()
-    def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
-        shape = tensor_bf16.shape
-        last_dim = shape[-1]
-        assert last_dim % 2 == 0, "最後維度必須是偶數"
+    # # # ----------------------
+    # # # Optimize - pytorch
+    # # # ----------------------
+    # # @torch.inference_mode() 
+    # # def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
+    # # def _quantize_impl(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
+    # @staticmethod
+    # def _quantize_impl(tensor_bf16, FP4_VALUES_expand):
+    #     shape = tensor_bf16.shape
+    #     last_dim = shape[-1]
+    #     assert last_dim % 2 == 0, "最後維度必須是偶數"
 
-        tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0)
-        tensor_2d = tensor_f32.view(-1, last_dim)  # [N, last_dim]
+    #     tensor_f32 = tensor_bf16.float().clamp(-6.0, 6.0)
+    #     tensor_2d = tensor_f32.view(-1, last_dim)  # [N, last_dim]
 
-        # 距離計算
-        distances = torch.abs(tensor_2d.unsqueeze(-1) - self.FP4_VALUES_expand)  # [N, last_dim, 16]
-        indices = distances.argmin(dim=-1).to(torch.uint8)  # [N, last_dim]
+    #     # 距離計算
+    #     # distances = torch.abs(tensor_2d.unsqueeze(-1) - self.FP4_VALUES_expand)  # [N, last_dim, 16]
+    #     distances = torch.abs(tensor_2d.unsqueeze(-1) - FP4_VALUES_expand)  # [N, last_dim, 16]
+    #     indices = distances.argmin(dim=-1).to(torch.uint8)  # [N, last_dim]
 
-        # pack 兩個4bit成1byte, 避免 concat, 直接用切片操作
-        # [N, last_dim//2], 直接取奇偶位組合
-        packed_uint8 = (indices[:, 0::2] & 0x0F) | ((indices[:, 1::2] & 0x0F) << 4)
+    #     # pack 兩個4bit成1byte, 避免 concat, 直接用切片操作
+    #     # [N, last_dim//2], 直接取奇偶位組合
+    #     packed_uint8 = (indices[:, 0::2] & 0x0F) | ((indices[:, 1::2] & 0x0F) << 4)
 
-        new_shape = list(shape[:-1]) + [last_dim // 2]
-        return packed_uint8.contiguous().view(*new_shape)
+    #     new_shape = list(shape[:-1]) + [last_dim // 2]
+    #     return packed_uint8.contiguous().view(*new_shape)
 
-    @torch.inference_mode()
-    def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
-        shape = tensor_uint8.shape
-        last_dim = shape[-1]
+    # # @torch.inference_mode()
+    # # def dequantize_fp4_e2m1_to_bf16(self, tensor_uint8: torch.Tensor) -> torch.Tensor:
+    # # def _dequantize_impl(self, tensor_uint8: torch.Tensor) -> torch.Tensor:    
+    # @staticmethod
+    # def _dequantize_impl(tensor_uint8, FP4_VALUES):
+    #     shape = tensor_uint8.shape
+    #     last_dim = shape[-1]
 
-        tensor_2d = tensor_uint8.view(-1, last_dim)  # [N, last_dim]
+    #     tensor_2d = tensor_uint8.view(-1, last_dim)  # [N, last_dim]
 
-        low_nibble = tensor_2d & 0x0F  # [N, last_dim]
-        high_nibble = (tensor_2d >> 4) & 0x0F  # [N, last_dim]
+    #     low_nibble = tensor_2d & 0x0F  # [N, last_dim]
+    #     high_nibble = (tensor_2d >> 4) & 0x0F  # [N, last_dim]
 
-        # 利用拼接的新維度，交錯合併 (interleave) 兩個 nibble
-        # 預先建立空 tensor, 並利用索引賦值避免 concat 和 stack 開銷
-        N = tensor_2d.shape[0]
-        out_len = last_dim * 2
-        out_indices = torch.empty((N, out_len), dtype=torch.long, device=tensor_uint8.device)
+    #     # 利用拼接的新維度，交錯合併 (interleave) 兩個 nibble
+    #     # 預先建立空 tensor, 並利用索引賦值避免 concat 和 stack 開銷
+    #     N = tensor_2d.shape[0]
+    #     out_len = last_dim * 2
+    #     out_indices = torch.empty((N, out_len), dtype=torch.long, device=tensor_uint8.device)
 
-        out_indices[:, 0::2] = low_nibble
-        out_indices[:, 1::2] = high_nibble
+    #     out_indices[:, 0::2] = low_nibble
+    #     out_indices[:, 1::2] = high_nibble
 
-        values = self.FP4_VALUES[out_indices]  # [N, last_dim*2]
+    #     # values = self.FP4_VALUES[out_indices]  # [N, last_dim*2]
+    #     values = FP4_VALUES[out_indices]  # [N, last_dim*2]
 
-        new_shape = list(shape[:-1]) + [last_dim * 2]
-        return values.contiguous().view(*new_shape).to(torch.bfloat16)
+    #     new_shape = list(shape[:-1]) + [last_dim * 2]
+    #     return values.contiguous().view(*new_shape).to(torch.bfloat16)
 
 
     def set_kv_buffer(
@@ -616,9 +710,9 @@ class MHATokenToKVPool(KVCache):
                 # new - yichen's quant
                 # hcdprint(f"[horenc] hack .to -> scaled_fp4_quant()")
                 # hcdprint(f"[horenc] cache_k.shape: {list(cache_k.shape)}")
-                print(f"\t [horenc]  Q layer_id ({layer_id}) - self.start_layer ({self.start_layer})  = {layer_id - self.start_layer}, loc = {loc}")
-                print(f"\t [horenc]  Q bf-Quantize k/v shape: {cache_k.shape}")
-                print(f"\t [horenc]  Q bf-Quantize k/v dtype: {cache_k.dtype}")
+                hcdprint(f"\t [horenc]  Q layer_id ({layer_id}) - self.start_layer ({self.start_layer})  = {layer_id - self.start_layer}, loc = {loc}")
+                hcdprint(f"\t [horenc]  Q bf-Quantize k/v shape: {cache_k.shape}")
+                hcdprint(f"\t [horenc]  Q bf-Quantize k/v dtype: {cache_k.dtype}")
                 if USE_KV4_CUDA:
                     from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                     # wrapped = functionalize(lambda t: MXFP4QuantizeUtil.quantize_packed(t.clone(), 32))
@@ -633,10 +727,10 @@ class MHATokenToKVPool(KVCache):
                     # new 250809 - working
                     cache_k = self.quantize_bf16_to_fp4_e2m1(cache_k)
                     cache_v = self.quantize_bf16_to_fp4_e2m1(cache_v)
-                print(f"\t [horenc]  Q af-Quantized k/v shape: {cache_k.shape}")
-                print(f"\t [horenc]  Q af-Quantized k/v dtype: {cache_k.dtype}")
-                print(f"\t [horenc]  Q self.k_buffer[layer_id - self.start_layer].shape = {self.k_buffer[layer_id - self.start_layer].shape}")
-                print(f"\t [horenc]  Q self.k_buffer[layer_id - self.start_layer][loc].shape = {self.k_buffer[layer_id - self.start_layer][loc].shape}")  
+                hcdprint(f"\t [horenc]  Q af-Quantized k/v shape: {cache_k.shape}")
+                hcdprint(f"\t [horenc]  Q af-Quantized k/v dtype: {cache_k.dtype}")
+                hcdprint(f"\t [horenc]  Q self.k_buffer[layer_id - self.start_layer].shape = {self.k_buffer[layer_id - self.start_layer].shape}")
+                hcdprint(f"\t [horenc]  Q self.k_buffer[layer_id - self.start_layer][loc].shape = {self.k_buffer[layer_id - self.start_layer][loc].shape}")  
 
         # print("[debug] cache_k.shape =", cache_k.shape)
         # print("[debug] target shape =", self.k_buffer[layer_id - self.start_layer][loc].shape)

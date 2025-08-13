@@ -1,4 +1,4 @@
-DEBUG = 1  # 全域開關
+DEBUG = 0  # 全域開關
 
 def hcdprint(msg):
     if DEBUG:
