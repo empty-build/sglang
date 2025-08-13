@@ -188,14 +188,19 @@ RUN curl -LSso /usr/local/bin/clang-format https://github.com/muttleyxd/clang-to
     && chmod +x /usr/local/bin/clang-format
 
 # Install clangd
-RUN curl -L https://github.com/clangd/clangd/releases/download/18.1.3/clangd-linux-18.1.3.zip -o clangd.zip \
+# 使用clangd的缓存包加速编译
+RUN wget https://ai-infra.tos-cn-beijing.volces.com/servingkit-build/clangd-linux-18.1.3.zip \
+    && mv clangd-linux-18.1.3.zip clangd.zip
+#RUN curl -L https://github.com/clangd/clangd/releases/download/18.1.3/clangd-linux-18.1.3.zip -o clangd.zip \
     && unzip clangd.zip \
     && cp -r clangd_18.1.3/bin/* /usr/local/bin/ \
     && cp -r clangd_18.1.3/lib/* /usr/local/lib/ \
     && rm -rf clangd_18.1.3 clangd.zip
 
 # Install CMake
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.1/cmake-3.31.1-linux-x86_64.tar.gz \
+# 使用cmake的缓存包加速编译
+RUN wget https://ai-infra.tos-cn-beijing.volces.com/servingkit-build/cmake-3.31.1-linux-x86_64.tar.gz \
+# RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.1/cmake-3.31.1-linux-x86_64.tar.gz \
     && tar -xzf cmake-3.31.1-linux-x86_64.tar.gz \
     && cp -r cmake-3.31.1-linux-x86_64/bin/* /usr/local/bin/ \
     && cp -r cmake-3.31.1-linux-x86_64/share/* /usr/local/share/ \
