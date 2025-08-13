@@ -235,6 +235,9 @@ class MXFP4QuantizeUtil:
             # Extract metadata efficiently
             shape_size = int(packed_tensor[0].item())
             metadata_size = 1 + shape_size * 8
+
+            if (shape_size == 0):
+                return None, None, None
             
             # Extract shape values (always uint64)
             shape_start = 1
@@ -271,6 +274,10 @@ class MXFP4QuantizeUtil:
 
         block_size = block_sizes[-1]
         quantized_data, scale, original_shape = unpack_quantized_data(quantized_data, block_size)
-        dequantized_tensor = cls.dequantize(quantized_data, dtype, scale, block_sizes)
-        dequantized_tensor = dequantized_tensor.view(original_shape)
+        if quantized_data != None:
+            dequantized_tensor = cls.dequantize(quantized_data, dtype, scale, block_sizes)
+            dequantized_tensor = dequantized_tensor.view(original_shape)
+        else:
+            dequantized_tensor = None
+
         return dequantized_tensor
