@@ -108,7 +108,7 @@ class EICCacheController(HiCacheController):
         if self.device == "cpu":
             self.scheduler_stream.synchronize = lambda: None
         self.sync_before_write = self.need_sync_before_write()
-        if server_args.enable_deepep_moe:
+        if server_args.moe_a2a_backend == "deepep":
             self.hook_model_forward()
             self.hook_deepep_dispatch()
 
