@@ -46,8 +46,7 @@ _is_cuda = is_cuda()
 
 from sglang.jack_utils import hcdprint
 # from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
-USE_KV_MXFP4 = 0
-
+USE_KV_MXFP4 = 1
 # 1.
 # EXP_BIAS = 1
 
@@ -530,67 +529,65 @@ class MHATokenToKVPool(KVCache):
                 hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): TODO WIP")
                 hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): self.store_dtype = {self.store_dtype}")
                 if self.store_dtype == torch.float4_e2m1fn_x2:
-                    if USE_KV_MXFP4:
-                        # hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
-                        #     f"Milestone2 layout")
-                        # special layout: 2D kv buffer
-                        m = self.size + self.page_size
-                        n = self.head_num
-                        k = self.head_dim
-                        # TODO1: assert % 32 = 0
-                        # TODO2: change 32 to var
-                        buffer_size = ((n * k) // 2) + ((n * k) // 32) + (1 + (8 * 2))
-                        print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
-                            f"Milestone2 layout: m={m}, n={n}, k={k}, per-layer buffer_size = {buffer_size}")
-                        self.k_buffer = [
-                            torch.zeros(
-                                (m, buffer_size), # 2D
-                                dtype=torch.uint8, 
-                                device=self.device,
-                            )
-                            for _ in range(self.layer_num)
-                        ]
-                        self.v_buffer = [
-                            torch.zeros(
-                                (m, buffer_size), # 2D
-                                dtype=torch.uint8,
-                                device=self.device,
-                            )
-                            for _ in range(self.layer_num)
-                        ]
-                    else:
-                        print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
-                                f"force torch.uint8 + dividiveby2 for matching fp4 shape[42, 8, 64] (ori:[42, 8, 128])")
-                        
-                        m = self.size + self.page_size
-                        n = self.head_num
-                        k = self.head_dim
-                        print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
-                                f"Milestone1 layout: m={m}, n={n}, k={k}, per-layer buffer_size = {(m) * (n) * (k // 2)}")
-                        self.k_buffer = [
-                            torch.zeros( # TODO change this 3D to 1D
-                                (self.size + self.page_size, self.head_num, self.head_dim // 2), # 3D
-                                dtype=torch.uint8,
-                                device=self.device,
-                            )
-                            # TODO: Change to something like this torch.zeros( MNK),  dtype=torch.uint8,device=self.device,)
-                            for _ in range(self.layer_num)
-                        ]
-                            # loc now = 3D, TODO: change it to 1D
-                            # [layer_id][loc] => [loc]==[ self.size + self.page_size, 2D(head), 3D(dim)]
-                            # self.size + self.page_size = M
-                            # self.head_num = N
-                            # self.head_dim = K
-                            # Use yichen's formula to calculate 1D's k/v buffer size
-                        self.v_buffer = [
-                            torch.zeros(
-                                (self.size + self.page_size, self.head_num, self.head_dim // 2),
-                                dtype=torch.uint8,
-                                device=self.device,
-                            )
-                            for _ in range(self.layer_num)
-                        ]
+                    print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
+                            f"force torch.uint8 + dividiveby2 for matching fp4 shape[42, 8, 64] (ori:[42, 8, 128])")  
+                    m = self.size + self.page_size
+                    n = self.head_num
+                    k = self.head_dim
+                    print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
+                            f"Milestone1 layout: m={m}, n={n}, k={k}, per-layer buffer_size = {(m) * (n) * (k // 2)}")
+                    self.k_buffer = [
+                        torch.zeros( # TODO change this 3D to 1D
+                            (self.size + self.page_size, self.head_num, self.head_dim // 2), # 3D
+                            dtype=torch.uint8,
+                            device=self.device,
+                        )
+                        # TODO: Change to something like this torch.zeros( MNK),  dtype=torch.uint8,device=self.device,)
+                        for _ in range(self.layer_num)
+                    ]
+                    # loc now = 3D, TODO: change it to 1D
+                    # [layer_id][loc] => [loc]==[ self.size + self.page_size, 2D(head), 3D(dim)]
+                    # self.size + self.page_size = M
+                    # self.head_num = N
+                    # self.head_dim = K
+                    # Use yichen's formula to calculate 1D's k/v buffer size
+                    self.v_buffer = [
+                        torch.zeros(
+                            (self.size + self.page_size, self.head_num, self.head_dim // 2),
+                            dtype=torch.uint8,
+                            device=self.device,
+                        )
+                        for _ in range(self.layer_num)
+                    ]
 
+                    if USE_KV_MXFP4:
+                        m = self.size + self.page_size
+                        n = self.head_num
+                        k = self.head_dim
+                        scale_block_size = 32
+                        assert (n * k) % scale_block_size == 0, f"n*k ({n*k}) must be divisible by scale_block_size ({scale_block_size})"
+
+                        # debug
+                        scale_buffer_size = m * n * (k // scale_block_size)
+                        print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack - "
+                        f"Allocate KV scale buffer layout: m={m}, n={n}, k={k}, per-layer buffer_size = {scale_buffer_size}")
+                        
+                        self.k_scale_buffer = [
+                            torch.zeros(
+                                (m, n, k // scale_block_size),
+                                dtype=torch.uint8,
+                                device=self.device,
+                            )
+                            for _ in range(self.layer_num)
+                        ]
+                        self.v_scale_buffer = [
+                            torch.zeros(
+                                (m, n, k // scale_block_size),
+                                dtype=torch.uint8,
+                                device=self.device,
+                            )
+                            for _ in range(self.layer_num)
+                        ]
                 else: # origin
                     # [size, head_num, head_dim] for each layer
                     # The padded slot 0 is used for writing dummy outputs from padded tokens.
@@ -731,25 +728,32 @@ class MHATokenToKVPool(KVCache):
             if USE_KV_MXFP4:
                 from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                 # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_key_buffer(layer_id), 32)
-                hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}")
-                hcdprint(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
-                hcdprint(f"\t [horenc]  DQ bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
+                hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}, self.dtype = {self.dtype}")
+                hcdprint(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}, "
+                        f"dtype: {self._get_key_buffer(layer_id).dtype}")
+                dequantized_cache_k = MXFP4QuantizeUtil.dequantize_tokenwise(
+                                            # q_bytes=self._get_key_buffer(layer_id),
+                                            q_bytes=self.k_buffer[layer_id - self.start_layer].view(torch.uint8), # expect uint8
+                                            e8m0_scale=self.k_scale_buffer[layer_id - self.start_layer], # expect uint8, is uint8
+                                            # e8m0_scale=self.k_scale_buffer[layer_id - self.start_layer].view(self.dtype),
+                                            block_size=32
+                                        )
                 # myfunc = vmap(lambda t: MXFP4QuantizeUtil.dequantize_packed(
                 #                             quantized_data=t,
                 #                             dtype=torch.bfloat16,
                 #                             block_sizes=[32]
                 #                         ), in_dims=0, out_dims=0)
-                out_list = []
-                for i in range(self._get_key_buffer(layer_id).size(0)):
-                    dequant = MXFP4QuantizeUtil.dequantize_packed(
-                                            quantized_data=self._get_key_buffer(layer_id)[i],
-                                            dtype=torch.bfloat16,
-                                            block_sizes=[32]
-                                        )
-                    if dequant == None:
-                        dequant = torch.zeros(self.head_num, self.head_dim, device=self.device)
-                    out_list.append(dequant)
-                dequantized_cache_k = torch.stack(out_list, dim = 0)
+                # out_list = []
+                # for i in range(self._get_key_buffer(layer_id).size(0)):
+                #     dequant = MXFP4QuantizeUtil.dequantize_packed(
+                #                             quantized_data=self._get_key_buffer(layer_id)[i],
+                #                             dtype=torch.bfloat16,
+                #                             block_sizes=[32]
+                #                         )
+                #     if dequant == None:
+                #         dequant = torch.zeros(self.head_num, self.head_dim, device=self.device)
+                #     out_list.append(dequant)
+                # dequantized_cache_k = torch.stack(out_list, dim = 0)
                 
 
                 # dequantized_cache_k = MXFP4QuantizeUtil.dequantize_packed(
@@ -757,12 +761,13 @@ class MHATokenToKVPool(KVCache):
                 #                             dtype=torch.bfloat16,
                 #                             block_sizes=[32]
                 #                         )
-                hcdprint(f"\t [horenc]  DQ af-Dequantized k shape {dequantized_cache_k.shape}")
-                hcdprint(f"\t [horenc]  DQ af-Dequantized k dtype: {dequantized_cache_k.dtype}")
+
+                hcdprint(f"\t [horenc]  DQ af-Dequantized k shape: {dequantized_cache_k.shape}, "
+                        f"dtype: {dequantized_cache_k.dtype}")
                 return dequantized_cache_k
             else:
                 # horenc
-                hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}")
+                hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}, self.dtype = {self.dtype}")
                 hcdprint(f"\t [horenc]  DQ bf-Dequantized k shape: {self._get_key_buffer(layer_id).shape}")
                 hcdprint(f"\t [horenc]  DQ bf-Dequantized k dtype: {self._get_key_buffer(layer_id).dtype}")
                 dequantized_cache_k = self.dequantize_fp4_e2m1_to_bf16(self._get_key_buffer(layer_id))
@@ -787,25 +792,32 @@ class MHATokenToKVPool(KVCache):
             if USE_KV_MXFP4:
                 from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                 # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_value_buffer(layer_id), 32)
-                hcdprint(f"\t [horenc]   layer_id = {layer_id}")
-                hcdprint(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
-                hcdprint(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
-                dequantized_cache_v = MXFP4QuantizeUtil.dequantize_packed(
-                                            quantized_data=self._get_value_buffer(layer_id),
-                                            dtype=torch.bfloat16,
-                                            block_sizes=[32]
+                hcdprint(f"\t [horenc]   layer_id = {layer_id}, self.dtype = {self.dtype}")
+                hcdprint(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}, "
+                            f"dtype: {self._get_value_buffer(layer_id).dtype}")
+                # dequantized_cache_v = MXFP4QuantizeUtil.dequantize_packed(
+                #                             quantized_data=self._get_value_buffer(layer_id),
+                #                             dtype=torch.bfloat16,
+                #                             block_sizes=[32]
+                #                         )
+                dequantized_cache_v = MXFP4QuantizeUtil.dequantize_tokenwise(
+                                            # q_bytes=self._get_value_buffer(layer_id),
+                                            q_bytes=self.v_buffer[layer_id - self.start_layer].view(torch.uint8),  # expect uint8
+                                            e8m0_scale=self.v_scale_buffer[layer_id - self.start_layer],  # expect uint8, is uint8
+                                            # e8m0_scale=self.v_scale_buffer[layer_id - self.start_layer].view(self.dtype),
+                                            block_size=32
                                         )
-                hcdprint(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
-                hcdprint(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
+                hcdprint(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}, "
+                             f"dtype: {dequantized_cache_v.dtype}")
                 return dequantized_cache_v
             else:
                 # horenc
                 hcdprint(f"\t [horenc]   layer_id = {layer_id}")
-                hcdprint(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}")
-                hcdprint(f"\t [horenc]   bf-Dequantized v dtype: {self._get_value_buffer(layer_id).dtype}")
+                hcdprint(f"\t [horenc]   bf-Dequantized v shape: {self._get_value_buffer(layer_id).shape}, "
+                            f"dtype: {self._get_value_buffer(layer_id).dtype}")
                 dequantized_cache_v = self.dequantize_fp4_e2m1_to_bf16(self._get_value_buffer(layer_id))
-                hcdprint(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}")
-                hcdprint(f"\t [horenc]   af-Dequantized v dtype: {dequantized_cache_v.dtype}")
+                hcdprint(f"\t [horenc]   af-Dequantized v shape: {dequantized_cache_v.shape}, "
+                            f"dtype: {dequantized_cache_v.dtype}")
                 return dequantized_cache_v
 
     def get_kv_buffer(self, layer_id: int):
@@ -903,8 +915,8 @@ class MHATokenToKVPool(KVCache):
                 # hcdprint(f"[horenc] hack .to -> scaled_fp4_quant()")
                 # hcdprint(f"[horenc] cache_k.shape: {list(cache_k.shape)}")
                 hcdprint(f"\t [horenc]  Q layer_id ({layer_id}) - self.start_layer ({self.start_layer})  = {layer_id - self.start_layer}, loc = {loc}")
-                hcdprint(f"\t [horenc]  Q bf-Quantize k/v shape: {cache_k.shape}")
-                hcdprint(f"\t [horenc]  Q bf-Quantize k/v dtype: {cache_k.dtype}")
+                hcdprint(f"\t [horenc]  Q bf-Quantize k/v shape: {cache_k.shape}, dtype: {cache_k.dtype}")
+                # [7, 8, 128] = 7 * 8 * 128 = 7,168
                 if USE_KV_MXFP4:
                     from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                     # wrapped = functionalize(lambda t: MXFP4QuantizeUtil.quantize_packed(t.clone(), 32))
@@ -913,14 +925,27 @@ class MHATokenToKVPool(KVCache):
                     # cache_k = myfunc(cache_k)
                     # cache_v = myfunc(cache_v)
 
-                    cache_k = torch.stack([MXFP4QuantizeUtil.quantize_packed(cache_k[i], 32) for i in range(cache_k.size(0))], dim=0)
-                    cache_v = torch.stack([MXFP4QuantizeUtil.quantize_packed(cache_v[i], 32) for i in range(cache_v.size(0))], dim=0)
+                    # cache_k = torch.stack([MXFP4QuantizeUtil.quantize_packed(cache_k[i], 32) for i in range(cache_k.size(0))], dim=0)
+                    # cache_v = torch.stack([MXFP4QuantizeUtil.quantize_packed(cache_v[i], 32) for i in range(cache_v.size(0))], dim=0)
+
+                    cache_k, cache_k_scale = MXFP4QuantizeUtil.quantize_tokenwise(cache_k, 32)
+                    cache_v, cache_v_scale = MXFP4QuantizeUtil.quantize_tokenwise(cache_v, 32)
+
+                    # TODO: Save scale
+                    hcdprint(f"\t [horenc]  Q af-Quantized (new) k/v scale shape: {cache_k_scale.shape}, dtype: {cache_k_scale.dtype}")
+                    # 看是不是/32, yes 7* 8 * 128 / 32= [224]
+                    # [要把這些存成怎樣]
+                    self.k_scale_buffer[layer_id - self.start_layer][loc] = cache_k_scale
+                    self.v_scale_buffer[layer_id - self.start_layer][loc] = cache_v_scale
                 else:
                     # new 250809 - working
                     cache_k = self.quantize_bf16_to_fp4_e2m1(cache_k)
                     cache_v = self.quantize_bf16_to_fp4_e2m1(cache_v)
-                hcdprint(f"\t [horenc]  Q af-Quantized k/v shape: {cache_k.shape}")
-                hcdprint(f"\t [horenc]  Q af-Quantized k/v dtype: {cache_k.dtype}")
+                hcdprint(f"\t [horenc]  Q af-Quantized k/v shape: {cache_k.shape}, dtype: {cache_k.dtype}")
+                # real:
+                #   [224, 16] = [7,8,128]=>[7168]   /32 => [224, 42]
+                # expect:
+                #   [7, 8, 128/2] = 7 * 8 * 64 = 3584
                 hcdprint(f"\t [horenc]  Q self.k_buffer[layer_id - self.start_layer].shape = {self.k_buffer[layer_id - self.start_layer].shape}")
                 hcdprint(f"\t [horenc]  Q self.k_buffer[layer_id - self.start_layer][loc].shape = {self.k_buffer[layer_id - self.start_layer][loc].shape}")  
 

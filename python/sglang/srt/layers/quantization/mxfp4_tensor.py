@@ -23,6 +23,9 @@ class MXFP4QuantizeUtil:
     E2M1_values = [0, 0.5, 1, 1.5, 2, 3, 4, 6]
     E2M1_bounds = torch.tensor([0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5])
 
+    # E2M1_bounds = torch.tensor([0.0, 0.33333334, 0.6666667], dtype=torch.float32)
+    # E2M1_max = 0.6666667  # max representable magnitude in E2M1
+
     # @classmethod
     # def quantize(cls, input: torch.Tensor, block_size: int | None) -> tuple:
     #     """Converting a tensor to a quantized format based on MXFP4 quantization. Only E4M3 is supported.
@@ -281,3 +284,239 @@ class MXFP4QuantizeUtil:
             dequantized_tensor = None
 
         return dequantized_tensor
+
+    @classmethod
+    def quantize_tokenwis_v1(cls, input: torch.Tensor, block_size: int = 32):
+        """
+        Quantize [T, 8, D] bfloat16 tensor into FP4-packed format per token, fully vectorized.
+        Output:
+        q_bytes: [T, 8, D/2] (uint8, packed FP4)
+        e8m0_scale: [T, 8, D/block_size] (uint8, per-block scale)
+        """
+        assert input.shape[-1] % block_size == 0, "Last dim must be divisible by block_size"
+        T, H, D = input.shape
+        num_blocks = D // block_size
+
+        def cast_fp4(x):
+            sign = torch.sign(x)
+            sign_bit = (2 - sign) // 2
+            ord_ = torch.sum(
+                (x.abs().unsqueeze(-1) - cls.E2M1_bounds.to(x.device)) > 0, dim=-1
+            )
+            return (sign_bit * 0b1000 + ord_).to(torch.uint8)
+
+        def fuse_uint4_to_uint8(x):
+            left = x[..., 0::2]   # even index
+            right = x[..., 1::2]  # odd index
+            return (right << 4) | left
+
+        # [T, H, num_blocks, block_size]
+        blocks = input.view(T, H, num_blocks, block_size)
+
+        # per-block scale
+        input_amax = blocks.abs().amax(dim=-1, keepdim=True)  # [T, H, num_blocks, 1]
+        descale = input_amax / cls.E2M1_max
+        min_value = torch.tensor(-127.0, device=input.device)
+        e8m0 = torch.ceil(torch.maximum(torch.log2(descale), min_value))  # [T, H, num_blocks, 1]
+
+        # scale and quantize
+        scaled_blocks = blocks / torch.exp2(e8m0)
+        fp4_blocks = cast_fp4(scaled_blocks)  # [T, H, num_blocks, block_size]
+
+        # pack FP4 into uint8
+        packed = fuse_uint4_to_uint8(fp4_blocks)  # [T, H, num_blocks, block_size/2]
+        q_bytes = packed.reshape(T, H, D // 2)
+
+        # store scale
+        e8m0_scale = (e8m0.squeeze(-1) + 127).to(torch.uint8)  # [T, H, num_blocks]
+
+        return q_bytes, e8m0_scale
+
+    @classmethod
+    def dequantize_tokenwise_v1(cls, q_bytes: torch.Tensor, e8m0_scale: torch.Tensor, block_size: int = 32):
+        """
+        Dequantize FP4-packed q_bytes per token using token-wise scale.
+        Args:
+            q_bytes: [T, H, D/2] uint8
+            e8m0_scale: [T, H, num_blocks] uint8
+        Returns:
+            dequantized: [T, H, D] bfloat16
+        """
+        T, H, half_D = q_bytes.shape
+        D = half_D * 2
+        num_blocks = e8m0_scale.shape[-1]
+
+        # unpack uint8 -> FP4 nibbles
+        left = q_bytes & 0x0F
+        right = (q_bytes >> 4) & 0x0F
+        fp4 = torch.empty((T, H, D), dtype=torch.uint8, device=q_bytes.device)
+        fp4[..., 0::2] = left
+        fp4[..., 1::2] = right
+
+        # decode sign and magnitude
+        sign = torch.where((fp4 & 0b1000) == 0, 1.0, -1.0)
+        ord_ = (fp4 & 0b0111).to(torch.float32)
+
+        # reconstruct FP4 values: multiply by cls.E2M1_bounds
+        # Note: cls.E2M1_bounds.shape = [3] -> broadcast over ord_
+        # clamp ord_ to max 2
+        ord_ = torch.clamp(ord_, 0, 2)
+        bounds = cls.E2M1_bounds.to(fp4.device)
+        val = sign * bounds[ord_.long()]
+
+        # reshape to blocks
+        val = val.view(T, H, num_blocks, block_size)
+
+        # recover scale
+        scale = e8m0_scale.to(torch.float32) - 127  # [T, H, num_blocks]
+        scale = scale.unsqueeze(-1)  # broadcast over block_size
+
+        dequantized = val * torch.exp2(scale)  # [T, H, num_blocks, block_size]
+
+        return dequantized.reshape(T, H, D).to(torch.bfloat16)
+    
+    @classmethod
+    def quantize_tokenwise_v2(cls, input: torch.Tensor, block_size: int = 32):
+        """
+        Token-wise FP4 quantization
+        Args:
+            input: [T, H, D] bfloat16
+        Returns:
+            q_bytes: [T, H, D/2] uint8
+            e8m0_scale: [T, H, D//block_size] uint8
+        """
+        T, H, D = input.shape
+        num_blocks = D // block_size
+        assert D % block_size == 0, "D must be divisible by block_size"
+
+        # reshape into blocks
+        blocks = input.view(T, H, num_blocks, block_size)
+
+        # per-block max
+        amax = blocks.abs().amax(dim=-1, keepdim=True)  # [T,H,num_blocks,1]
+        descale = amax / cls.E2M1_max
+        min_value = torch.tensor(-127.0, device=input.device)
+        e8m0 = torch.ceil(torch.maximum(torch.log2(descale), min_value))  # [T,H,num_blocks,1]
+
+        # scale blocks
+        scaled = blocks / torch.exp2(e8m0)
+
+        # cast to FP4
+        sign_bit = (scaled < 0).to(torch.uint8)
+        abs_scaled = scaled.abs()
+        # ord_ = sum(abs_scaled > bound, dim=-1) broadcasted
+        ord_ = ((abs_scaled.unsqueeze(-1) - cls.E2M1_bounds.to(input.device)) > 0).sum(dim=-1).to(torch.uint8)
+        fp4 = (sign_bit << 3) | ord_  # [T,H,num_blocks,block_size]
+
+        # pack FP4
+        left = fp4[..., 0::2]
+        right = fp4[..., 1::2]
+        q_bytes = (right << 4) | left
+        q_bytes = q_bytes.reshape(T, H, D//2)
+
+        # store scale
+        e8m0_scale = (e8m0.squeeze(-1) + 127).to(torch.uint8)
+
+        return q_bytes, e8m0_scale
+
+    @classmethod
+    def dequantize_tokenwise_v2(cls, q_bytes: torch.Tensor, e8m0_scale: torch.Tensor, block_size: int = 32):
+        """
+        Token-wise FP4 dequantization
+        Args:
+            q_bytes: [T,H,D/2] uint8
+            e8m0_scale: [T,H,D//block_size] uint8
+        Returns:
+            dequantized: [T,H,D] bfloat16
+        """
+        T, H, half_D = q_bytes.shape
+        D = half_D * 2
+        num_blocks = e8m0_scale.shape[-1]
+
+        # unpack FP4
+        left = q_bytes & 0x0F
+        right = (q_bytes >> 4) & 0x0F
+        fp4 = torch.empty((T, H, D), dtype=torch.uint8, device=q_bytes.device)
+        fp4[..., 0::2] = left
+        fp4[..., 1::2] = right
+
+        # decode FP4
+        sign = torch.where((fp4 >> 3) == 0, 1.0, -1.0)
+        ord_ = fp4 & 0b011  # E2M1 ord 0/1/2
+
+        bounds = cls.E2M1_bounds.to(fp4.device)  # <- 保證同 device
+        val = sign * bounds[ord_.long()]
+
+        # reshape into blocks
+        val = val.view(T, H, num_blocks, block_size)
+
+        # recover scale
+        scale = e8m0_scale.to(fp4.device).float() - 127.0
+        scale = scale.unsqueeze(-1)  # broadcast
+        dequantized = val * torch.exp2(scale)
+
+        return dequantized.reshape(T, H, D).to(torch.bfloat16)
+
+
+    @classmethod
+    @torch.compile
+    def quantize_tokenwise(cls, input: torch.Tensor, block_size: int = 32):
+        T, H, D = input.shape
+        device = input.device
+        num_blocks = D // block_size
+        assert D % block_size == 0, "D must be divisible by block_size"
+
+        blocks = input.view(T, H, num_blocks, block_size).float()
+        amax = blocks.abs().amax(dim=-1, keepdim=True)
+        descale = amax / cls.E2M1_max
+        scale = torch.ceil(torch.log2(torch.clamp(descale, min=1e-8)))
+        scale_uint8 = (scale + 127).to(torch.uint8).squeeze(-1)
+
+        scaled = blocks / torch.pow(2.0, scale)
+        sign = torch.sign(scaled)
+        sign_bit = ((sign < 0).to(torch.uint8) << 3)
+        abs_scaled = scaled.abs().unsqueeze(-1)
+        bounds = cls.E2M1_bounds.to(device)
+        ord_ = (abs_scaled > bounds).sum(dim=-1).to(torch.uint8)
+        fp4 = sign_bit + ord_
+
+        left = fp4[..., 0::2]
+        right = fp4[..., 1::2]
+        q_bytes = (right << 4) + left
+        q_bytes = q_bytes.reshape(T, H, D // 2)
+
+        return q_bytes, scale_uint8
+
+    @classmethod
+    @torch.compile
+    def dequantize_tokenwise(cls, q_bytes: torch.Tensor, e8m0_scale: torch.Tensor = None, *, scale_uint8: torch.Tensor = None, block_size: int = 32):
+        """
+        支援舊呼叫 e8m0_scale 或新呼叫 scale_uint8
+        """
+        if scale_uint8 is None:
+            if e8m0_scale is None:
+                raise ValueError("Must provide either scale_uint8 or e8m0_scale")
+            scale_uint8 = e8m0_scale
+
+        T, H, half_D = q_bytes.shape
+        D = half_D * 2
+        num_blocks = D // block_size
+        device = q_bytes.device
+
+        q_bytes_blocks = q_bytes.view(T, H, num_blocks, block_size // 2)
+        left = q_bytes_blocks & 0x0F
+        right = (q_bytes_blocks >> 4) & 0x0F
+        fp4 = torch.empty((T, H, num_blocks, block_size), dtype=torch.uint8, device=device)
+        fp4[..., 0::2] = left
+        fp4[..., 1::2] = right
+
+        sign = torch.where((fp4 >> 3) == 0, 1.0, -1.0)
+        ord_ = fp4 & 0b111
+        vals = torch.tensor(cls.E2M1_values, dtype=torch.float32, device=device)
+        val = torch.take(vals, ord_.long())
+        val = val * sign
+
+        scale = scale_uint8.to(device).float().unsqueeze(-1) - 127.0
+        dequantized = val * torch.pow(2.0, scale)
+
+        return dequantized.reshape(T, H, D).to(torch.bfloat16)
