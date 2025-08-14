@@ -734,7 +734,8 @@ class MHATokenToKVPool(KVCache):
                 dequantized_cache_k = MXFP4QuantizeUtil.dequantize_tokenwise(
                                             # q_bytes=self._get_key_buffer(layer_id),
                                             q_bytes=self.k_buffer[layer_id - self.start_layer].view(torch.uint8), # expect uint8
-                                            e8m0_scale=self.k_scale_buffer[layer_id - self.start_layer], # expect uint8, is uint8
+                                            scales=self.k_scale_buffer[layer_id - self.start_layer], # expect uint8, is uint8
+                                            # e8m0_scale=self.k_scale_buffer[layer_id - self.start_layer], # expect uint8, is uint8
                                             # e8m0_scale=self.k_scale_buffer[layer_id - self.start_layer].view(self.dtype),
                                             block_size=32
                                         )
@@ -803,7 +804,8 @@ class MHATokenToKVPool(KVCache):
                 dequantized_cache_v = MXFP4QuantizeUtil.dequantize_tokenwise(
                                             # q_bytes=self._get_value_buffer(layer_id),
                                             q_bytes=self.v_buffer[layer_id - self.start_layer].view(torch.uint8),  # expect uint8
-                                            e8m0_scale=self.v_scale_buffer[layer_id - self.start_layer],  # expect uint8, is uint8
+                                            scales=self.v_scale_buffer[layer_id - self.start_layer],  # expect uint8, is uint8
+                                            # e8m0_scale=self.v_scale_buffer[layer_id - self.start_layer],  # expect uint8, is uint8
                                             # e8m0_scale=self.v_scale_buffer[layer_id - self.start_layer].view(self.dtype),
                                             block_size=32
                                         )
