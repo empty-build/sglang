@@ -46,7 +46,7 @@ _is_cuda = is_cuda()
 
 from sglang.jack_utils import hcdprint
 # from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
-USE_KV4_CUDA = 0
+USE_KV_MXFP4 = 0
 
 # 1.
 # EXP_BIAS = 1
@@ -237,7 +237,7 @@ class MHATokenToKVPool(KVCache):
         self.mem_usage = (k_size + v_size) / GB
 
 
-        if not USE_KV4_CUDA:
+        if not USE_KV_MXFP4:
             # [horenc]
             # 預建 FP4 lookup table # FP4 值（已排序）與 thresholds（相鄰中點）
             hcdprint(f"[horenc] init FP4_VALUES table in class MHATokenToKVPool:__init__()")
@@ -530,7 +530,7 @@ class MHATokenToKVPool(KVCache):
                 hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): TODO WIP")
                 hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): self.store_dtype = {self.store_dtype}")
                 if self.store_dtype == torch.float4_e2m1fn_x2:
-                    if USE_KV4_CUDA:
+                    if USE_KV_MXFP4:
                         # hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
                         #     f"Milestone2 layout")
                         # special layout: 2D kv buffer
@@ -728,7 +728,7 @@ class MHATokenToKVPool(KVCache):
             # ori
             return self._get_key_buffer(layer_id)
         else:
-            if USE_KV4_CUDA:
+            if USE_KV_MXFP4:
                 from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                 # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_key_buffer(layer_id), 32)
                 hcdprint(f"\t [horenc]  DQ layer_id = {layer_id}")
@@ -784,7 +784,7 @@ class MHATokenToKVPool(KVCache):
             # ori
             return self._get_value_buffer(layer_id)
         else:
-            if USE_KV4_CUDA:
+            if USE_KV_MXFP4:
                 from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                 # cache_k = MXFP4QuantizeUtil.quantize_packed(self._get_value_buffer(layer_id), 32)
                 hcdprint(f"\t [horenc]   layer_id = {layer_id}")
@@ -905,7 +905,7 @@ class MHATokenToKVPool(KVCache):
                 hcdprint(f"\t [horenc]  Q layer_id ({layer_id}) - self.start_layer ({self.start_layer})  = {layer_id - self.start_layer}, loc = {loc}")
                 hcdprint(f"\t [horenc]  Q bf-Quantize k/v shape: {cache_k.shape}")
                 hcdprint(f"\t [horenc]  Q bf-Quantize k/v dtype: {cache_k.dtype}")
-                if USE_KV4_CUDA:
+                if USE_KV_MXFP4:
                     from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
                     # wrapped = functionalize(lambda t: MXFP4QuantizeUtil.quantize_packed(t.clone(), 32))
                     # myfunc = vmap(wrapped, in_dims=0, out_dims=0)
