@@ -1,8 +1,8 @@
 import logging
 from typing import List, Optional
 
-from sglang.srt.utils import get_bool_env_var, get_free_port, maybe_wrap_ipv6_address
-
+from sglang.srt.utils import get_bool_env_var, get_free_port
+from sglang.srt.utils import get_int_env_var
 logger = logging.getLogger(__name__)
 
 
@@ -27,9 +27,7 @@ class MooncakeTransferEngine:
             hostname=self.hostname,
             device_name=self.ib_device,
         )
-        self.session_id = (
-            f"{maybe_wrap_ipv6_address(self.hostname)}:{self.engine.get_rpc_port()}"
-        )
+        self.session_id = f"{self.hostname}:{self.engine.get_rpc_port()}"
 
     def register(self, ptr, length):
         try:
@@ -50,35 +48,6 @@ class MooncakeTransferEngine:
 
         if ret_value != 0:
             logger.debug("Mooncake memory deregistration %s failed.", ptr)
-
-    def batch_register(self, ptrs: List[int], lengths: List[int]) -> int:
-        """Batch register multiple memory regions."""
-        try:
-            ret_value = self.engine.batch_register_memory(ptrs, lengths)
-        except Exception:
-            # Mark batch register as failed
-            ret_value = -1
-            if not hasattr(self.engine, "batch_register_memory"):
-                raise RuntimeError(
-                    "Mooncake's batch register requires a newer version of mooncake-transfer-engine. "
-                    "Please upgrade Mooncake."
-                )
-
-        if ret_value != 0:
-            logger.debug("Mooncake batch memory registration failed.")
-        return ret_value
-
-    def batch_deregister(self, ptrs: List[int]) -> int:
-        """Batch deregister multiple memory regions."""
-        try:
-            ret_value = self.engine.batch_unregister_memory(ptrs)
-        except Exception:
-            # Mark batch deregister as failed
-            ret_value = -1
-
-        if ret_value != 0:
-            logger.debug("Mooncake batch memory deregistration failed.")
-        return ret_value
 
     def initialize(
         self,
@@ -139,21 +108,32 @@ class MooncakeTransferEngine:
     ) -> int:
         """Synchronously transfer data to the specified addresses in batches."""
         try:
-            ret = self.engine.batch_transfer_sync_write(
-                session_id, buffers, peer_buffer_addresses, lengths
+            micro_batch_size = get_int_env_var(
+                "SGLANG_DISAGGREGATION_ASYNC_TRANSFER_MICRO_BATCH_SIZE", 256
             )
+            batch_ids = []
+            for i in range(0, len(lengths), micro_batch_size):
+                batch_id = self.engine.batch_transfer_async_write(
+                    session_id,
+                    buffers[i : i + micro_batch_size],
+                    peer_buffer_addresses[i : i + micro_batch_size],
+                    lengths[i : i + micro_batch_size],
+                )
+                batch_ids.append(batch_id)
+
+            ret = self.engine.get_batch_transfer_status(batch_ids)
         except Exception:
             ret = -1
-            # Inform user to upgrade mooncake-transfer-engine >= 0.3.4.post2
+            # Inform user to upgrade mooncake-transfer-engine > 0.3.4.post2
             if not hasattr(self.engine, "batch_transfer_sync_write"):
                 raise RuntimeError(
-                    "Mooncake's batch transfer requires mooncake-transfer-engine >= 0.3.4.post2. "
+                    "Mooncake's batch transfer requires mooncake-transfer-engine > 0.3.4.post2. "
                     "Please upgrade Mooncake by 'pip install mooncake-transfer-engine --upgrade'"
                 )
 
         if ret < 0:
             logger.debug(
-                "Failed to batch transfer data. Buffers: %s, Session: %s, Peer addresses: %s",
+                "Failed to batch transfer data asynchronously. Buffers: %s, Session: %s, Peer addresses: %s",
                 buffers,
                 session_id,
                 peer_buffer_addresses,
