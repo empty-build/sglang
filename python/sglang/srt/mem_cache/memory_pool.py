@@ -47,19 +47,23 @@ _is_cuda = is_cuda()
 from sglang.jack_utils import hcdprint
 # from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
 USE_KV4_CUDA = 0
-# EXP_BIAS = 1
-# ===== FP4 E2M1 參數（默認使用 bias=2）=====
-BIAS = 2  # 若規格是 bias=1，改成 1 即可
-EXP_BITS = 2
-MAN_BITS = 1
-S_MAX = 1 << (EXP_BITS + MAN_BITS + 1)  # 不直接使用，僅保留
 
-# 預先計算常數（float32）
-_MIN_NORMAL = float(2.0 ** (1 - BIAS))      # 最小正規數，例如 bias=2 -> 0.5
-_SUB_STEP   = float(2.0 ** (-BIAS))         # 唯一非零次正規數的量級，bias=2 -> 0.25
-_SUB_HALF   = float(2.0 ** (-BIAS - 1))     # 0 與次正規值的中點，bias=2 -> 0.125
-_MAX_VALUE  = float((2.0 ** (3 - BIAS)) * 1.5)  # 最大有限值，bias=2 -> 3.0
-_NORM_THR   = 1.25  # 正規化 mantissa 1 與 1.5 的臨界點
+# 1.
+# EXP_BIAS = 1
+
+# 2.
+# # ===== FP4 E2M1 參數（默認使用 bias=2）=====
+# BIAS = 1  # 若規格是 bias=1，改成 1 即可
+# EXP_BITS = 2
+# MAN_BITS = 1
+# S_MAX = 1 << (EXP_BITS + MAN_BITS + 1)  # 不直接使用，僅保留
+
+# # 預先計算常數（float32）
+# _MIN_NORMAL = float(2.0 ** (1 - BIAS))      # 最小正規數，例如 bias=2 -> 0.5
+# _SUB_STEP   = float(2.0 ** (-BIAS))         # 唯一非零次正規數的量級，bias=2 -> 0.25
+# _SUB_HALF   = float(2.0 ** (-BIAS - 1))     # 0 與次正規值的中點，bias=2 -> 0.125
+# _MAX_VALUE  = float((2.0 ** (3 - BIAS)) * 1.5)  # 最大有限值，bias=2 -> 3.0
+# _NORM_THR   = 1.25  # 正規化 mantissa 1 與 1.5 的臨界點
 
 
 class ReqToTokenPool:
@@ -177,6 +181,9 @@ class KVCache(abc.ABC):
         raise NotImplementedError()
 
 class MHATokenToKVPool(KVCache):
+    # ===== FP4 E2M1 配置 =====
+    BIAS = 1  # 或 2
+    EVEN_INDEX_IN_HIGH_NIBBLE = True
 
     def __init__(
         self,
@@ -255,8 +262,88 @@ class MHATokenToKVPool(KVCache):
             # self._packed_buf = torch.empty((self._max_elems + 1) // 2, dtype=torch.uint8, device=device)
             # self._dequant_buf = torch.empty(self._max_elems, dtype=torch.float32, device=device)
 
-    #         self._quantize_impl = torch.compile(self._quantize_impl, mode="max-autotune", fullgraph=True)
-    #         self._dequantize_impl = torch.compile(self._dequantize_impl, mode="max-autotune", fullgraph=True)
+            # 建立 FP4 E2M1 的查表 (float32)
+            # self._FP4_LUT = self._build_fp4_e2m1_lut(self.BIAS)
+
+        # torch cimpile init
+        self._FP4_LUT = self._build_fp4_e2m1_lut(self.BIAS)
+        self._quantize_fn = torch.compile(self._quantize_bf16_to_fp4_e2m1_impl)
+        self._dequantize_fn = torch.compile(self._dequantize_fp4_e2m1_impl)
+
+        # 用來記錄歷史最小/最大值，保護 scale
+        self._max_seen_val = 0.0
+        self._min_seen_val = float('inf')
+        self._fixed_scale = None
+
+    @staticmethod
+    def _build_fp4_e2m1_lut(bias: int):
+        codes = torch.arange(16, dtype=torch.uint8)
+        sign = ((codes >> 3) & 0x1).type(torch.float32)
+        exp  = ((codes >> 1) & 0x3).type(torch.float32)
+        mant = (codes & 0x1).type(torch.float32)
+        base = torch.pow(2.0, exp - float(bias))
+        val_normal = base * (1.0 + 0.5 * mant)
+        val_sub = mant * (2.0 ** (-bias))
+        is_sub = (exp == 0)
+        val = torch.where(is_sub, val_sub, val_normal)
+        val = torch.where((exp == 0) & (mant == 0), torch.zeros_like(val), val)
+        val = torch.where(sign.bool(), -val, val)
+        return val
+
+    def _update_scale(self, x_bf16):
+        max_input = torch.max(torch.abs(x_bf16)).item()
+        min_input = torch.min(torch.abs(x_bf16[x_bf16 != 0])).item() if torch.any(x_bf16 != 0) else 0.0
+
+        # 更新歷史最大/最小值
+        self._max_seen_val = max(self._max_seen_val, max_input)
+        self._min_seen_val = min(self._min_seen_val, min_input) if min_input > 0 else self._min_seen_val
+
+        # 固定 scale，用 max(abs) 保護，避免飽和
+        max_fp4 = torch.max(torch.abs(self._FP4_LUT)).item()
+        self._fixed_scale = self._max_seen_val / max_fp4 if max_fp4 > 0 else 1.0
+
+    def _quantize_bf16_to_fp4_e2m1_impl(self, x_bf16, scale: float):
+        x = x_bf16.type(torch.float32) / float(scale)
+        lut = self._FP4_LUT.to(x.device)
+        max_val = torch.max(torch.abs(lut))
+        x = torch.clamp(x, min=-max_val, max=max_val)
+
+        # 逐元素找最接近 LUT 的值
+        diffs = torch.abs(x.unsqueeze(-1) - lut.view(1, 1, 1, -1))
+        codes = torch.argmin(diffs, dim=-1).type(torch.uint8)
+
+        # pack 每兩個 FP4 進 uint8
+        codes_pair = codes.view(*codes.shape[:-1], 64, 2)
+        if self.EVEN_INDEX_IN_HIGH_NIBBLE:
+            high = codes_pair[..., 0]
+            low  = codes_pair[..., 1]
+        else:
+            high = codes_pair[..., 1]
+            low  = codes_pair[..., 0]
+        packed = (high << 4) | low
+        return packed
+
+    def _dequantize_fp4_e2m1_impl(self, packed_u8, scale: float):
+        high = ((packed_u8 >> 4) & 0xF).type(torch.long)
+        low  = (packed_u8 & 0xF).type(torch.long)
+        if self.EVEN_INDEX_IN_HIGH_NIBBLE:
+            codes = torch.stack([high, low], dim=-1)
+        else:
+            codes = torch.stack([low, high], dim=-1)
+        codes = codes.view(*packed_u8.shape[:-1], 128)
+        lut = self._FP4_LUT.to(packed_u8.device)
+        vals = lut[codes] * float(scale)
+        return vals.type(torch.bfloat16)
+
+    # ===== 外部 API =====
+    def quantize_bf16_to_fp4_e2m1(self, x_bf16):
+        self._update_scale(x_bf16)
+        return self._quantize_fn(x_bf16, self._fixed_scale)
+
+    def dequantize_fp4_e2m1_to_bf16(self, packed_u8):
+        if self._fixed_scale is None:
+            raise RuntimeError("Scale has not been initialized by quantization yet.")
+        return self._dequantize_fn(packed_u8, self._fixed_scale)
 
     # @torch.inference_mode()
     # def quantize_bf16_to_fp4_e2m1(self, tensor_bf16: torch.Tensor) -> torch.Tensor:
@@ -341,96 +428,97 @@ class MHATokenToKVPool(KVCache):
     #     return val.to(torch.bfloat16)
 
 
-    @torch.compile
-    def quantize_bf16_to_fp4_e2m1(self, x_bf16: torch.Tensor) -> torch.Tensor:
-        """
-        輸入: [m, 8, 128]、bfloat16
-        輸出: [m, 8, 64]、uint8；每個 uint8 依序封兩個 fp4（高4位=偶數索引，低4位=奇數索引）
-        """
-        assert x_bf16.dim() == 3 and x_bf16.shape[-1] == 128 and x_bf16.shape[-2] == 8
-        x = x_bf16.to(torch.float32)
+    # @torch.compile
+    # def quantize_bf16_to_fp4_e2m1(self, x_bf16: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     輸入: [m, 8, 128]、bfloat16
+    #     輸出: [m, 8, 64]、uint8；每個 uint8 依序封兩個 fp4（高4位=偶數索引，低4位=奇數索引）
+    #     """
+    #     assert x_bf16.dim() == 3 and x_bf16.shape[-1] == 128 and x_bf16.shape[-2] == 8
+    #     x = x_bf16.to(torch.float32)
 
-        # 基本元件
-        absx = torch.abs(x)
-        sign_bit = (x < 0).to(torch.uint8)
-        # NaN 當作 0 處理
-        is_nan = torch.isnan(absx)
-        absx = torch.where(is_nan, torch.zeros_like(absx), absx)
-        sign_bit = torch.where((absx == 0), torch.zeros_like(sign_bit), sign_bit)
+    #     # 基本元件
+    #     absx = torch.abs(x)
+    #     sign_bit = (x < 0).to(torch.uint8)
+    #     # NaN 當作 0 處理
+    #     is_nan = torch.isnan(absx)
+    #     absx = torch.where(is_nan, torch.zeros_like(absx), absx)
+    #     sign_bit = torch.where((absx == 0), torch.zeros_like(sign_bit), sign_bit)
 
-        # 分區：0 / 次正規 / 正規（含飽和）
-        zero_mask = absx < _SUB_HALF
-        sub_mask  = (~zero_mask) & (absx < _MIN_NORMAL)
-        norm_mask = absx >= _MIN_NORMAL
+    #     # 分區：0 / 次正規 / 正規（含飽和）
+    #     zero_mask = absx < _SUB_HALF
+    #     sub_mask  = (~zero_mask) & (absx < _MIN_NORMAL)
+    #     norm_mask = absx >= _MIN_NORMAL
 
-        # 正規數：求 unbiased exponent（避免 log2(0)）
-        safe_abs = torch.clamp(absx, min=_MIN_NORMAL)
-        e_unbiased = torch.floor(torch.log2(safe_abs)).to(torch.int32)          # e (可負)
-        e_field    = torch.clamp(e_unbiased + BIAS, 1, 3).to(torch.int32)       # 指數欄位 1..3
+    #     # 正規數：求 unbiased exponent（避免 log2(0)）
+    #     safe_abs = torch.clamp(absx, min=_MIN_NORMAL)
+    #     e_unbiased = torch.floor(torch.log2(safe_abs)).to(torch.int32)          # e (可負)
+    #     e_field    = torch.clamp(e_unbiased + BIAS, 1, 3).to(torch.int32)       # 指數欄位 1..3
 
-        # mantissa 選擇（就近；臨界點 1.25 採 >= 往上）
-        base      = torch.pow(2.0, e_unbiased.to(torch.float32))                # 2^e
-        y_norm    = absx / base                                                 # ∈ [1, 2)
-        m_norm    = (y_norm >= _NORM_THR).to(torch.uint8)                       # 0:1.0, 1:1.5
+    #     # mantissa 選擇（就近；臨界點 1.25 採 >= 往上）
+    #     base      = torch.pow(2.0, e_unbiased.to(torch.float32))                # 2^e
+    #     y_norm    = absx / base                                                 # ∈ [1, 2)
+    #     m_norm    = (y_norm >= _NORM_THR).to(torch.uint8)                       # 0:1.0, 1:1.5
 
-        # 飽和（非常大時 e_field 會被夾到 3，m_norm=1 即對應到最大值 3.0）
-        # 次正規：只有 mantissa=1 的一個值（_SUB_STEP），四捨五入門檻 _SUB_HALF
-        m_field = torch.zeros_like(m_norm, dtype=torch.uint8)
-        exp_field = torch.zeros_like(e_field, dtype=torch.int32)
+    #     # 飽和（非常大時 e_field 會被夾到 3，m_norm=1 即對應到最大值 3.0）
+    #     # 次正規：只有 mantissa=1 的一個值（_SUB_STEP），四捨五入門檻 _SUB_HALF
+    #     m_field = torch.zeros_like(m_norm, dtype=torch.uint8)
+    #     exp_field = torch.zeros_like(e_field, dtype=torch.int32)
 
-        # 正規填入
-        exp_field = torch.where(norm_mask, e_field, exp_field)
-        m_field   = torch.where(norm_mask, m_norm, m_field)
-        # 次正規填入（mantissa=1）
-        m_field   = torch.where(sub_mask, torch.ones_like(m_field), m_field)
-        # 零保留 0
+    #     # 正規填入
+    #     exp_field = torch.where(norm_mask, e_field, exp_field)
+    #     m_field   = torch.where(norm_mask, m_norm, m_field)
+    #     # 次正規填入（mantissa=1）
+    #     m_field   = torch.where(sub_mask, torch.ones_like(m_field), m_field)
+    #     # 零保留 0
 
-        # 組 4-bit： [sign | exp(2b) | mant(1b)]
-        fp4_nibble = (sign_bit << 3) | (exp_field.to(torch.uint8) << 1) | m_field  # [m,8,128] uint8 (值 0..15)
+    #     # 組 4-bit： [sign | exp(2b) | mant(1b)]
+    #     fp4_nibble = (sign_bit << 3) | (exp_field.to(torch.uint8) << 1) | m_field  # [m,8,128] uint8 (值 0..15)
 
-        # 打包成 uint8：偶數索引 -> 高半 byte；奇數索引 -> 低半 byte
-        fp4_pairs = fp4_nibble.reshape(*fp4_nibble.shape[:-1], 64, 2)  # [m,8,64,2]
-        high = fp4_pairs[..., 0]
-        low  = fp4_pairs[..., 1]
-        packed = (high << 4) | low
-        return packed.to(torch.uint8)
+    #     # 打包成 uint8：偶數索引 -> 高半 byte；奇數索引 -> 低半 byte
+    #     fp4_pairs = fp4_nibble.reshape(*fp4_nibble.shape[:-1], 64, 2)  # [m,8,64,2]
+    #     high = fp4_pairs[..., 0]
+    #     low  = fp4_pairs[..., 1]
+    #     packed = (high << 4) | low
+    #     return packed.to(torch.uint8)
 
 
-    @torch.compile
-    def dequantize_fp4_e2m1_to_bf16(self, packed_u8: torch.Tensor) -> torch.Tensor:
-        """
-        輸入: [m, 8, 64]、uint8
-        輸出: [m, 8, 128]、bfloat16
-        """
-        assert packed_u8.dim() == 3 and packed_u8.shape[-1] == 64 and packed_u8.shape[-2] == 8
+    # @torch.compile
+    # def dequantize_fp4_e2m1_to_bf16(self, packed_u8: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     輸入: [m, 8, 64]、uint8
+    #     輸出: [m, 8, 128]、bfloat16
+    #     """
+    #     assert packed_u8.dim() == 3 and packed_u8.shape[-1] == 64 and packed_u8.shape[-2] == 8
 
-        # 拆成兩個 4-bit（高半、低半）
-        high = (packed_u8 >> 4) & 0xF
-        low  = packed_u8 & 0xF
-        fp4 = torch.stack([high, low], dim=-1).reshape(*packed_u8.shape[:-1], 128)  # [m,8,128], uint8 (0..15)
+    #     # 拆成兩個 4-bit（高半、低半）
+    #     high = (packed_u8 >> 4) & 0xF
+    #     low  = packed_u8 & 0xF
+    #     fp4 = torch.stack([high, low], dim=-1).reshape(*packed_u8.shape[:-1], 128)  # [m,8,128], uint8 (0..15)
 
-        sign = (fp4 >> 3) & 0x1
-        exp  = (fp4 >> 1) & 0x3
-        mant = fp4 & 0x1
+    #     sign = (fp4 >> 3) & 0x1
+    #     exp  = (fp4 >> 1) & 0x3
+    #     mant = fp4 & 0x1
 
-        exp_f = exp.to(torch.float32)
-        mant_f = mant.to(torch.float32)
+    #     exp_f = exp.to(torch.float32)
+    #     mant_f = mant.to(torch.float32)
 
-        # 正規：2^(exp-BIAS) * (1 + mant*0.5)
-        base = torch.pow(2.0, exp_f - float(BIAS))
-        val_normal = base * (1.0 + 0.5 * mant_f)
+    #     # 正規：2^(exp-BIAS) * (1 + mant*0.5)
+    #     base = torch.pow(2.0, exp_f - float(BIAS))
+    #     val_normal = base * (1.0 + 0.5 * mant_f)
 
-        # 次正規/零：exp==0 -> value = (mant/2) * 2^(1-BIAS) = mant * 2^(-BIAS)
-        val_sub = mant_f * float(2.0 ** (-BIAS))
+    #     # 次正規/零：exp==0 -> value = (mant/2) * 2^(1-BIAS) = mant * 2^(-BIAS)
+    #     val_sub = mant_f * float(2.0 ** (-BIAS))
 
-        is_sub = (exp == 0)
-        val = torch.where(is_sub, val_sub, val_normal)
+    #     is_sub = (exp == 0)
+    #     val = torch.where(is_sub, val_sub, val_normal)
 
-        # 套用符號（零維持零）
-        val = torch.where((exp == 0) & (mant == 0), torch.zeros_like(val), val)  # 確保 +0/-0 -> +0
-        val = torch.where(sign.bool(), -val, val)
+    #     # 套用符號（零維持零）
+    #     val = torch.where((exp == 0) & (mant == 0), torch.zeros_like(val), val)  # 確保 +0/-0 -> +0
+    #     val = torch.where(sign.bool(), -val, val)
 
-        return val.to(torch.bfloat16)
+    #     return val.to(torch.bfloat16)
+
 
     def _create_buffers(self):
         with self.memory_saver_adapter.region(GPU_MEMORY_TYPE_KV_CACHE):
