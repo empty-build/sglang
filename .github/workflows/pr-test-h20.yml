@@ -50,7 +50,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          bash scripts/ci_install_deepep.sh
+          bash scripts/ci/ci_install_dependency.sh
 
       - name: Run test
         timeout-minutes: 20
