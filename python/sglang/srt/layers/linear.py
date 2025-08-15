@@ -1283,7 +1283,7 @@ class RowParallelLinear(LinearBase):
             param.load_row_parallel_weight(loaded_weight)
 
     def forward(self, input_, can_fuse_mlp_allreduce=False):
-         if get_int_env_var("SGL_USE_TP_OVERLAP", 0) == 1:
+        if get_int_env_var("SGL_USE_TP_OVERLAP", 0) == 1:
             if self.gemm_ar_attn_op:
                 output = self.gemm_ar_attn_op.forward(input_, self.weight, self.bias)
             else:
