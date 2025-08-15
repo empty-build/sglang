@@ -71,9 +71,10 @@ RUN ln -sf /usr/lib/x86_64-linux-gnu/libmlx5.so.1 /usr/lib/x86_64-linux-gnu/libm
 
 # Clone and install SGLang
 WORKDIR /sgl-workspace
+# 使用bytedance-iaas仓库直接安装
 ARG SGLANG_BRANCH
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5lib six \
- && git clone --depth=1 https://bytedance-iaas/sglang.git -b ${SGLANG_BRANCH}\
+ && git clone --depth=1 https://github.com/bytedance-iaas/sglang.git -b ${SGLANG_BRANCH}\
  && cd sglang \
  && case "$CUDA_VERSION" in \
       12.6.1) CUINDEX=126 ;; \
