@@ -56,7 +56,7 @@ jobs:
         timeout-minutes: 20
         run: |
           cd test/srt
-          python3 run_suite.py --suite per-commit-8-gpu-deepep
+          python3 run_suite.py --suite per-commit-8-gpu-h20
 
   pr-test-finish:
     needs: [
