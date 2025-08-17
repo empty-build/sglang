@@ -423,8 +423,8 @@ class BaseMultimodalProcessor(ABC):
                 ):
                     result[feature_name] = result[feature_name].to("cpu")
 
-            start_height = -1
-            end_height = -1
+            start_height = 0
+            end_height = 0
             tensor_lists = []
             image_grid_thw_lists = []
             use_cache_mark = []
@@ -434,12 +434,9 @@ class BaseMultimodalProcessor(ABC):
                 if img_idx in new_processed_img_idxes:
                     img_height = img_heights[img_idx]
                     processed_img_heights.append(img_height)
-                    if start_height == -1:
-                        start_height = 0
-                        end_height = img_height
-                    else:
-                        start_height = end_height
-                        end_height = start_height + img_height
+             
+                    start_height = end_height
+                    end_height = start_height + img_height
                     to_cache_tensor = result["pixel_values"][start_height:end_height]
                     delete_key = self.hash_table.add(
                         img_hash_keys[img_idx], to_cache_tensor
