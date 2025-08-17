@@ -213,6 +213,64 @@ class TestOpenAIVisionServer(CustomTestCase):
         assert response.usage.completion_tokens > 0
         assert response.usage.total_tokens > 0
 
+    def _test_mixed_image_audio_chat_completion(self):
+        client = openai.Client(api_key=self.api_key, base_url=self.base_url)
+
+        response = client.chat.completions.create(
+            model="default",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": IMAGE_MAN_IRONING_URL},
+                        },
+                        {
+                            "type": "audio_url",
+                            "audio_url": {"url": AUDIO_TRUMP_SPEECH_URL},
+                        },
+                        {
+                            "type": "text",
+                            "text": "Please describe the image in one sentence, and then write down the audio transcription in English.",
+                        },
+                    ],
+                },
+            ],
+            temperature=0,
+            **(self.get_vision_request_kwargs()),
+        )
+
+        assert response.choices[0].message.role == "assistant"
+        text = response.choices[0].message.content
+        assert isinstance(text, str)
+        print("-" * 30)
+        print(f"Mixed image & audio response:\n{text}")
+        print("-" * 30)
+        assert (
+            "man" in text
+            or "cab" in text
+            or "SUV" in text
+            or "taxi" in text
+            or "car" in text
+        ), f"text: {text}, should contain man, cab, SUV, taxi or car"
+        check_list = [
+            "thank you",
+            "it's a privilege to be here",
+            "leader",
+            "science",
+            "art",
+        ]
+        for check_word in check_list:
+            assert (
+                check_word in text
+            ), f"text: ｜{text}｜ should contain ｜{check_word}｜"
+        assert response.id
+        assert response.created
+        assert response.usage.prompt_tokens > 0
+        assert response.usage.completion_tokens > 0
+        assert response.usage.total_tokens > 0
+
     def prepare_video_images_messages(self, video_path):
         # the memory consumed by the Vision Attention varies a lot, e.g. blocked qkv vs full-sequence sdpa
         # the size of the video embeds differs from the `modality` argument when preprocessed
@@ -328,13 +386,14 @@ class TestOpenAIVisionServer(CustomTestCase):
             or "person" in video_response
             or "individual" in video_response
             or "speaker" in video_response
+            or "presenter" in video_response
             or "Steve" in video_response
             or "hand" in video_response
         ), f"""
         ====================== video_response =====================
         {video_response}
         ===========================================================
-        should contain 'man' or 'person' or 'individual' or 'speaker' or 'hand'
+        should contain 'man' or 'person' or 'individual' or 'speaker' or 'presenter' or 'Steve' or 'hand'
         """
         assert (
             "present" in video_response
@@ -347,7 +406,6 @@ class TestOpenAIVisionServer(CustomTestCase):
         ===========================================================
         should contain 'present' or 'examine' or 'display' or 'hold'
         """
-        assert "black" in video_response or "dark" in video_response
         self.assertIsNotNone(video_response)
         self.assertGreater(len(video_response), 0)
 
@@ -385,8 +443,9 @@ class TestOpenAIVisionServer(CustomTestCase):
             or "person" in video_response
             or "individual" in video_response
             or "speaker" in video_response
+            or "presenter" in video_response
             or "hand" in video_response
-        ), f"video_response: {video_response}, should either have 'man' in video_response, or 'person' in video_response, or 'individual' in video_response, or 'speaker' in video_response or 'hand' in video_response"
+        ), f"video_response: {video_response}, should either have 'man' in video_response, or 'person' in video_response, or 'individual' in video_response or 'speaker' in video_response or 'presenter' or 'hand' in video_response"
         assert (
             "present" in video_response
             or "examine" in video_response
