@@ -1280,9 +1280,9 @@ class RowParallelLinear(LinearBase):
             # It does not support additional parameters.
             param.load_row_parallel_weight(loaded_weight)
 
-    def forward(self, input_, skip_all_reduce=False):
+    def forward(self, input_, skip_all_reduce=False, forward_batch=None):
 
-        if get_int_env_var("SGL_USE_TP_OVERLAP", 0) == 1:
+        if get_int_env_var("SGL_USE_TP_OVERLAP", 0) == 1 and forward_batch is not None and forward_batch.forward_mode == 1:
             if self.gemm_ar_attn_op:
                 output = self.gemm_ar_attn_op.forward(input_, self.weight, self.bias)
             else:
