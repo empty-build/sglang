@@ -60,7 +60,8 @@ RUN ln -sf /usr/lib/x86_64-linux-gnu/libmlx5.so.1 /usr/lib/x86_64-linux-gnu/libm
 WORKDIR /sgl-workspace
 # 使用bytedance-iaas仓库直接安装
 ARG SGLANG_BRANCH
-RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5lib six \
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5lib six torch==2.7.1 \
+ && python3 -m pip install flashinfer_python==0.2.7.post1 --no-build-isolation \
  && git clone --depth=1 https://github.com/bytedance-iaas/sglang.git -b ${SGLANG_BRANCH} \
  && cd sglang \
  && case "$CUDA_VERSION" in \
