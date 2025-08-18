@@ -67,8 +67,8 @@ WORKDIR /sgl-workspace/Triton-distributed
 RUN git submodule deinit --all -f
 RUN rm -rf 3rdparty/triton
 RUN git submodule update --init --recursive
-RUN pip3 install -v cuda-python ninja cmake wheel pybind11 numpy chardet pytest nvidia-ml-py>=12 -i https://mirrors.ivolces.com/pypi/simple/
-RUN pip3 install -v 'nvidia-nvshmem-cu12' 'cuda.core==0.2.0' "Cython>=0.29.24" -i https://mirrors.ivolces.com/pypi/simple/
+RUN pip3 install -v cuda-python ninja cmake wheel pybind11 numpy chardet pytest nvidia-ml-py>=12
+RUN pip3 install -v 'nvidia-nvshmem-cu12' 'cuda.core==0.2.0' "Cython>=0.29.24"
 RUN CPPFLAGS="-I/usr/local/cuda/include" pip3 install https://developer.download.nvidia.com/compute/nvshmem/redist/nvshmem_python/source/nvshmem_python-source-0.1.0.36132199_cuda12-archive.tar.xz -v
 
 RUN pip3 install black "clang-format==19.1.2" pre-commit ruff yapf==0.43
