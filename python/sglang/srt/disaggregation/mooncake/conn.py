@@ -34,7 +34,6 @@ from sglang.srt.disaggregation.common.utils import (
 )
 from sglang.srt.disaggregation.mooncake.transfer_engine import MooncakeTransferEngine
 from sglang.srt.disaggregation.utils import DisaggregationMode
-from sglang.srt.distributed import get_pp_group
 from sglang.srt.layers.dp_attention import (
     get_attention_dp_rank,
     get_attention_dp_size,
@@ -181,7 +180,6 @@ class MooncakeKVManager(BaseKVManager):
             self.session_failures = defaultdict(int)
             self.failed_sessions = set()
             self.session_lock = threading.Lock()
-            self.pp_group = get_pp_group()
             # Determine the number of threads to use for kv sender
             cpu_count = os.cpu_count()
             transfer_thread_pool_size = get_int_env_var(
@@ -315,11 +313,11 @@ class MooncakeKVManager(BaseKVManager):
         layers_params = None
 
         # pp is not supported on the decode side yet
-        start_layer = self.kv_args.prefill_start_layer
-        end_layer = start_layer + len(self.kv_args.kv_data_ptrs)
         if self.is_mla_backend:
             src_kv_ptrs = self.kv_args.kv_data_ptrs
             layers_per_pp_stage = len(src_kv_ptrs)
+            start_layer = self.pp_rank * layers_per_pp_stage
+            end_layer = start_layer + layers_per_pp_stage
             dst_kv_ptrs = dst_kv_ptrs[start_layer:end_layer]
             kv_item_len = self.kv_args.kv_item_lens[0]
             layers_params = [
@@ -332,15 +330,17 @@ class MooncakeKVManager(BaseKVManager):
             ]
         else:
             num_kv_layers = len(self.kv_args.kv_data_ptrs) // 2
-            dst_num_total_layers = num_kv_layers * self.pp_size
             src_k_ptrs = self.kv_args.kv_data_ptrs[:num_kv_layers]
             src_v_ptrs = self.kv_args.kv_data_ptrs[num_kv_layers:]
             layers_per_pp_stage = len(src_k_ptrs)
+            start_layer = self.pp_rank * layers_per_pp_stage
+            end_layer = start_layer + layers_per_pp_stage
             dst_k_ptrs = dst_kv_ptrs[start_layer:end_layer]
             dst_v_ptrs = dst_kv_ptrs[
-                dst_num_total_layers + start_layer : dst_num_total_layers + end_layer
+                num_kv_layers + start_layer : num_kv_layers + end_layer
             ]
             kv_item_len = self.kv_args.kv_item_lens[0]
+
             layers_params = [
                 (
                     src_k_ptrs[layer_id],
@@ -452,7 +452,6 @@ class MooncakeKVManager(BaseKVManager):
 
         # pp is not supported on the decode side yet
         num_kv_layers = len(self.kv_args.kv_data_ptrs) // 2
-        dst_num_total_layers = num_kv_layers * self.pp_size
         src_k_ptrs = self.kv_args.kv_data_ptrs[:num_kv_layers]
         src_v_ptrs = self.kv_args.kv_data_ptrs[num_kv_layers:]
         layers_per_pp_stage = len(src_k_ptrs)
@@ -696,14 +695,13 @@ class MooncakeKVManager(BaseKVManager):
                             break
 
                         if kv_chunk.is_last:
-                            if self.pp_group.is_last_rank:
-                                # Only the last chunk we need to send the aux data
-                                ret = self.send_aux(
-                                    req.mooncake_session_id,
-                                    kv_chunk.prefill_aux_index,
-                                    target_rank_registration_info.dst_aux_ptrs,
-                                    req.dst_aux_index,
-                                )
+                            # Only the last chunk we need to send the aux data
+                            ret = self.send_aux(
+                                req.mooncake_session_id,
+                                kv_chunk.prefill_aux_index,
+                                target_rank_registration_info.dst_aux_ptrs,
+                                req.dst_aux_index,
+                            )
                             polls.append(True if ret == 0 else False)
                             dst_ranks_infos.append(
                                 (req.endpoint, req.dst_port, req.room)
@@ -800,7 +798,10 @@ class MooncakeKVManager(BaseKVManager):
                         arrived_response_num = len(
                             self.prefill_response_tracker[bootstrap_room]
                         )
-                        if arrived_response_num == expected_response_num:
+                        if (
+                            self.is_mla_backend
+                            or arrived_response_num == expected_response_num
+                        ):
                             self.update_status(bootstrap_room, KVPoll.Success)
                 elif status == KVPoll.Failed:
                     self.record_failure(
@@ -1182,9 +1183,7 @@ class MooncakeKVReceiver(BaseKVReceiver):
                 self.kv_mgr.kv_args.engine_rank % self.kv_mgr.attn_tp_size
             )
             self.required_dst_info_num = 1
-            self.required_prefill_response_num = 1 * (
-                self.prefill_pp_size // self.kv_mgr.pp_size
-            )
+            self.required_prefill_response_num = 1
             self.target_tp_ranks = [self.target_tp_rank]
         elif self.kv_mgr.attn_tp_size > self.prefill_attn_tp_size:
             if not self.kv_mgr.is_mla_backend:
@@ -1197,9 +1196,7 @@ class MooncakeKVReceiver(BaseKVReceiver):
             self.required_dst_info_num = (
                 self.kv_mgr.attn_tp_size // self.prefill_attn_tp_size
             )
-            self.required_prefill_response_num = 1 * (
-                self.prefill_pp_size // self.kv_mgr.pp_size
-            )
+            self.required_prefill_response_num = 1
             self.target_tp_ranks = [self.target_tp_rank]
         else:
             if not self.kv_mgr.is_mla_backend:
@@ -1222,14 +1219,9 @@ class MooncakeKVReceiver(BaseKVReceiver):
             # or the KVPoll will never be set correctly
             self.target_tp_rank = self.target_tp_ranks[0]
             self.required_dst_info_num = 1
-            if self.kv_mgr.is_mla_backend:
-                self.required_prefill_response_num = (
-                    self.prefill_pp_size // self.kv_mgr.pp_size
-                )
-            else:
-                self.required_prefill_response_num = (
-                    self.prefill_attn_tp_size // self.kv_mgr.attn_tp_size
-                ) * (self.prefill_pp_size // self.kv_mgr.pp_size)
+            self.required_prefill_response_num = (
+                self.prefill_attn_tp_size // self.kv_mgr.attn_tp_size
+            )
 
         if self.data_parallel_rank is not None:
             logger.debug(f"Targeting DP rank: {self.data_parallel_rank}")
