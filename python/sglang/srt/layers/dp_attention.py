@@ -377,3 +377,10 @@ def attn_tp_all_gather_into_tensor(output: torch.Tensor, input: torch.Tensor):
 
 def attn_tp_all_gather(output_list: List[torch.Tensor], input: torch.Tensor):
     return get_attention_tp_group().all_gather(input, output_tensor_list=output_list)
+
+
+_ENABLE_DP_ATTENTION_FLAG: bool = False
+
+
+def is_dp_attention_enabled() -> bool:
+    return _ENABLE_DP_ATTENTION_FLAG

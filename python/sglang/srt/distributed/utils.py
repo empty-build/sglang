@@ -80,16 +80,20 @@ def get_pp_indices(
             raise ValueError(f"{len(partitions)=} does not match {pp_size=}.")
         if sum(partitions) != num_hidden_layers:
             raise ValueError(f"{sum(partitions)=} does not match {num_hidden_layers=}.")
-        start_layer = sum(partitions[:pp_rank])
-        end_layer = start_layer + partitions[pp_rank]
     else:
         layers_per_partition = num_hidden_layers // pp_size
-        start_layer = pp_rank * layers_per_partition
-        end_layer = start_layer + layers_per_partition
-
-        if pp_rank == pp_size - 1:
-            end_layer = num_hidden_layers
-
+        partitions = [layers_per_partition for _ in range(pp_size)]
+        if remaining_layers := num_hidden_layers % pp_size:
+            for i in range(2, remaining_layers + 2):
+                partitions[-i] += 1
+            logger.info(
+                "Hidden layers were unevenly partitioned: [%s]. "
+                "This can be manually overridden using the "
+                "SGLANG_PP_LAYER_PARTITION environment variable",
+                ",".join(str(p) for p in partitions),
+            )
+    start_layer = sum(partitions[:pp_rank])
+    end_layer = start_layer + partitions[pp_rank]
     return (start_layer, end_layer)
 
 
