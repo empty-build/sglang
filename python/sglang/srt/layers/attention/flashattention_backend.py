@@ -303,7 +303,7 @@ class FlashAttentionBackend(AttentionBackend):
     ):
         super().__init__()
 
-        print(f"[horenc] class FlashAttentionBackend:__init()")
+        print(f"[horenc] class FlashAttentionBackend:__init__() XXXXXX")
         assert not (
             model_runner.sliding_window_size is not None
             and model_runner.model_config.is_encoder_decoder

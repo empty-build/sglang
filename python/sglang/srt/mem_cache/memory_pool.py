@@ -45,6 +45,12 @@ GB = 1024 * 1024 * 1024
 _is_cuda = is_cuda()
 
 from sglang.jack_utils import hcdprint
+from sglang.srt.utils import is_flashinfer_available
+if is_flashinfer_available():
+    print(f"[horenc] LOAD FLASHINFER FUNCTION")
+    from flashinfer import fp4_quantize
+    # from flashinfer import jack_test
+    from flashinfer import fp4_batched_quantize
 # from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
 USE_KV_MXFP4 = 1
 # 1.
@@ -526,7 +532,6 @@ class MHATokenToKVPool(KVCache):
                 if self.enable_custom_mem_pool
                 else nullcontext()
             ):
-                hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): TODO WIP")
                 hcdprint(f"[horenc] class MHATokenToKVPool:_create_buffers(): self.store_dtype = {self.store_dtype}")
                 if self.store_dtype == torch.float4_e2m1fn_x2:
                     print(f"[horenc] class MHATokenToKVPool:_create_buffers(): Jack hack - "
@@ -1126,6 +1131,7 @@ class AscendTokenToKVPool(MHATokenToKVPool):
             # The padded slot 0 is used for writing dummy outputs from padded tokens.
             # Continuous memory improves the efficiency of Ascend`s transmission backend,
             # while other backends remain unchanged.
+            print(f"[horenc] AscendTokenToKVPool CREATE kv$ buffer XXXXXXX")
             self.kv_buffer = torch.zeros(
                 (
                     2,
@@ -1318,15 +1324,30 @@ class MLATokenToKVPool(KVCache):
                 if self.custom_mem_pool
                 else nullcontext()
             ):
-                # The padded slot 0 is used for writing dummy outputs from padded tokens.
-                self.kv_buffer = [
-                    torch.zeros(
-                        (size + page_size, 1, kv_lora_rank + qk_rope_head_dim),
-                        dtype=self.store_dtype,
-                        device=device,
-                    )
-                    for _ in range(layer_num)
-                ]
+                # TODO
+                print(f"[horenc] TODO TODO MLATokenToKVPool CREATE kv$ buffer 1")
+                print(f"[horenc] TODO TODO MLATokenToKVPool CREATE kv$ buffer 1")
+                print(f"[horenc] TODO TODO MLATokenToKVPool CREATE kv$ buffer 1")
+                if self.dtype != torch.float4_e2m1fn_x2:
+                    # The padded slot 0 is used for writing dummy outputs from padded tokens.
+                    self.kv_buffer = [
+                        torch.zeros(
+                            (size + page_size, 1, kv_lora_rank + qk_rope_head_dim),
+                            dtype=self.store_dtype,
+                            device=device,
+                        )
+                        for _ in range(layer_num)
+                    ]
+                else:
+                    print(f"[horenc] TODO TODO USE uint8 // 2")
+                    self.kv_buffer = [
+                        torch.zeros(
+                            (size + page_size, 1, kv_lora_rank + qk_rope_head_dim),
+                            dtype=self.store_dtype,
+                            device=device,
+                        )
+                        for _ in range(layer_num)
+                    ]
 
         self.data_ptrs = torch.tensor(
             [x.data_ptr() for x in self.kv_buffer],
@@ -1365,11 +1386,24 @@ class MLATokenToKVPool(KVCache):
         if self.layer_transfer_counter is not None:
             self.layer_transfer_counter.wait_until(layer_id - self.start_layer)
 
+        # Get kv together
+        print(f"[horenc]({layer_id}) class MLATokenToKVPool:get_key_buffer(): Jack - GET key"
+                f" {self.store_dtype} != {self.dtype} TODO")
+        # 16: bfloat16 != bfloat16
+        # 8: torch.uint8 != torch.float8_e4m3fn
         if self.store_dtype != self.dtype:
-            return self.kv_buffer[layer_id - self.start_layer].view(self.dtype)
+            if self.dtype != torch.float4_e2m1fn_x2:
+                return self.kv_buffer[layer_id - self.start_layer].view(self.dtype)
+            else:
+                print(f"[horenc]({layer_id}) TODO GET KEY but kv"
+                f"")
+                return self.kv_buffer[layer_id - self.start_layer].view(self.dtype)
         return self.kv_buffer[layer_id - self.start_layer]
 
     def get_value_buffer(self, layer_id: int):
+        # XXXXX: Never come
+        print(f"[horenc]({layer_id}) class MLATokenToKVPool:get_key_buffer(): Jack - GET val XXXXX"
+                f" {self.store_dtype} != {self.dtype} XXXXX")
         if self.layer_transfer_counter is not None:
             self.layer_transfer_counter.wait_until(layer_id - self.start_layer)
 
@@ -1391,7 +1425,18 @@ class MLATokenToKVPool(KVCache):
     ):
         layer_id = layer.layer_id
         if cache_k.dtype != self.dtype:
-            cache_k = cache_k.to(self.dtype)
+            if self.dtype != torch.float4_e2m1fn_x2:
+                cache_k = cache_k.to(self.dtype)
+            else:
+                print(f"[horenc] TODO SET1"
+                f"")
+                cache_k = cache_k.to(self.dtype)
+
+        print(f"[horenc]({layer_id}) class MLATokenToKVPool:set_kv_buffer(): Jack - SET1 "
+                f"{cache_k.dtype} != {self.dtype}, "
+                f"{self.store_dtype} != {self.dtype} TODO")
+        # 16: bfloat16 != bfloat16
+        # fp8: torch.uint8 != torch.float8_e4m3fn
         if self.store_dtype != self.dtype:
             self.kv_buffer[layer_id - self.start_layer][loc] = cache_k.view(
                 self.store_dtype
@@ -1414,9 +1459,24 @@ class MLATokenToKVPool(KVCache):
             cache_k_nope = cache_k_nope.view(self.store_dtype)
             cache_k_rope = cache_k_rope.view(self.store_dtype)
 
-        set_mla_kv_buffer_triton(
-            self.kv_buffer[layer_id], loc, cache_k_nope, cache_k_rope
-        )
+        print(f"[horenc]({layer_id}) class MLATokenToKVPool:set_mla_kv_buffer(): Jack - SET2 "
+                f"-> set_mla_kv_buffer_triton() (USE TRITON writh kv$)")
+        print(f"[horenc]({layer_id}) \t "
+                f"{cache_k_nope.dtype} != {self.dtype}, "
+                f"{self.store_dtype} != {self.dtype} TODO")
+        # 16: bfloat16 != bfloat16
+        # fp8: torch.uint8 != torch.float8_e4m3fn
+        if self.dtype != torch.float4_e2m1fn_x2:
+            set_mla_kv_buffer_triton(
+                self.kv_buffer[layer_id], loc, cache_k_nope, cache_k_rope
+            )
+        else:
+            # TODO
+            print(f"[horenc] TODO SET2"
+                f"")
+            set_mla_kv_buffer_triton(
+                self.kv_buffer[layer_id], loc, cache_k_nope, cache_k_rope
+            )
 
     def get_cpu_copy(self, indices):
         torch.cuda.synchronize()

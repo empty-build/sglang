@@ -1037,6 +1037,7 @@ class FlashInferFP4MoE(FusedMoE):
         Returns (packed_fp4_uint8, scale_float8_e4m3fn_runtime, global_scale_float32)
         """
 
+        print(f"[horenc] class FlashInferFP4MoE:_quantize_hidden_states_fp4:fp4_quantize() XXXXXXXXXX")
         # flashinfer.fp4_quantize returns (packed_uint8, scale_fp8)
         # Only the block scales are computed at runtime
         hs_fp4_bytes, hs_sf_bytes = fp4_quantize(

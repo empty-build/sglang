@@ -79,7 +79,7 @@ class FlashInferAttnBackend(AttentionBackend):
     ):
         super().__init__()
 
-        print(f"[horenc] class FlashInferAttnBackend:__init__():")
+        print(f"[horenc] class FlashInferAttnBackend:__init__(): XXXXXX")
         # Parse constants
         self.decode_use_tensor_cores = should_use_tensor_core(
             kv_cache_dtype=model_runner.kv_cache_dtype,
@@ -496,10 +496,10 @@ class FlashInferAttnBackend(AttentionBackend):
                 save_kv_cache = False
                 causal = False
 
-            print(f"[horenc] Flashinfer:forward_extend(): self.forward_metadata.extend_no_prefix "
+            print(f"[horenc] FlashInferAttnBackend:forward_extend(): self.forward_metadata.extend_no_prefix "
                     f"= {self.forward_metadata.extend_no_prefix} "
                 )
-            print(f"[horenc] Flashinfer:forward_extend(): "
+            print(f"[horenc] FlashInferAttnBackend:forward_extend(): "
                     f"self.prefill_wrapper_ragged = {self.prefill_wrapper_ragged} "
                 )
             if self.forward_metadata.extend_no_prefix: # horenc llama3+kv8 OOO
@@ -584,7 +584,7 @@ class FlashInferAttnBackend(AttentionBackend):
                     layer, cache_loc, k, v, layer.k_scale, layer.v_scale
                 )
 
-        print(f"[horenc] Flashinfer:forward_decode(): decode_wrapper "
+        print(f"[horenc] FlashInferAttnBackend:forward_decode(): decode_wrapper "
                  f"= {decode_wrapper} "
             )
 

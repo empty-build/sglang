@@ -60,6 +60,7 @@ class TRTLLMMLABackend(FlashInferMLAAttnBackend):
     ):
         super().__init__(model_runner, skip_prefill, kv_indptr_buf, q_indptr_decode_buf)
 
+        print(f"[horenc] class TRTLLMMLABackend:__init__(): XXXXXX")
         config = model_runner.model_config
 
         # Model parameters

@@ -1225,7 +1225,7 @@ class ModelRunner:
                 end_layer=self.end_layer,
             )
         elif self.use_mla_backend:
-            hcdprint(f"[horenc] self.token_to_kv_pool = MLATokenToKVPool XXX")
+            hcdprint(f"[horenc] self.token_to_kv_pool = MLATokenToKVPool (Only MLA)")
             self.token_to_kv_pool = MLATokenToKVPool(
                 self.max_total_num_tokens,
                 page_size=self.page_size,
@@ -1270,7 +1270,7 @@ class ModelRunner:
                     device=self.device,
                 )
             else:
-                hcdprint(f"[horenc] self.token_to_kv_pool = MHATokenToKVPool OOO")
+                hcdprint(f"[horenc] self.token_to_kv_pool = MHATokenToKVPool (Only MHA)")
                 self.token_to_kv_pool = MHATokenToKVPool(
                     self.max_total_num_tokens,
                     page_size=self.page_size,

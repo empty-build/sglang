@@ -59,6 +59,8 @@ class FlashMLABackend(FlashInferMLAAttnBackend):
             model_runner, skip_prefill, kv_indptr_buf, kv_last_page_len_buf
         )
 
+        print(f"[horenc] class FlashMLABackend:__init__(): XXX")
+
         self.num_q_heads = (
             model_runner.model_config.num_attention_heads // get_attention_tp_size()
         )
