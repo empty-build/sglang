@@ -274,20 +274,19 @@ def torch_column_count_cumsum(x: torch.Tensor, num_columns: int) -> torch.Tensor
 
 @triton.autotune(
     configs=[
-        # Basic configurations
-        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4),
-        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4),
-        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=4),
-        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=8),
-        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 128}, num_warps=8),
-        
-        # More configurations with different num_stages
-        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=3),
-        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=3),
-        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=4),
-        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 64}, num_warps=8, num_stages=4),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 32}, num_warps=2, num_stages=2),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 32}, num_warps=4, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 32}, num_warps=8, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 32}, num_warps=2, num_stages=2),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 32}, num_warps=8, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 32}, num_warps=8, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 32}, num_warps=2, num_stages=2),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 32}, num_warps=8, num_stages=3),
+        triton.Config({'BLOCK_SIZE_Q': 128, 'BLOCK_SIZE_K': 128, 'BLOCK_SIZE_D': 32}, num_warps=8, num_stages=2),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 64}, num_warps=4, num_stages=2),
+        triton.Config({'BLOCK_SIZE_Q': 64, 'BLOCK_SIZE_K': 64, 'BLOCK_SIZE_D': 128}, num_warps=8, num_stages=2),
     ],
-    key=['Q_LEN', 'K_LEN', 'QK_HEAD_DIM', 'V_HEAD_DIM'],
+    key=['BATCH_SIZE', 'NUM_HEADS', 'HEAD_DIM', 'Q_LEN', 'K_LEN'],
 )
 @triton.jit
 def block_wise_prefill_attention_kernel(
