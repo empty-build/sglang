@@ -277,7 +277,6 @@ def torch_column_count_cumsum(x: torch.Tensor, num_columns: int) -> torch.Tensor
         triton.Config({}, num_warps=2, num_stages=2),
         triton.Config({}, num_warps=4, num_stages=3),
         triton.Config({}, num_warps=8, num_stages=3),
-        triton.Config({}, num_warps=2, num_stages=2),
         triton.Config({}, num_warps=8, num_stages=2),
         triton.Config({}, num_warps=4, num_stages=2),
     ],
