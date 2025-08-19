@@ -290,7 +290,7 @@ class EICCacheController(HiCacheController):
             operation.content_hash
         )
         operation.data, mask = self.mem_pool_host.get_page_data(operation.content_hash)
-        if operation.data is None:
+        if operation.data is None or not all(mask):
             logger.error(f"Failed to load from host memory {operation.node_ids}")
             for node_id in operation.node_ids:
                 if node_id != 0:
