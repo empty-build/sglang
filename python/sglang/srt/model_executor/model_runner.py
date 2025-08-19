@@ -1428,7 +1428,7 @@ class ModelRunner:
             persistent=True,
             copy_to_local=False,
             use_ll_kernel=False,
-            NUM_COMM_SMS=2,
+            NUM_COMM_SMS=14,
         )
         self.gemm_ar_mlp_op = GemmARLayer(
             tp_group=_TP_OVERLAP_GROUP,
@@ -1441,7 +1441,7 @@ class ModelRunner:
             persistent=True,
             copy_to_local=False,
             use_ll_kernel=False,
-            NUM_COMM_SMS=2,
+            NUM_COMM_SMS=14,
         )
 
         for each in self.model.model.layers:
