@@ -712,8 +712,14 @@ class EICBaseTokenToKVPoolHost:
         """
         for multi prompt detect prefix key
         """
+        batch_size = TensorPoolSize // 2
         keys = self._encode_key_shared(content_hashes)
-        return self.eic_client.exists_batch(keys)
+
+        exist_result = []
+        for i in range(0, len(keys), batch_size):
+            batch_ret = self.eic_client.exists_batch(keys[i: i + batch_size])
+            exist_result.extend(batch_ret)
+        return exist_result
 
     def get_page_data(self, content_hashs):
         logger.debug(f"get_page_data content_hashs {content_hashs}")
