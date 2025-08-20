@@ -2,8 +2,13 @@
 
 import torch
 import time
-from sglang.srt.layers.quantization.nvfp4_tensor import NVFP4QuantizeUtil
+# from sglang.srt.layers.quantization.nvfp4_tensor import NVFP4QuantizeUtil
 import numpy as np
+
+# from flashinfer import fp4_quantize
+from flashinfer import nvfp4_batched_quantize
+# batched_dequantize
+from sglang.srt.layers.quantization.nvfp4_tensor import NVFP4Dequantizer
 
 def calculate_accuracy_metrics(original, reconstructed):
     """Calculate accuracy metrics between original and reconstructed tensors."""
@@ -64,20 +69,25 @@ def benchmark_quantization_performance():
     torch.cuda.synchronize()
     start_time = time.time()
     for _ in range(num_runs):
-        tensor_fp4, scale_factors = NVFP4QuantizeUtil.batched_quantize(
+        # tensor_fp4, scale_factors = NVFP4QuantizeUtil.batched_quantize(
+        #     tensor_bf16, global_sf, sf_vec_size
+        # )
+        tensor_fp4, scale_factors = nvfp4_batched_quantize(
             tensor_bf16, global_sf, sf_vec_size
         )
     torch.cuda.synchronize()
     fp4_quant_time = (time.time() - start_time) / num_runs
 
     # torch.compile() warm up
-    _ = NVFP4QuantizeUtil.batched_dequantize(
+    #_ = NVFP4QuantizeUtil.batched_dequantize(
+    _ = NVFP4Dequantizer.batched_dequantize(
         tensor_fp4, scale_factors, global_sf, torch.bfloat16
     )
     torch.cuda.synchronize()
     start_time = time.time()
     for _ in range(num_runs):
-        tensor_fp4_dequant = NVFP4QuantizeUtil.batched_dequantize(
+        # tensor_fp4_dequant = NVFP4QuantizeUtil.batched_dequantize(
+        tensor_fp4_dequant = NVFP4Dequantizer.batched_dequantize(
             tensor_fp4, scale_factors, global_sf, torch.bfloat16
         )
     torch.cuda.synchronize()

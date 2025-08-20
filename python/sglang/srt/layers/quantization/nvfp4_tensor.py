@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import torch
-import tensorrt_llm
+# import tensorrt_llm
 
 @torch.compile
 def convert_swizzled_to_linear(a_sf_swizzled: torch.Tensor, m, k, block_size):
@@ -56,12 +56,12 @@ def break_fp4_bytes(a, dtype):
     return result
 
 class NVFP4Dequantizer:
-    @classmethod
-    def batched_quantize(cls, tensor_bf16, global_sf, sf_vec_size):
-        tensor_fp4, scale_factors = torch.ops.trtllm.fp4_batched_quantize(
-            tensor_bf16, global_sf, sf_vec_size, False
-        )
-        return tensor_fp4, scale_factors
+    # @classmethod
+    # def batched_quantize(cls, tensor_bf16, global_sf, sf_vec_size):
+    #     tensor_fp4, scale_factors = torch.ops.trtllm.fp4_batched_quantize(
+    #         tensor_bf16, global_sf, sf_vec_size, False
+    #     )
+    #     return tensor_fp4, scale_factors
 
     @classmethod
     @torch.compile

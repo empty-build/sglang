@@ -50,7 +50,8 @@ if is_flashinfer_available():
     print(f"[horenc] LOAD FLASHINFER FUNCTION")
     from flashinfer import fp4_quantize
     # from flashinfer import jack_test
-    from flashinfer import fp4_batched_quantize
+    # from flashinfer import fp4_batched_quantize
+    from flashinfer import nvfp4_batched_quantize
 # from sglang.srt.layers.quantization.mxfp4_tensor import MXFP4QuantizeUtil
 USE_KV_MXFP4 = 1
 # 1.
