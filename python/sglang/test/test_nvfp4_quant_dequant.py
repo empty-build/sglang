@@ -5,7 +5,6 @@ import time
 # from sglang.srt.layers.quantization.nvfp4_tensor import NVFP4QuantizeUtil
 import numpy as np
 
-# from flashinfer import fp4_quantize
 from flashinfer import nvfp4_batched_quantize
 # batched_dequantize
 from sglang.srt.layers.quantization.nvfp4_tensor import NVFP4Dequantizer
@@ -41,6 +40,7 @@ def benchmark_quantization_performance():
     torch.cuda.synchronize()
 
     print("\n=== FP8 Quant/Dequant ===")
+    _ = tensor_bf16.to(torch.float8_e4m3fn)
     torch.cuda.synchronize()
     start_time = time.time()
     for _ in range(num_runs):
@@ -66,12 +66,13 @@ def benchmark_quantization_performance():
     print("\n=== NVFP4 Quant/Dequant ===")
     global_sf = (448 * 6) / tensor_bf16.abs().max().float()
     sf_vec_size = 16
+    _, _ = nvfp4_batched_quantize(
+            tensor_bf16, global_sf, sf_vec_size
+    )
     torch.cuda.synchronize()
     start_time = time.time()
     for _ in range(num_runs):
         # tensor_fp4, scale_factors = NVFP4QuantizeUtil.batched_quantize(
-        #     tensor_bf16, global_sf, sf_vec_size
-        # )
         tensor_fp4, scale_factors = nvfp4_batched_quantize(
             tensor_bf16, global_sf, sf_vec_size
         )
