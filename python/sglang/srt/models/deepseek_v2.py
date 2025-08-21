@@ -511,7 +511,6 @@ class DeepseekV2MoE(nn.Module):
         else:
             shared_output = None
             topk_output = self.topk.empty_topk_output(hidden_states.device)
-
         final_hidden_states = self.experts(hidden_states, topk_output)
         if not _is_cuda and not _use_aiter:
             # fused in biased_grouped_topk so we can skip here

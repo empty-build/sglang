@@ -431,6 +431,8 @@ class EICKVClient:
             for item in items:
                 self.kv_cache_read_mem_pool.free_to_mempool(item.data_ptr())
 
+
+        fail_count = 0
         if status_code != eic.StatusCode.SUCCESS:
             if status_code == eic.StatusCode.PARTIAL_FAILED:
                 for i, err_code in enumerate(get_outcome.status_codes):
@@ -438,15 +440,22 @@ class EICKVClient:
                     if success:
                         logger.debug(f"eic get data {keys[i]} success")
                     else:
-                        logger.error(
+                        logger.debug(
                             f"eic get data {keys[i]} failed, err_code {err_code}"
                         )
                         success_mask[i] = False
+                        fail_count += 1
             else:
                 logger.error(
                     f"eic mget {len(keys)} keys failed, status_code {status_code}"
                 )
                 return None, []
+
+
+        if fail_count != 0:
+            logger.warning(
+                f"eic mget {len(keys)} keys failed, fail count {fail_count}, success count {count - fail_count}"
+            )
 
         get_data_end_time = time.perf_counter()
         get_data_execution_time = (get_data_end_time - get_data_start_time) * 1e6
@@ -719,7 +728,8 @@ class EICBaseTokenToKVPoolHost:
             key = keys[i : i + bs]
             objs, success_mask = self.eic_client.batch_get(key)
             if objs is None:
-                logger.error(f"get_page_data keys {key} failed, eic_client return none")
+                logger.debug(f"get_page_data keys {key} failed, eic_client return none")
+
                 return None, []
 
             # todo(zhongwei.ren): preallocate recv tensors
