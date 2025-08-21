@@ -131,6 +131,7 @@ from sglang.srt.managers.session_controller import Session
 from sglang.srt.managers.tp_worker import TpModelWorker
 from sglang.srt.managers.tp_worker_overlap_thread import TpModelWorkerClient
 from sglang.srt.managers.utils import (
+    DPBalanceMeta,
     get_logprob_dict_from_result,
     get_logprob_from_pp_outputs,
     validate_input_length,
