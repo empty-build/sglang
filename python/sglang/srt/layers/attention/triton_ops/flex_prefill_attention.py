@@ -1009,7 +1009,7 @@ def flex_prefill_attention(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    gamma: float = 0.9,
+    gamma: float = 0.5,
     tau: float = 0.1,
     min_budget: int = 1024,
     max_budget: int = 2147483647,
