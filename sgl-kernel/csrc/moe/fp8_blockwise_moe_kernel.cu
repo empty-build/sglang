@@ -28,8 +28,11 @@
 #include "utils.h"
 
 using namespace cute;
+using namespace at;
 
 using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int, int, int>>;
+
+auto a = at::cuda::getCurrentDeviceProperties();
 
 template <typename OutType, typename ScheduleConfig, typename LayoutD>
 void launch_sm90_fp8_blockwise_scaled_group_mm(
