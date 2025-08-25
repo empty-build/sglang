@@ -251,7 +251,7 @@ def bench_sglang_triton(
 
 
 benchmark_kernels = {
-    # "deepgemm": bench_deepgemm,
+    "deepgemm": bench_deepgemm,
     "cutlass": bench_cutlass,
     # "triton": bench_sglang_triton,
 }
