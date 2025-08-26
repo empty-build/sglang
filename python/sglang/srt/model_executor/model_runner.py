@@ -959,6 +959,8 @@ class ModelRunner:
         return result
 
     def profile_max_num_token(self, total_gpu_memory: int):
+        hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"")
         available_gpu_memory = get_available_gpu_memory(
             self.device,
             self.gpu_id,
@@ -981,6 +983,14 @@ class ModelRunner:
                 * num_layers
                 * torch._utils._element_size(self.kv_cache_dtype)
             )
+            hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"MLA self.model_config.kv_lora_rank = {self.model_config.kv_lora_rank}"
+                f"self.model_config.qk_rope_head_dim = {self.model_config.qk_rope_head_dim}")
+            hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"MLA cell_size = {cell_size}")
+            # cell_size *= 2
+            # hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+            #     f"MLA cell_size = {cell_size} horenc HACK HACK HACK HACK HACK")
         else:
             cell_size = (
                 self.model_config.get_num_kv_heads(get_attention_tp_size())
@@ -989,13 +999,24 @@ class ModelRunner:
                 * 2
                 * torch._utils._element_size(self.kv_cache_dtype)
             )
+            hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"!MLA cell_size = {cell_size}")
         rest_memory = available_gpu_memory - total_gpu_memory * (
             1 - self.mem_fraction_static
         )
+        hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"rest_memory = {rest_memory} G")
+        hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"mem_fraction_static ~= 1.0 => more memory for kv cache")
         max_num_token = int(rest_memory * (1 << 30) // cell_size)
+        max_num_token //= 200
+        hcdprint(f"[horenc] ModelRunner:profile_max_num_token(): "
+                f"MLA max_num_token = {max_num_token} horenc HACK HACK HACK HACK HACK This requires carfully calculation.")
         return max_num_token
 
     def set_num_token_hybrid(self):
+        hcdprint(f"[horenc] ModelRunner:set_num_token_hybrid(): "
+                f"only when self.is_hybrid = true")
         if (
             "Llama4ForConditionalGeneration"
             in self.model_config.hf_config.architectures
@@ -1111,7 +1132,17 @@ class ModelRunner:
                 f"Unsupported kv_cache_dtype: {self.server_args.kv_cache_dtype}."
             )
 
+        # hcdprint(f"[horenc] ModelRunner:init_memory_pool(): "
+        #         f"bf self.max_total_num_tokens = "
+        #         f"{self.max_total_num_tokens}")
         self.max_total_num_tokens = self.profile_max_num_token(total_gpu_memory)
+        hcdprint(f"[horenc] ModelRunner:init_memory_pool(): "
+                f"Set self.max_total_num_tokens = "
+                f"{self.max_total_num_tokens}")
+        logger.info(
+            f"Memory pool begin. "
+            f"avail mem={get_available_gpu_memory(self.device, self.gpu_id):.2f} GB"
+        )
 
         if max_num_reqs is None:
             max_num_reqs = min(
@@ -1316,7 +1347,7 @@ class ModelRunner:
                         kvcache=self.token_to_kv_pool,
                     )
                 else:
-                    hcdprint(f"[horenc] self.token_to_kv_pool_allocator = PagedTokenToKVPoolAllocator XXX")
+                    hcdprint(f"[horenc] self.token_to_kv_pool_allocator = PagedTokenToKVPoolAllocator OOO (Only gpt-oss)")
                     self.token_to_kv_pool_allocator = PagedTokenToKVPoolAllocator(
                         self.max_total_num_tokens,
                         page_size=self.page_size,
