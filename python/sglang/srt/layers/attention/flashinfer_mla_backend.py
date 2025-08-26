@@ -386,17 +386,19 @@ class FlashInferMLAAttnBackend(AttentionBackend):
         logits_soft_cap = layer.logit_cap
         prefill_wrapper_paged = self.forward_metadata.prefill_wrapper
 
-        print(f"[horenc] class FlashInferMLAAttnBackend:forward_extend(): PREFILL")
+        # print(f"
+        # "k = {k} save_kv_cache = {save_kv_cache} k_rope = {k_rope}")
         # Save kv cache
         if save_kv_cache and k is not None:
             assert v is not None
             if save_kv_cache:
                 if k_rope is not None:
+                    print(f"[horenc] class FlashInferMLAAttnBackend:forward_extend(): PREFILL set_mla_kv_buffer() = SET2")
                     forward_batch.token_to_kv_pool.set_mla_kv_buffer(
                         layer, cache_loc, k, k_rope
                     )
                 else:
-                    print(f"[horenc] class FlashInferMLAAttnBackend:forward_extend(): PREFILL set_kv_buffer()")
+                    print(f"[horenc] class FlashInferMLAAttnBackend:forward_extend(): PREFILL set_kv_buffer() = SET1")
                     forward_batch.token_to_kv_pool.set_kv_buffer(layer, cache_loc, k, v)
         if q_rope is not None:
             q = q.view(-1, layer.tp_q_head_num, layer.v_head_dim)
@@ -457,11 +459,12 @@ class FlashInferMLAAttnBackend(AttentionBackend):
         decode_wrapper = self.forward_metadata.decode_wrapper
         cache_loc = forward_batch.out_cache_loc
 
-        print(f"[horenc] class FlashInferMLAAttnBackend:forward_decode(): DECODE")
+        print(f"[horenc] class FlashInferMLAAttnBackend:forward_decode(): DECODE (gpt oss)")
         if k is not None:
             assert v is not None
             if save_kv_cache:
                 if k_rope is not None:
+                    print(f"[horenc] class FlashInferMLAAttnBackend:forward_decode(): DECODE set_mla_kv_buffer() = SET2")
                     forward_batch.token_to_kv_pool.set_mla_kv_buffer(
                         layer,
                         cache_loc,
@@ -469,7 +472,7 @@ class FlashInferMLAAttnBackend(AttentionBackend):
                         k_rope,
                     )
                 else:
-                    print(f"[horenc] class FlashInferMLAAttnBackend:forward_decode(): DECODE set_kv_buffer()")
+                    print(f"[horenc] class FlashInferMLAAttnBackend:forward_decode(): DECODE set_kv_buffer() = SET1")
                     forward_batch.token_to_kv_pool.set_kv_buffer(
                         layer,
                         cache_loc,
@@ -490,14 +493,15 @@ class FlashInferMLAAttnBackend(AttentionBackend):
 
         print(f"[horenc] class FlashInferMLAAttnBackend:forward_decode(): DECODE get_key_buffer()")
         # print(f"[horenc] self.dtype = {self.dtype}")
-        print(f"[horenc] forward_batch.token_to_kv_pool.dtype = {forward_batch.token_to_kv_pool.dtype}")
+        print(f"[horenc] GET forward_batch.token_to_kv_pool.dtype = {forward_batch.token_to_kv_pool.dtype}")
         if forward_batch.token_to_kv_pool.dtype != torch.float4_e2m1fn_x2:
             k_buffer = forward_batch.token_to_kv_pool.get_key_buffer(layer.layer_id).to(
                 q.dtype
             )
         else:
             #  TODO
-            print(f"[horenc] TODO dequant")
+            print(f"[horenc] TODO:MLA:Attn TODO dequant")
+            print(f"k type: = {type(k)}  k dtype: = {k.dtype}  k shape: = {k.shape}")  # check if the same shape as quant so that I can do dequant here in attn
             k_buffer = forward_batch.token_to_kv_pool.get_key_buffer(layer.layer_id).to(
                 q.dtype
             )

@@ -1,4 +1,4 @@
-DEBUG = 1  # 全域開關
+DEBUG = 1  # Global debugging knob
 
 def hcdprint(msg):
     if DEBUG:
